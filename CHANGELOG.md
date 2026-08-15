@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Continuous integration (2026-08-14)
+
+Every push and pull request against `main` or `dev` now builds the application
+and runs the unit tests on GitHub Actions, so a branch cannot be merged without
+a green build. The job is the status check that the branch protection rules
+require.
+
 ### Added — Angular workspace (2026-08-14)
 
 Scaffolded the books application as an Angular 22 workspace: standalone APIs
