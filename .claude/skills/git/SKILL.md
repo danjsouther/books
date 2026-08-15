@@ -100,18 +100,11 @@ hotfixing; don't work from memory of a summary.
 
 # Merges
 Which branch merges into which, and with what flags, is part of the branching
-strategy — see the reference above. The rules here are about the mechanics of
-the merge itself.
+strategy — see the reference above.
 
-- **When merging a PR via `gh pr merge`, always pass `-t`/`--subject`** with a
-  message in the same style as [Commits](#commits) above (sentence case,
-  outcome not mechanism, ending in a period) — never the default "Merge pull
-  request #N from owner/branch". Example:
-  `gh pr merge 12 --merge -t "Let a reader delete a book from the library screen."`
-  A release-sync PR (e.g. `main` → `dev` to fast-forward after a release) is the
-  one exception — its default title is already descriptive enough.
-- Resolve conflicts by understanding both sides, never by blanket `--ours` /
-  `--theirs`. Re-run the build and tests after any non-trivial resolution.
+Merge subjects are not prescribed; GitHub's default is fine. What does matter:
+resolve conflicts by understanding both sides, never by blanket `--ours` /
+`--theirs`, and re-run the build and tests after any non-trivial resolution.
 
 # Line endings
 Pin `eol=lf` project-wide in `.gitattributes` — a deliberate override of
