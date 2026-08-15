@@ -1,11 +1,35 @@
+import cookieParser from 'cookie-parser';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { createApiRouter } from '@books/api';
+import helmet from 'helmet';
+import { loadEnv } from '@books/config';
+import { createDb } from '@books/db';
+import { createApiRouter, createDiscordClient, type ApiDeps } from '@books/api';
 import { resolveWebDistDir, serveWebBundle } from './static';
 
 // esbuild inlines this at build time (see scripts/build-server.mjs). Under
-// `tsx watch` it is simply absent, which is what the fallback is for.
+// `tsx watch` it is simply absent, hence the fallback.
 const version = process.env['APP_VERSION'] ?? '0.0.0-dev';
-const port = Number(process.env['PORT'] ?? 4000);
+
+const env = loadEnv();
+const { db, pool } = createDb(env.DATABASE_URL);
+
+const deps: ApiDeps = {
+  version,
+  db,
+  discord: createDiscordClient(),
+  auth: {
+    jwtSecret: env.AUTH_JWT_SECRET,
+    accessTtlSeconds: env.AUTH_ACCESS_TTL_MIN * 60,
+    refreshTtlSeconds: env.AUTH_REFRESH_TTL_DAYS * 24 * 60 * 60,
+    discordClientId: env.DISCORD_CLIENT_ID,
+    discordClientSecret: env.DISCORD_CLIENT_SECRET,
+    discordRedirectUri: env.DISCORD_REDIRECT_URI,
+    discordAllowedGuildId: env.DISCORD_ALLOWED_GUILD_ID,
+    publicBaseUrl: env.PUBLIC_BASE_URL,
+    cookieSecure: env.COOKIE_SECURE,
+    ...(env.COOKIE_DOMAIN !== undefined && { cookieDomain: env.COOKIE_DOMAIN }),
+  },
+};
 
 const app = express();
 
@@ -14,11 +38,11 @@ const app = express();
 app.set('trust proxy', true);
 app.disable('x-powered-by');
 
+app.use(cookieParser());
 app.use(express.json());
+app.use(helmet());
 
-// Cookie parsing, helmet, logging, auth, CSRF, and rate limiting join this stack
-// in Phase 3, ahead of the API router.
-app.use('/api/v1', createApiRouter({ version }));
+app.use('/api/v1', createApiRouter(deps));
 
 serveWebBundle(app, resolveWebDistDir());
 
@@ -27,12 +51,14 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: { code: 'internal_error', message: 'Something went wrong.' } });
 });
 
-const server = app.listen(port, () => {
-  console.log(`books api listening on http://localhost:${port}`);
+const server = app.listen(env.PORT, () => {
+  console.log(`books api listening on http://localhost:${String(env.PORT)}`);
 });
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
-    server.close(() => process.exit(0));
+    server.close(() => {
+      void pool.end().finally(() => process.exit(0));
+    });
   });
 }

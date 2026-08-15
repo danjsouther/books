@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { createDb, type Db } from './client';
-import { isMain } from './is-main';
+import type { Db } from './client';
 import { createBook, deleteBook, updateBook, type BookInput } from './mutations/books';
 import { createSeries, deleteSeries, restoreSeries, type SeriesInput } from './mutations/series';
 import { activity } from './schema/activity';
@@ -509,17 +508,4 @@ export async function seed(db: Db): Promise<void> {
     },
     { kind: 'shelf.removed', actorId: ali.id, bookId: abaddon.id, payload: {} },
   ]);
-}
-
-if (isMain(import.meta.url)) {
-  const { db, pool } = createDb();
-  seed(db)
-    .then(() => {
-      console.log('Seeded.');
-    })
-    .catch((error: unknown) => {
-      console.error(error);
-      process.exitCode = 1;
-    })
-    .finally(() => pool.end());
 }

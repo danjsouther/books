@@ -5,4 +5,11 @@
  * not to the API.
  */
 
-export { createApiRouter, type ApiDeps } from './router';
+export {
+  createApiRouter,
+  createDiscordClient,
+  type ApiDeps,
+  type AuthConfig,
+  type AuthenticatedUser,
+  type DiscordClient,
+} from './router';

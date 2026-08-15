@@ -12,6 +12,10 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Secrets — copy .env.example instead
+.env
+.env.local
+
 # Agent skill install output and scratch files
 .claude/skills/**/.temp-execution-*.js
 

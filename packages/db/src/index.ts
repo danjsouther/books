@@ -16,6 +16,9 @@ export { seed } from './seed';
 export * as schema from './schema';
 
 export * from './queries/active';
+export * from './queries/oauth-states';
+export * from './queries/refresh-tokens';
+export * from './queries/users';
 export * from './mutations/authors';
 export * from './mutations/books';
 export * from './mutations/series';
