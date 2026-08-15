@@ -4,15 +4,22 @@ import type { Db } from '../client';
 import { activity } from '../schema/activity';
 import { books } from '../schema/books';
 import { bookRevisions } from '../schema/revisions';
+import { authorsOfBook, resolveAuthors, syncAuthorBooks, type AuthorRef } from './authors';
 import {
   createWithRevision,
   LOCK_NAMESPACE,
   updateWithRevision,
   type Actor,
   type RevisionSpec,
+  type Tx,
 } from './with-revision';
 
 export type Book = typeof books.$inferSelect;
+
+/** A book row plus the things that live outside it. This, not the bare row, is what a
+ *  revision snapshots — otherwise changing a book's authors would leave no trace in
+ *  its history. */
+export type BookSnapshot = Book & { authors: AuthorRef[] };
 
 /** Every field a member may set. Audit and versioning columns are not in here —
  *  they are the mutation helper's business, not the caller's. */
@@ -20,6 +27,7 @@ export interface BookInput {
   title: string;
   subtitle: string | null;
   description: string | null;
+  /** Names, in credited order. Resolved to `authors` rows on write. */
   authors: string[];
   seriesId: string | null;
   /** A decimal string: `1.5` is the universal novella convention, and `numeric`
@@ -29,46 +37,56 @@ export interface BookInput {
   releaseDate: string | null;
   releasePrecision: (typeof books.releasePrecision.enumValues)[number];
   pageCount: number | null;
-  isbn13: string | null;
+  asin: string | null;
   coverUrl: string | null;
   deletedAt: Date | null;
   deletedBy: string | null;
 }
 
-/** A row, or a row that has been through jsonb — a stored snapshot comes back
- *  with its timestamps as ISO strings rather than `Date`s. */
-export type BookLike = Omit<Book, 'deletedAt'> & { deletedAt: Date | string | null };
+/** A row, or a row that has been through jsonb — a stored snapshot comes back with its
+ *  timestamps as ISO strings rather than `Date`s, and carries its authors inline. */
+export type BookLike = Omit<Book, 'deletedAt'> & {
+  deletedAt: Date | string | null;
+  authors?: AuthorRef[];
+};
 
 export function bookInputFrom(row: BookLike): BookInput {
   return {
     title: row.title,
     subtitle: row.subtitle,
     description: row.description,
-    authors: [...row.authors],
+    authors: (row.authors ?? []).map((a) => a.name),
     seriesId: row.seriesId,
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,
     pageCount: row.pageCount,
-    isbn13: row.isbn13,
+    asin: row.asin,
     coverUrl: row.coverUrl,
     deletedAt: row.deletedAt === null ? null : new Date(row.deletedAt),
     deletedBy: row.deletedBy,
   };
 }
 
+/** The database columns of a book input — everything except the authors, which live in
+ *  their own table and are written by `afterWrite`. */
+function rowValues(input: BookInput) {
+  const { authors: _authors, ...columns } = input;
+  return columns;
+}
+
 const spec: RevisionSpec<Book, BookInput> = {
   label: 'book',
   lockNamespace: LOCK_NAMESPACE.books,
 
-  // A book with no ISBN has no natural key, so there is nothing to serialise
-  // against — two untitled-ISBN books can never collide.
-  naturalKey: (input) => input.isbn13,
+  // A book with no ASIN has no natural key, so there is nothing to serialise against —
+  // two books without one can never collide.
+  naturalKey: (input) => input.asin,
 
   async findLiveDuplicate(tx, input, excludeId) {
-    if (input.isbn13 === null || input.deletedAt !== null) return undefined;
+    if (input.asin === null || input.deletedAt !== null) return undefined;
     const where = and(
-      eq(books.isbn13, input.isbn13),
+      eq(books.asin, input.asin),
       isNull(books.deletedAt),
       excludeId === null ? undefined : ne(books.id, excludeId),
     );
@@ -76,17 +94,18 @@ const spec: RevisionSpec<Book, BookInput> = {
     return row?.id;
   },
 
-  duplicateMessage: (input) => `A book with ISBN ${input.isbn13 ?? ''} already exists.`,
+  duplicateMessage: (input) => `A book with ASIN ${input.asin ?? ''} already exists.`,
 
-  async load(tx, id) {
-    const [row] = await tx.select().from(books).where(eq(books.id, id)).limit(1);
+  async load(tx, id, forUpdate) {
+    const query = tx.select().from(books).where(eq(books.id, id)).limit(1);
+    const [row] = await (forUpdate ? query.for('update') : query);
     return row;
   },
 
   async insert(tx, input, actorId) {
     const [row] = await tx
       .insert(books)
-      .values({ ...input, version: 1, createdBy: actorId, updatedBy: actorId })
+      .values({ ...rowValues(input), version: 1, createdBy: actorId, updatedBy: actorId })
       .returning();
     if (row === undefined) throw new AppError('internal_error', 'Insert returned no row.');
     return row;
@@ -95,18 +114,26 @@ const spec: RevisionSpec<Book, BookInput> = {
   async update(tx, id, input, version, actorId) {
     const [row] = await tx
       .update(books)
-      .set({ ...input, version, updatedBy: actorId, updatedAt: new Date() })
+      .set({ ...rowValues(input), version, updatedBy: actorId, updatedAt: new Date() })
       .where(eq(books.id, id))
       .returning();
     if (row === undefined) throw new AppError('internal_error', 'Update returned no row.');
     return row;
   },
 
+  // Authors are settled before the snapshot is taken, so the revision records the
+  // author set as it stands after this change.
+  async afterWrite(tx, row, input) {
+    const resolved = await resolveAuthors(tx, input.authors);
+    await syncAuthorBooks(tx, row.id, resolved);
+  },
+
   async appendRevision(tx, row, changeKind, actorId, note) {
+    const snapshot: BookSnapshot = { ...row, authors: await authorsOfBook(tx, row.id) };
     await tx.insert(bookRevisions).values({
       bookId: row.id,
       version: row.version,
-      snapshot: row,
+      snapshot,
       changeKind,
       changedBy: actorId,
       note,
@@ -117,6 +144,12 @@ const spec: RevisionSpec<Book, BookInput> = {
     await tx.insert(activity).values({ kind: 'book.added', actorId, bookId: row.id, payload: {} });
   },
 };
+
+/** The current state as a mutation input, authors included. Every update path starts
+ *  from this, so a patch that says nothing about authors leaves them alone. */
+async function currentInput(tx: Tx, current: Book): Promise<BookInput> {
+  return bookInputFrom({ ...current, authors: await authorsOfBook(tx, current.id) });
+}
 
 export function createBook(db: Db, input: BookInput, actor: Actor): Promise<Book> {
   return createWithRevision(db, spec, input, actor);
@@ -134,14 +167,14 @@ export function updateBook(
     spec,
     id,
     'edited',
-    (current) => ({ ...bookInputFrom(current), ...patch }),
+    async (current, tx) => ({ ...(await currentInput(tx, current)), ...patch }),
     actor,
     expectedVersion === undefined ? {} : { expectedVersion },
   );
 }
 
-/** Soft. Appends a `deleted` revision and bumps the version, which is precisely
- *  what makes the name immediately reusable — see `docs/data-model.md`. */
+/** Soft. Appends a `deleted` revision and bumps the version, which is precisely what
+ *  makes the ASIN immediately reusable — see `docs/data-model.md`. */
 export function deleteBook(
   db: Db,
   id: string,
@@ -153,7 +186,11 @@ export function deleteBook(
     spec,
     id,
     'deleted',
-    (current) => ({ ...bookInputFrom(current), deletedAt: new Date(), deletedBy: actor.id }),
+    async (current, tx) => ({
+      ...(await currentInput(tx, current)),
+      deletedAt: new Date(),
+      deletedBy: actor.id,
+    }),
     actor,
     expectedVersion === undefined ? {} : { expectedVersion },
   );
@@ -165,15 +202,22 @@ export function restoreBook(db: Db, id: string, actor: Actor): Promise<Book> {
     spec,
     id,
     'restored',
-    (current) => ({ ...bookInputFrom(current), deletedAt: null, deletedBy: null }),
+    async (current, tx) => ({
+      ...(await currentInput(tx, current)),
+      deletedAt: null,
+      deletedBy: null,
+    }),
     actor,
   );
 }
 
 /**
- * Forward-only. Reverting writes a *new* version whose content equals the
- * target's, rather than truncating history — so reverting a revert works, and
- * nothing is ever lost.
+ * Forward-only. Reverting writes a *new* version whose content equals the target's,
+ * rather than truncating history — so reverting a revert works, and nothing is lost.
+ *
+ * A revert never restores a deletion: `deletedAt`/`deletedBy` are taken from the
+ * current row, not the snapshot. Delete and restore are explicit operations, and a
+ * button labelled "Restore this version" must never trash the record.
  */
 export async function revertBook(
   db: Db,
@@ -192,11 +236,19 @@ export async function revertBook(
   }
   const target = bookInputFrom(revision.snapshot as BookLike);
 
-  return updateWithRevision(db, spec, id, 'reverted', () => target, actor, { note });
+  return updateWithRevision(
+    db,
+    spec,
+    id,
+    'reverted',
+    (current) => ({ ...target, deletedAt: current.deletedAt, deletedBy: current.deletedBy }),
+    actor,
+    { note },
+  );
 }
 
-/** True when the id refers to a live book. Only for assertions and tests — real
- *  reads go through the `activeBooks()` builder. */
+/** True when the id refers to a live book. Only for assertions and tests — real reads
+ *  go through the `activeBooks()` builder. */
 export async function bookExists(db: Db, id: string): Promise<boolean> {
   const [row] = await db
     .select({ one: sql<number>`1` })

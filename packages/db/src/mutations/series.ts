@@ -1,11 +1,10 @@
 import { AppError } from '@books/domain';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../client';
 import { series } from '../schema/series';
 import { seriesRevisions } from '../schema/revisions';
 import {
   createWithRevision,
-  LOCK_NAMESPACE,
   updateWithRevision,
   type Actor,
   type RevisionSpec,
@@ -35,29 +34,14 @@ export function seriesInputFrom(row: SeriesLike): SeriesInput {
   };
 }
 
+// No natural key, no duplicate check, no advisory lock: series names are deliberately
+// not unique. See the comment on the table itself for why.
 const spec: RevisionSpec<Series, SeriesInput> = {
   label: 'series',
-  lockNamespace: LOCK_NAMESPACE.series,
 
-  naturalKey: (input) => input.name,
-
-  async findLiveDuplicate(tx, input, excludeId) {
-    if (input.deletedAt !== null) return undefined;
-    const where = and(
-      eq(series.nameLower, input.name.toLowerCase()),
-      isNull(series.deletedAt),
-      excludeId === null ? undefined : ne(series.id, excludeId),
-    );
-    const [row] = await tx.select({ id: series.id }).from(series).where(where).limit(1);
-    return row?.id;
-  },
-
-  // The good error message comes from here, not from a constraint violation —
-  // users should never see raw SQL text.
-  duplicateMessage: (input) => `A series named ${input.name} already exists.`,
-
-  async load(tx, id) {
-    const [row] = await tx.select().from(series).where(eq(series.id, id)).limit(1);
+  async load(tx, id, forUpdate) {
+    const query = tx.select().from(series).where(eq(series.id, id)).limit(1);
+    const [row] = await (forUpdate ? query.for('update') : query);
     return row;
   },
 
@@ -137,8 +121,6 @@ export function deleteSeries(
   );
 }
 
-/** Can legitimately fail: if someone reused the name while this sat in the trash,
- *  restoring it is a 409 rather than a second live series with the same name. */
 export function restoreSeries(db: Db, id: string, actor: Actor): Promise<Series> {
   return updateWithRevision(
     db,
@@ -167,7 +149,16 @@ export async function revertSeries(
   }
   const target = seriesInputFrom(revision.snapshot as SeriesLike);
 
-  return updateWithRevision(db, spec, id, 'reverted', () => target, actor, { note });
+  // A revert never restores a deletion — see the note on `revertBook`.
+  return updateWithRevision(
+    db,
+    spec,
+    id,
+    'reverted',
+    (current) => ({ ...target, deletedAt: current.deletedAt, deletedBy: current.deletedBy }),
+    actor,
+    { note },
+  );
 }
 
 export async function seriesExists(db: Db, id: string): Promise<boolean> {

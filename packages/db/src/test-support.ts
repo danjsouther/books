@@ -30,7 +30,8 @@ export async function connectForTests(): Promise<TestDb> {
 export async function truncateAll(db: Db): Promise<void> {
   await db.execute(sql`
     TRUNCATE TABLE activity, book_revisions, series_revisions, book_user_status,
-                   refresh_tokens, api_tokens, oauth_states, books, series, users
+                   author_books, authors, refresh_tokens, api_tokens, oauth_states,
+                   books, series, users
     RESTART IDENTITY CASCADE
   `);
 }

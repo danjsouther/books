@@ -22,7 +22,7 @@ function seriesInput(name: string): SeriesInput {
   return { name, sortName: null, description: null, deletedAt: null, deletedBy: null };
 }
 
-function bookInput(title: string, isbn13: string | null = null) {
+function bookInput(title: string, asin: string | null = null) {
   return {
     title,
     subtitle: null,
@@ -33,7 +33,7 @@ function bookInput(title: string, isbn13: string | null = null) {
     releaseDate: null,
     releasePrecision: 'unknown' as const,
     pageCount: null,
-    isbn13,
+    asin,
     coverUrl: null,
     deletedAt: null,
     deletedBy: null,
@@ -77,20 +77,28 @@ describe.skipIf(!hasDatabase)('versioning, history and soft deletes', () => {
       expect(events[0]?.actorId).toBe(actor.id);
     });
 
-    it('rejects a second live series with the same name, case-insensitively', async () => {
+    it('allows two live series with the same name', async () => {
+      // Series names are labels, not identities — see the comment on the table.
       await createSeries(db, seriesInput('The Expanse'), actor);
+      await createSeries(db, seriesInput('the expanse'), other);
 
-      await expect(createSeries(db, seriesInput('the expanse'), other)).rejects.toMatchObject({
+      expect(await activeSeries(db)).toHaveLength(2);
+    });
+
+    it('rejects a second live book with the same ASIN', async () => {
+      await createBook(db, bookInput('First', '0316129089'), actor);
+
+      await expect(createBook(db, bookInput('Second', '0316129089'), other)).rejects.toMatchObject({
         code: 'conflict',
       });
     });
 
-    it('serialises concurrent creates of the same name into one success and one conflict', async () => {
-      // The advisory lock is the whole point: without it both transactions pass
-      // the duplicate check and both insert.
+    it('serialises concurrent creates of the same ASIN into one success and one conflict', async () => {
+      // The advisory lock is the whole point: without it both transactions pass the
+      // duplicate check and both insert.
       const results = await Promise.allSettled([
-        createSeries(db, seriesInput('Simultaneous'), actor),
-        createSeries(db, seriesInput('Simultaneous'), other),
+        createBook(db, bookInput('Simultaneous A', '0765326353'), actor),
+        createBook(db, bookInput('Simultaneous B', '0765326353'), other),
       ]);
 
       const fulfilled = results.filter((r) => r.status === 'fulfilled');
@@ -101,8 +109,7 @@ describe.skipIf(!hasDatabase)('versioning, history and soft deletes', () => {
       expect(reasons).toHaveLength(1);
       expect(reasons[0]).toBeInstanceOf(AppError);
 
-      const live = await activeSeries(db);
-      expect(live).toHaveLength(1);
+      expect(await activeBooks(db)).toHaveLength(1);
     });
   });
 
@@ -179,29 +186,29 @@ describe.skipIf(!hasDatabase)('versioning, history and soft deletes', () => {
       expect(revisions.map((r) => r.changeKind)).toEqual(['created', 'deleted', 'restored']);
     });
 
-    it('frees the name immediately, because a deletion guarantees version >= 2', async () => {
-      const first = await createSeries(db, seriesInput('The Expanse'), actor);
-      await deleteSeries(db, first.id, actor);
+    it('frees a trashed ASIN for a new book', async () => {
+      const first = await createBook(db, bookInput('Mistake', '0316129089'), actor);
+      await deleteBook(db, first.id, actor);
 
-      const second = await createSeries(db, seriesInput('The Expanse'), other);
+      const second = await createBook(db, bookInput('Replacement', '0316129089'), other);
       expect(second.version).toBe(1);
       expect(second.id).not.toBe(first.id);
     });
 
-    it('refuses to restore into a name that has been taken since', async () => {
-      const first = await createSeries(db, seriesInput('The Expanse'), actor);
-      await deleteSeries(db, first.id, actor);
-      await createSeries(db, seriesInput('The Expanse'), other);
+    it('refuses to restore a book whose ASIN has been taken since', async () => {
+      const first = await createBook(db, bookInput('Mistake', '0316129089'), actor);
+      await deleteBook(db, first.id, actor);
+      await createBook(db, bookInput('Replacement', '0316129089'), other);
 
-      await expect(restoreSeries(db, first.id, actor)).rejects.toMatchObject({ code: 'conflict' });
+      await expect(restoreBook(db, first.id, actor)).rejects.toMatchObject({ code: 'conflict' });
     });
 
-    it('survives delete, recreate and delete of the same name repeatedly', async () => {
+    it('survives delete, recreate and delete of the same ASIN repeatedly', async () => {
       for (let round = 0; round < 3; round += 1) {
-        const s = await createSeries(db, seriesInput('Recycled'), actor);
-        await deleteSeries(db, s.id, actor);
+        const b = await createBook(db, bookInput('Recycled', '0765397536'), actor);
+        await deleteBook(db, b.id, actor);
       }
-      expect(await activeSeries(db)).toHaveLength(0);
+      expect(await activeBooks(db)).toHaveLength(0);
     });
 
     it('leaves a deleted series attached to its books, so a restore is lossless', async () => {

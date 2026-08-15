@@ -1,5 +1,5 @@
 {
-  "id": "6b20e558-d662-42cb-9a89-ac7340fb5901",
+  "id": "998e6aee-0825-45f9-9093-24a0c4de7ee0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -98,16 +98,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "name_lower": {
-          "name": "name_lower",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "generated": {
-            "as": "lower(name)",
-            "type": "stored"
-          }
-        },
         "sort_name": {
           "name": "sort_name",
           "type": "text",
@@ -167,18 +157,17 @@
         }
       },
       "indexes": {
-        "series_live_name_key": {
-          "name": "series_live_name_key",
+        "series_name_lower_idx": {
+          "name": "series_name_lower_idx",
           "columns": [
             {
-              "expression": "name_lower",
-              "isExpression": false,
+              "expression": "lower(name)",
               "asc": true,
+              "isExpression": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
-          "where": "deleted_at IS NULL",
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -263,13 +252,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "authors": {
-          "name": "authors",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
-        },
         "series_id": {
           "name": "series_id",
           "type": "uuid",
@@ -308,8 +290,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "isbn13": {
-          "name": "isbn13",
+        "asin": {
+          "name": "asin",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -367,11 +349,11 @@
         }
       },
       "indexes": {
-        "books_live_isbn13_key": {
-          "name": "books_live_isbn13_key",
+        "books_live_asin_key": {
+          "name": "books_live_asin_key",
           "columns": [
             {
-              "expression": "isbn13",
+              "expression": "asin",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -381,21 +363,6 @@
           "where": "deleted_at IS NULL",
           "concurrently": false,
           "method": "btree",
-          "with": {}
-        },
-        "books_authors_idx": {
-          "name": "books_authors_idx",
-          "columns": [
-            {
-              "expression": "authors",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
           "with": {}
         },
         "books_series_id_idx": {
@@ -494,11 +461,160 @@
           "name": "books_page_count_positive",
           "value": "\"books\".\"page_count\" IS NULL OR \"books\".\"page_count\" > 0"
         },
-        "books_isbn13_format": {
-          "name": "books_isbn13_format",
-          "value": "\"books\".\"isbn13\" IS NULL OR \"books\".\"isbn13\" ~ '^[0-9]{13}$'"
+        "books_asin_format": {
+          "name": "books_asin_format",
+          "value": "\"books\".\"asin\" IS NULL OR \"books\".\"asin\" ~ '^[A-Z0-9]{10}$'"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.authors": {
+      "name": "authors",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "authors_name_lower_key": {
+          "name": "authors_name_lower_key",
+          "columns": [
+            {
+              "expression": "lower(name)",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.author_books": {
+      "name": "author_books",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "author_books_book_idx": {
+          "name": "author_books_book_idx",
+          "columns": [
+            {
+              "expression": "book_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "author_books_author_idx": {
+          "name": "author_books_author_idx",
+          "columns": [
+            {
+              "expression": "author_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "author_books_author_id_authors_id_fk": {
+          "name": "author_books_author_id_authors_id_fk",
+          "tableFrom": "author_books",
+          "tableTo": "authors",
+          "columnsFrom": ["author_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "author_books_book_id_books_id_fk": {
+          "name": "author_books_book_id_books_id_fk",
+          "tableFrom": "author_books",
+          "tableTo": "books",
+          "columnsFrom": ["book_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "author_books_pair_key": {
+          "name": "author_books_pair_key",
+          "nullsNotDistinct": false,
+          "columns": ["author_id", "book_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.book_user_status": {

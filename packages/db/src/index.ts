@@ -16,6 +16,7 @@ export { seed } from './seed';
 export * as schema from './schema';
 
 export * from './queries/active';
+export * from './mutations/authors';
 export * from './mutations/books';
 export * from './mutations/series';
 export {

@@ -35,51 +35,100 @@ deletion — which, since the current row _is_ the most recent version, reduces 
 any other edit, and the full sequence of deletions and restorations is preserved
 in history for free.
 
-## Uniqueness is scoped to live rows
+## A book is identified by its ASIN
+
+The catalog is Amazon-sourced, so a book's identifier is an **ASIN**, not an
+ISBN-13. Ten characters, `^[A-Z0-9]{10}$`, which covers both Amazon's own ASINs and
+the ISBN-10s Amazon uses as the ASIN for most books — including the trailing `X` an
+ISBN-10 check digit can carry.
+
+It is **nullable**, so a book with no Amazon page can still be added by hand, and
+Postgres treats NULLs as distinct, so any number of those coexist. Duplicate
+detection protects only the books that have one.
+
+## ASIN uniqueness is scoped to live rows
 
 ```sql
-CREATE UNIQUE INDEX series_live_name_key   ON series (name_lower) WHERE deleted_at IS NULL;
-CREATE UNIQUE INDEX books_live_isbn13_key  ON books  (isbn13)     WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX books_live_asin_key ON books (asin) WHERE deleted_at IS NULL;
 ```
 
-This states the invariant directly: **no two live records may share a key, and any
-number of trashed ones may.** A trashed _The Expanse_ cannot block a new one, and
-the same name can be deleted and recreated without limit.
+This states the invariant directly: **no two live books may share an ASIN, and any
+number of trashed ones may.** A trashed book cannot block re-adding the same title,
+and an ASIN can be deleted and recreated without limit.
 
-`series.name_lower` is a generated column (`GENERATED ALWAYS AS (lower(name))
-STORED`) so that case-insensitive uniqueness and case-insensitive lookup both key
-off one definition rather than repeating `lower(name)` in two places.
-
-> **This replaces a version-keyed scheme** — `UNIQUE (name_lower, version)`, on
-> the reasoning that a deletion always bumps the version, so a deleted record sits
-> at version ≥ 2 while a new one is at version 1. That scheme is broken in two
-> ways, and the integration specs demonstrate both. It **fails on the second
-> delete**: deleting the recreated record also needs `(name, 2)`, which the first
-> trashed record already occupies permanently — so a name can be recycled exactly
-> once and then never again. And it **does not enforce the actual rule**, because
-> two _live_ records sitting at different versions satisfy it happily. The partial
-> index is both correct and simpler. Its one stated drawback — that a partial
-> index cannot be named in `ON CONFLICT ON CONSTRAINT` — costs nothing here,
-> because no write uses `ON CONFLICT` at all; duplicates are caught by the
-> explicit check below, which is where a readable message has to come from anyway.
+> **This replaces a version-keyed scheme** — `UNIQUE (asin, version)`, on the
+> reasoning that a deletion always bumps the version, so a deleted record sits at
+> version ≥ 2 while a new one is at version 1. That scheme is broken in two ways,
+> and the integration specs demonstrate both. It **fails on the second delete**:
+> deleting the recreated record also needs `(asin, 2)`, which the first trashed
+> record already occupies permanently — so an ASIN can be recycled exactly once and
+> then never again. And it **does not enforce the actual rule**, because two _live_
+> records sitting at different versions satisfy it happily. The partial index is
+> both correct and simpler. Its one stated drawback — that a partial index cannot be
+> named in `ON CONFLICT ON CONSTRAINT` — costs nothing here, because no write uses
+> `ON CONFLICT` at all; duplicates are caught by the explicit check below, which is
+> where a readable message has to come from anyway.
 
 **The index is a backstop.** The authoritative live-duplicate check happens inside
 the mutation helper's transaction, under
-`pg_advisory_xact_lock(namespace, hashtext(lower(key)))`, so two concurrent creates
-cannot both pass it — the second waits, then sees the first one's row. That check
-is also where the good error message comes from: a member should read "a series
-named _The Expanse_ already exists", never a raw constraint violation.
+`pg_advisory_xact_lock(namespace, hashtext(key))`, so two concurrent creates cannot
+both pass it — the second waits, then sees the first one's row. That check is also
+where the good error message comes from: a member should read "a book with ASIN
+0316129089 already exists", never a raw constraint violation.
 
-Two behaviours follow, and both are tested:
+**Restore can legitimately fail.** If someone reused the ASIN while the book sat in
+the trash, restoring it returns `409` rather than producing two live books with one
+ASIN. Restoring is otherwise an ordinary edit, so it goes through the same duplicate
+check as any other.
 
-- **Restore can legitimately fail.** If someone reused the name while the record
-  sat in the trash, restoring it returns `409` rather than producing two live
-  records with the same name. Restoring is otherwise an ordinary edit, so it goes
-  through the same duplicate check as any other.
-- **Deleting a series does not touch its books.** `books.series_id` stays intact
-  so a restore is lossless; while the series is deleted the join resolves to
-  nothing and its books render as unattached. That is a genuine advantage over
-  `ON DELETE SET NULL`, which loses the association permanently.
+## Series names are deliberately not unique
+
+A series name is a **label on a grouping**, not an identity. Two members who both add
+"Chronicles" have made a mess they can sort out between themselves; the machinery to
+prevent it — an advisory lock, a duplicate check on every write, a restore that can
+fail, and a readable error at each of those points — is not worth it at this scale.
+
+Contrast `authors` below, where the name **is** the identity: books are linked to it
+and filtered by it, so two rows for one person is a defect rather than an annoyance.
+That asymmetry is the reason one is unique and the other is not.
+
+**Deleting a series does not touch its books.** `books.series_id` stays intact so a
+restore is lossless; while the series is deleted the join resolves to nothing and its
+books render as unattached. That is a genuine advantage over `ON DELETE SET NULL`,
+which loses the association permanently.
+
+## Authors are a lookup; authorship is catalog history
+
+`books` has **no authors column**. Authorship lives in `authors` (id, name) and
+`author_books` (author, book, position).
+
+> **This reverses an earlier decision** to keep `authors text[]` on the book, which
+> was defended on the grounds that a friend group entering books by hand does not
+> need an autocomplete UI and a merge tool. The array could not express author
+> _identity_: there was nothing to link to, nothing to filter reliably by, and a
+> misspelling had to be corrected on every book that repeated it.
+
+`authors` is a lookup table — no `version`, no `deleted_at`, no revisions. Its names
+are unique case-insensitively (`authors_name_lower_key` on `lower(name)`), and
+`resolveAuthors` folds a differently-cased name onto the existing row rather than
+creating a second one. New names are inserted with `ON CONFLICT DO NOTHING` and then
+re-selected, so two transactions naming the same new author concurrently produce one
+row instead of an error.
+
+`author_books.position` records **credited order**, which the `text[]` preserved for
+free and a join table otherwise loses. "Terry Pratchett and Stephen Baxter" stays in
+that order instead of collapsing to alphabetical.
+
+**Changing a book's authors is a book edit.** It goes through the same mutation path
+as any other field: the version bumps and one revision is appended. Because the
+authors no longer live in the row, `book_revisions.snapshot` carries them explicitly
+as `authors: [{ id, name }]`, resolved at write time — names so a diff renders
+without a second lookup, ids so a revert re-links to exactly the same rows. Without
+that, history would silently lose a whole category of edit.
+
+The gap this leaves is deliberate and worth stating: **an author row's own name has
+no history.** Correcting a typo in "Marha Wells" is not versioned and cannot be
+reverted. A book's _authorship_ is fully versioned; the author's name is not.
 
 ## Every read must filter `deleted_at IS NULL`
 
@@ -124,10 +173,6 @@ of thirty-one.
 
 ## Choices worth knowing about
 
-**`authors` is a `text[]`, not a table.** A handful of friends entering books by
-hand does not justify an autocomplete UI, a merge tool, and a dedup problem. A GIN
-index keeps filtering fast, and normalising later is mechanical.
-
 **`series_position` is `numeric(6,2)`.** Decimals are required — `1.5` is the
 universal novella convention — and `numeric` rather than `real` gives exact
 ordering with no float surprises. It is deliberately **not** unique: two 1.5
@@ -151,6 +196,11 @@ unlike catalog data it is your own row, recreatable in one click.
 **`users.avatar_hash` stores the hash, not a URL.** Discord's CDN path format has
 changed before, and a 32-character hash is far cheaper to migrate than a stored
 URL.
+
+**A revert never restores a deletion.** `deletedAt` and `deletedBy` are taken from
+the current row rather than the target snapshot, so reverting to a version that
+happened to be deleted does not trash the record. Delete and restore are explicit
+operations, and a button labelled "Restore this version" must never do the opposite.
 
 ## Two feeds, two sources
 

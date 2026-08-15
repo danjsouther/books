@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 /**
@@ -11,12 +11,6 @@ export const series = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
-    /** Generated, not written. Case-insensitive uniqueness and case-insensitive
-     *  lookups both key off this, so neither has to repeat `lower(name)` and risk
-     *  writing it differently in one place. */
-    nameLower: text('name_lower')
-      .notNull()
-      .generatedAlwaysAs(sql`lower(name)`),
     /** "The Expanse" → "Expanse, The", for sorting. Nullable; falls back to `name`. */
     sortName: text('sort_name'),
     description: text('description'),
@@ -35,15 +29,12 @@ export const series = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    /** Scoped to live rows, which is the invariant that actually matters: no two
-     *  *live* series may share a name, and any number of trashed ones may. See
-     *  `docs/data-model.md` for why the version-keyed alternative does not work.
-     *  This is a backstop — the authoritative check happens inside the mutation
-     *  helper's transaction, under an advisory lock, because that is where a
-     *  readable error message can come from. */
-    uniqueIndex('series_live_name_key')
-      .on(t.nameLower)
-      .where(sql`deleted_at IS NULL`),
+    /** Series names are deliberately NOT unique. A series name is a label on a
+     *  grouping rather than an identity, so a duplicate is a cosmetic annoyance a
+     *  friend group can sort out — and enforcing it would cost an advisory lock, a
+     *  duplicate check on every write, and a restore that can fail. Contrast
+     *  `authors`, where the name IS the identity and uniqueness earns its keep. */
+    index('series_name_lower_idx').on(sql`lower(name)`),
     index('series_deleted_at_idx').on(t.deletedAt),
   ],
 );

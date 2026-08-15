@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Pool } from 'pg';
 import type { Db } from './client';
+import { authorBooks } from './schema/author-books';
+import { authors } from './schema/authors';
 import { books } from './schema/books';
 import { series } from './schema/series';
 import { bookUserStatus } from './schema/shelf';
@@ -86,11 +88,29 @@ describe.skipIf(!hasDatabase)('schema constraints', () => {
     expect(violation).toBe('book_user_status_dates_ordered');
   });
 
-  it('rejects a malformed ISBN', async () => {
-    const violation = await violatedConstraint(() =>
-      db.insert(books).values({ title: 'Bad ISBN', isbn13: '123' }),
-    );
-    expect(violation).toBe('books_isbn13_format');
+  describe('ASIN format', () => {
+    it('rejects anything that is not ten characters', async () => {
+      const violation = await violatedConstraint(() =>
+        db.insert(books).values({ title: 'Bad ASIN', asin: '123' }),
+      );
+      expect(violation).toBe('books_asin_format');
+    });
+
+    it('rejects lowercase, since Amazon ASINs are upper case', async () => {
+      const violation = await violatedConstraint(() =>
+        db.insert(books).values({ title: 'Lowercase', asin: 'b00x57b4ke' }),
+      );
+      expect(violation).toBe('books_asin_format');
+    });
+
+    it('accepts an Amazon ASIN and an ISBN-10, including a check-digit X', async () => {
+      await db.insert(books).values([
+        { title: 'Amazon', asin: 'B00X57B4KE' },
+        { title: 'ISBN-10', asin: '0316129089' },
+        { title: 'Check digit X', asin: '080442957X' },
+      ]);
+      expect(await db.select().from(books)).toHaveLength(3);
+    });
   });
 
   it('rejects a non-positive page count', async () => {
@@ -100,40 +120,68 @@ describe.skipIf(!hasDatabase)('schema constraints', () => {
     expect(violation).toBe('books_page_count_positive');
   });
 
-  describe('uniqueness is scoped to live rows', () => {
-    it('refuses two live series with the same name, whatever their versions', async () => {
-      // The version-keyed scheme this replaced could not express that: two live
-      // records sitting at different versions passed it happily.
-      await db.insert(series).values({ name: 'The Expanse', version: 1 });
+  describe('book ASINs are unique among live rows', () => {
+    it('refuses a second live book with the same ASIN', async () => {
+      await db.insert(books).values({ title: 'First', asin: '0316129089' });
 
       const violation = await violatedConstraint(() =>
-        db.insert(series).values({ name: 'the expanse', version: 4 }),
+        db.insert(books).values({ title: 'Second', asin: '0316129089' }),
       );
-      expect(violation).toBe('series_live_name_key');
+      expect(violation).toBe('books_live_asin_key');
     });
 
-    it('allows any number of trashed series to share a name with a live one', async () => {
+    it('ignores books with no ASIN, because NULLs are distinct', async () => {
+      await db.insert(books).values([{ title: 'No ASIN A' }, { title: 'No ASIN B' }]);
+      expect(await db.select().from(books)).toHaveLength(2);
+    });
+
+    it('frees the ASIN once the book is trashed', async () => {
       const deletedAt = new Date();
-      await db.insert(series).values([
-        { name: 'Recycled', version: 2, deletedAt },
-        { name: 'Recycled', version: 2, deletedAt },
-        { name: 'Recycled', version: 7, deletedAt },
-        { name: 'Recycled', version: 1 },
-      ]);
-      expect(await db.select().from(series)).toHaveLength(4);
+      await db.insert(books).values({ title: 'Trashed', asin: '0316129089', deletedAt });
+      await db.insert(books).values({ title: 'Replacement', asin: '0316129089' });
+      expect(await db.select().from(books)).toHaveLength(2);
     });
+  });
 
-    it('applies the same rule to book ISBNs, and ignores books without one', async () => {
-      await db.insert(books).values({ title: 'First', isbn13: '9780316129084' });
+  describe('series names are deliberately not unique', () => {
+    it('allows two live series with the same name', async () => {
+      // A series name is a label on a grouping, not an identity. Contrast authors
+      // below, where the name IS the identity.
+      await db.insert(series).values([{ name: 'Chronicles' }, { name: 'chronicles' }]);
+      expect(await db.select().from(series)).toHaveLength(2);
+    });
+  });
+
+  describe('author names are unique, case-insensitively', () => {
+    it('refuses a second author differing only in case', async () => {
+      await db.insert(authors).values({ name: 'Martha Wells' });
 
       const violation = await violatedConstraint(() =>
-        db.insert(books).values({ title: 'Second', isbn13: '9780316129084' }),
+        db.insert(authors).values({ name: 'martha wells' }),
       );
-      expect(violation).toBe('books_live_isbn13_key');
+      expect(violation).toBe('authors_name_lower_key');
+    });
 
-      // NULLs are distinct in Postgres, so books with no ISBN never collide.
-      await db.insert(books).values([{ title: 'No ISBN A' }, { title: 'No ISBN B' }]);
-      expect(await db.select().from(books)).toHaveLength(3);
+    it('refuses the same author twice on one book', async () => {
+      const [author] = await db
+        .insert(authors)
+        .values({ name: 'Solo' })
+        .returning({ id: authors.id });
+      const [bookRow] = await db
+        .insert(books)
+        .values({ title: 'Book' })
+        .returning({ id: books.id });
+
+      await db
+        .insert(authorBooks)
+        .values({ authorId: author?.id ?? '', bookId: bookRow?.id ?? '', position: 0 });
+
+      const violation = await violatedConstraint(() =>
+        db
+          .insert(authorBooks)
+          .values({ authorId: author?.id ?? '', bookId: bookRow?.id ?? '', position: 1 }),
+      );
+      expect(violation).toBe('author_books_pair_key');
     });
   });
 });

@@ -8,13 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added — The database (2026-08-15)
 
-The full schema now exists: members, the book and series catalog, per-member
-reading status and rating, revision history for every catalog record, the activity
-feed, and the tables authentication will need. Migrations are generated from the
-schema and the SQL is committed, so what is deployed is always something a person
-reviewed. `npm run db:seed` builds a realistic fixture set — every release
-precision, a decimal-numbered novella, trashed records, a record deleted and then
-restored — used by development and, later, by the browser tests.
+The full schema now exists: members, the book and series catalog, authors,
+per-member reading status and rating, revision history for every catalog record,
+the activity feed, and the tables authentication will need. Migrations are generated
+from the schema and the SQL is committed, so what is deployed is always something a
+person reviewed. `npm run db:seed` builds a realistic fixture set — every release
+precision, a decimal-numbered novella, co-authored books, trashed records, a record
+deleted and then restored — used by development and, later, by the browser tests.
 
 Versioning, revision history, and deletion are deliberately one mechanism rather
 than three features. Every change to a book or series bumps a version, appends a
@@ -22,17 +22,22 @@ complete snapshot, and is written in a single transaction, so history can never
 disagree with the record. Deletion is simply another version, which is what makes
 it reversible and keeps the whole sequence of deletions and restorations intact.
 That version doubles as a concurrency check, so two people editing the same book
-no longer means one silently overwrites the other.
+no longer means one silently overwrites the other. Reverting to an earlier version
+never deletes the record, whatever state that version was in.
 
-Anyone may edit or delete anything, and that is only safe because nothing is lost.
-Every write goes through one helper that holds a lock on the record's name while
-it checks for duplicates, so two people creating the same series at the same moment
-get one series and one clear message rather than two rows.
+Authors are their own records rather than a list of names copied onto each book, so
+a book can be linked to an author, filtered by one, and a misspelling corrected in a
+single place instead of everywhere it was repeated. Authors are matched regardless
+of capitalisation, and the order they are credited in is preserved. Changing who
+wrote a book is an edit to that book like any other: it is versioned, appears in its
+history, and can be reverted.
 
-Uniqueness is enforced over live records only. An earlier design keyed it on the
-version number instead; that turned out to allow a name to be recycled exactly
-once and then never again, and it did not actually prevent two live records from
-sharing a name. Both failures are now covered by tests. See
+Books are identified by their Amazon ASIN, since that is where the books being
+tracked come from. It stays optional, so a book with no Amazon page can still be
+added, and two live books cannot claim the same one — though an ASIN is freed again
+as soon as its book is moved to the trash. Series names are deliberately left
+un-policed: a series name is a label rather than an identity, and a duplicate is
+something a small group can sort out. See
 [docs/data-model.md](docs/data-model.md).
 
 ### Changed — Room for a server and shared code (2026-08-15)

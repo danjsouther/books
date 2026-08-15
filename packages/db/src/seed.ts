@@ -35,7 +35,7 @@ function book(partial: Partial<BookInput> & { title: string }): BookInput {
     releaseDate: null,
     releasePrecision: 'unknown',
     pageCount: null,
-    isbn13: null,
+    asin: null,
     coverUrl: null,
     deletedAt: null,
     deletedBy: null,
@@ -52,7 +52,8 @@ function seriesInput(partial: Partial<SeriesInput> & { name: string }): SeriesIn
 async function truncateAll(db: Db): Promise<void> {
   await db.execute(sql`
     TRUNCATE TABLE activity, book_revisions, series_revisions, book_user_status,
-                   refresh_tokens, api_tokens, oauth_states, books, series, users
+                   author_books, authors, refresh_tokens, api_tokens, oauth_states,
+                   books, series, users
     RESTART IDENTITY CASCADE
   `);
 }
@@ -122,7 +123,7 @@ export async function seed(db: Db): Promise<void> {
       releaseDate: '2011-06-15',
       releasePrecision: 'day',
       pageCount: 561,
-      isbn13: '9780316129084',
+      asin: '0316129089',
     }),
     dan,
   );
@@ -147,7 +148,7 @@ export async function seed(db: Db): Promise<void> {
       releaseDate: '2012-06-26',
       releasePrecision: 'day',
       pageCount: 595,
-      isbn13: '9780316129060',
+      asin: '0316129062',
     }),
     dan,
   );
@@ -160,7 +161,7 @@ export async function seed(db: Db): Promise<void> {
       seriesPosition: '3.00',
       releaseDate: '2013-06-04',
       releasePrecision: 'day',
-      isbn13: '9780316129077',
+      asin: '0316129070',
     }),
     sam,
   );
@@ -190,7 +191,7 @@ export async function seed(db: Db): Promise<void> {
       releaseDate: '2010-08-31',
       releasePrecision: 'day',
       pageCount: 1007,
-      isbn13: '9780765326355',
+      asin: '0765326353',
     }),
     sam,
   );
@@ -217,7 +218,7 @@ export async function seed(db: Db): Promise<void> {
       releaseDate: '2017-05-02',
       releasePrecision: 'day',
       pageCount: 149,
-      isbn13: '9780765397539',
+      asin: '0765397536',
     }),
     ali,
   );
@@ -282,9 +283,49 @@ export async function seed(db: Db): Promise<void> {
       releaseDate: '1965-08-01',
       releasePrecision: 'day',
       pageCount: 412,
-      isbn13: '9780441013593',
+      asin: '0441013597',
     }),
     dan,
+  );
+
+  /** Co-authored, so author ordering has a fixture. The credited order is Gaiman
+   *  first — alphabetical would give the same answer, which is why the *next* book
+   *  reverses a pair whose credited order and alphabetical order disagree. */
+  await createBook(
+    db,
+    book({
+      title: 'Good Omens',
+      authors: ['Neil Gaiman', 'Terry Pratchett'],
+      releaseDate: '1990-05-01',
+      releasePrecision: 'day',
+      pageCount: 288,
+    }),
+    dan,
+  );
+  await createBook(
+    db,
+    book({
+      title: 'The Long Earth',
+      authors: ['Terry Pratchett', 'Stephen Baxter'],
+      releaseDate: '2012-06-21',
+      releasePrecision: 'day',
+      pageCount: 336,
+    }),
+    sam,
+  );
+
+  /** Deliberately mis-cased. Author resolution must fold this onto the existing
+   *  "Martha Wells" row rather than creating a second one. */
+  await createBook(
+    db,
+    book({
+      title: 'The Cloud Roads',
+      authors: ['martha wells'],
+      releaseDate: '2011-03-01',
+      releasePrecision: 'day',
+      pageCount: 278,
+    }),
+    ali,
   );
 
   // --- Upcoming, day precision — these drive the calendar ----------------------
@@ -407,7 +448,7 @@ export async function seed(db: Db): Promise<void> {
   // --- Left in the trash --------------------------------------------------------
   const trashedBook = await createBook(
     db,
-    book({ title: 'Mistaken Entry', authors: ['Nobody'], isbn13: '9781234567897' }),
+    book({ title: 'Mistaken Entry', authors: ['Nobody'], asin: '1234567897' }),
     ali,
   );
   await deleteBook(db, trashedBook.id, ali);

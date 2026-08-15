@@ -2,6 +2,8 @@ export * from './enums';
 export * from './users';
 export * from './series';
 export * from './books';
+export * from './authors';
+export * from './author-books';
 export * from './shelf';
 export * from './revisions';
 export * from './activity';
