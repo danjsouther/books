@@ -8,9 +8,12 @@
 *.tsbuildinfo
 
 # Node
-/node_modules
+node_modules/
 npm-debug.log
 yarn-error.log
+
+# Agent skill install output and scratch files
+.claude/skills/**/.temp-execution-*.js
 
 # IDEs and editors
 .idea/
