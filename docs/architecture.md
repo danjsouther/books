@@ -35,6 +35,53 @@ nothing.
 Express still has a job — it will host `/api/v1` and serve this bundle — but it
 renders no HTML.
 
+## One npm package, with boundaries drawn by path aliases
+
+The repo holds a browser app, a Node API, and shared code, but it is a single npm
+package with a single `node_modules`. Not workspaces: nothing here is published,
+everything deploys together, and npm workspaces plus the Angular CLI plus Docker
+layer caching is three sources of friction bought for no benefit at this scale.
+
+Internal boundaries are TypeScript path aliases instead, and **they point at
+source files rather than a `dist`** (`"@books/domain":
+["./packages/domain/src/index.ts"]`). There is therefore no build step between
+internal packages — the Angular builder, esbuild, and Vitest each compile the
+TypeScript directly, and editing `packages/domain` is picked up by a running dev
+server the same way editing a component is.
+
+The important boundary is that **browser code may import `@books/domain` and
+nothing else**. `packages/api` — and, later, `packages/db` — are server-only, and
+`domain` must stay free of Node built-ins and of `drizzle-orm`, not even
+importing it for a type. That is enforced structurally rather than socially:
+`apps/web/tsconfig.app.json` redefines `paths` with only the `domain` entry, so a
+stray `@books/api` import in a component fails to compile with "cannot find
+module". The narrowing is deliberate duplication and the comment there says so.
+
+## The API is a library, and the server is its host
+
+`packages/api` exports `createApiRouter(deps)` and knows nothing about ports,
+static files, or process lifecycle; `apps/server` mounts it. Two things follow.
+Integration tests can mount the router under `supertest` with test doubles and no
+server process. And splitting the API away from static hosting later — the entry
+in `docs/TODO.md` — is a change to the host, not to the API.
+
+Everything the router needs is passed in rather than imported, which is what
+keeps that true as dependencies accumulate.
+
+## Cache headers on the bundle are part of the deploy, not a detail
+
+`apps/server/src/static.ts` serves hashed assets `max-age=1y, immutable` and
+`index.html` `no-store`. Getting that backwards is the classic single-page-app
+deploy failure: a cached `index.html` keeps pointing at bundle hashes the new
+deploy has already purged, and every returning client gets a blank page until
+they clear their cache. Files copied verbatim from `public/` are not hashed and
+so get a modest hour instead.
+
+The same file falls back to `index.html` for any non-`/api` GET, so a deep link
+survives a hard refresh. Unmatched `/api/` paths deliberately fall through to a
+404 rather than the fallback — a `fetch` that expected JSON and received the app
+shell fails somewhere far from the actual mistake.
+
 ## Strictness is on from the start
 
 `tsconfig.json` enables `strict`, `noUncheckedIndexedAccess`,

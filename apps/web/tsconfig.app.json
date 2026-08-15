@@ -1,0 +1,19 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../out-tsc/app",
+    /* The repo root, because the program spans apps/web and packages/domain. */
+    "rootDir": "../..",
+    "types": ["node"],
+    /* The browser bundle may reach `@books/domain` and nothing else. `@books/api`
+       and, later, `@books/db` are server-only, and narrowing `paths` here turns
+       a stray import into a compile error rather than a review catch. */
+    "paths": {
+      "@books/domain": ["../../packages/domain/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/domain/src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
