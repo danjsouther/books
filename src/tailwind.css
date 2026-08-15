@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens.
+ *
+ * ACCESSIBILITY CONTRACT — read before adding a status color:
+ *
+ * 1. Status is NEVER conveyed by color alone (WCAG 1.4.1). Every status chip
+ *    carries an icon AND a text label; the color is decoration on top of those.
+ *    The axe pass cannot catch a violation of this, so it is on us.
+ * 2. Every `-fg` token must clear 4.5:1 against its matching `-bg` token, and
+ *    every `-bg` must clear 3:1 against `--color-surface` so the chip's own
+ *    boundary is perceivable. Re-check with a contrast tool when changing any
+ *    value here — do not eyeball it.
+ * 3. `--color-focus` must clear 3:1 against every background it can land on.
+ *    Angular Aria ships no styles, so focus indicators are entirely ours.
+ */
+@theme {
+  --color-surface: oklch(100% 0 0);
+  --color-surface-sunken: oklch(97% 0.005 265);
+  --color-border: oklch(90% 0.008 265);
+  --color-ink: oklch(25% 0.02 265);
+  --color-ink-muted: oklch(48% 0.02 265);
+  --color-focus: oklch(55% 0.19 255);
+
+  /* Reading statuses. `plan` (anticipated, usually unreleased) and `backlog`
+     (available, not started) are the pair most easily confused — keep them
+     distinct in hue, not just lightness. */
+  --color-status-plan-bg: oklch(94% 0.05 295);
+  --color-status-plan-fg: oklch(38% 0.16 295);
+  --color-status-backlog-bg: oklch(95% 0.02 265);
+  --color-status-backlog-fg: oklch(40% 0.03 265);
+  --color-status-reading-bg: oklch(94% 0.06 235);
+  --color-status-reading-fg: oklch(38% 0.15 235);
+  --color-status-completed-bg: oklch(94% 0.06 150);
+  --color-status-completed-fg: oklch(36% 0.13 150);
+  --color-status-dropped-bg: oklch(94% 0.04 25);
+  --color-status-dropped-fg: oklch(40% 0.15 25);
+}
