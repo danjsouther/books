@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Room for a server and shared code (2026-08-15)
+
+The web application moved from `src/` into `apps/web/`, making room alongside it
+for `apps/server` — an Express process that will host `/api/v1` and serve the
+built browser bundle — and for shared packages under `packages/`. It answers
+`/api/v1/health` and nothing else so far; the database and authentication follow.
+
+This stays a single npm package. Internal boundaries are drawn with TypeScript
+path aliases pointing straight at source, so there is no build step between
+packages and no workspace machinery to fight with the Angular CLI. The boundary
+that matters is enforced by the compiler: the browser app can import
+`@books/domain` and cannot reach server-only code at all.
+
+`npm run dev` now runs the application and the API together, with the dev server
+proxying `/api` so the browser only ever sees one origin. `npm start` runs the
+built server, which serves hashed assets as immutable for a year, `index.html` as
+`no-store`, and the application shell for any deep link — so a hard refresh on a
+book page works, and a deploy never strands a returning visitor on a cached page
+pointing at bundles that no longer exist.
+
 ### Added — Project foundation (2026-08-15)
 
 Turned the bare scaffold into something that can safely be built on. TypeScript

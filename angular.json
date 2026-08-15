@@ -5,33 +5,36 @@
     "packageManager": "npm",
     "schematicCollections": ["angular-eslint"]
   },
-  "newProjectRoot": "projects",
+  "newProjectRoot": "apps",
   "projects": {
-    "books": {
+    "web": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
           "style": "scss"
         }
       },
-      "root": "",
-      "sourceRoot": "src",
+      "root": "apps/web",
+      "sourceRoot": "apps/web/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "browser": "src/main.ts",
-            "tsConfig": "tsconfig.app.json",
+            "browser": "apps/web/src/main.ts",
+            "tsConfig": "apps/web/tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "apps/web/public"
               }
             ],
-            "styles": ["src/tailwind.css", "src/styles.scss"],
-            "outputPath": "dist/web"
+            "styles": ["apps/web/src/tailwind.css", "apps/web/src/styles.scss"],
+            "outputPath": {
+              "base": "dist/web",
+              "browser": ""
+            }
           },
           "configurations": {
             "production": {
@@ -59,12 +62,15 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "apps/web/src/proxy.conf.json"
+          },
           "configurations": {
             "production": {
-              "buildTarget": "books:build:production"
+              "buildTarget": "web:build:production"
             },
             "development": {
-              "buildTarget": "books:build:development"
+              "buildTarget": "web:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -75,7 +81,12 @@
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
-            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+            "lintFilePatterns": [
+              "apps/**/*.ts",
+              "apps/**/*.html",
+              "packages/**/*.ts",
+              "scripts/**/*.mjs"
+            ]
           }
         }
       }
