@@ -25,7 +25,11 @@
     "paths": {
       "@books/domain": ["./packages/domain/src/index.ts"],
       "@books/api": ["./packages/api/src/index.ts"],
-      "@books/db": ["./packages/db/src/index.ts"]
+      "@books/db": ["./packages/db/src/index.ts"],
+      /* Test-only utilities, kept off the production barrel above so nothing in
+         apps/server ever bundles them — reachable only from *.spec.ts files. */
+      "@books/db/test-support": ["./packages/db/src/test-support.ts"],
+      "@books/config": ["./packages/config/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

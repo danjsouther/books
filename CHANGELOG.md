@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Discord login (2026-08-15)
+
+Members sign in with Discord. The server validates guild membership against
+Discord's own API on every login — leaving the guild is what revokes access,
+there is no separate invited flag to fall out of sync. A short-lived access
+token and a longer-lived, single-use-per-presentation refresh token replace any
+notion of a server-side session; a refresh token that gets presented twice
+(a sign it was stolen) revokes the entire chain it belongs to, not just the one
+attempt. Discord's own tokens are never stored — they exist only for the two
+calls that need them, then are discarded.
+
+The web app authenticates with httpOnly cookies; nothing else can talk to the
+API yet, but the same tokens work as a bearer header, so a future desktop client
+needs no separate scheme. Every mutating request is checked against where it
+actually came from — a matching double-submit cookie header, and a matching
+`Origin` — so a malicious page cannot act on a signed-in member's behalf. The
+environment is validated in full at boot: a missing Discord credential or a
+weak signing secret fails the process immediately with every problem listed at
+once, rather than surfacing as a confusing failure the first time someone logs
+in. See [docs/architecture.md](docs/architecture.md).
+
 ### Added — The database (2026-08-15)
 
 The full schema now exists: members, the book and series catalog, authors,

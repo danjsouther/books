@@ -35,6 +35,14 @@ plan, not here — this file is for work that falls outside that plan.)_
   Wanted: a packaged desktop client that signs in with Discord and talks to the
   same `/api/v1` as the web app.
 
+  Phase 3 built the server half — PKCE, token issuance, refresh rotation — with a
+  `client=web|desktop` distinction already threaded through `oauth_states` and
+  `refresh_tokens`. Until this exists, `client=desktop` at
+  `/auth/discord/callback` returns the token pair as JSON directly (see
+  `packages/api/src/routes/auth.ts`), because there is no loopback listener or
+  registered protocol to redirect to yet. That branch is real and tested against
+  a fake Discord client; only the handoff mechanism below is missing.
+
   Open decisions: loopback `http://127.0.0.1:<ephemeral>/callback` vs a custom
   `books://auth` protocol for the OAuth redirect; whether the desktop build points
   at a compile-time host, a user-entered one, or discovers it; where the access
