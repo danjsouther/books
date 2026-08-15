@@ -9,5 +9,12 @@
     "allowJs": true,
     "checkJs": false
   },
-  "include": ["apps/server/**/*.ts", "apps/bot/**/*.ts", "packages/**/*.ts", "scripts/**/*.mjs"]
+  "include": [
+    "apps/server/**/*.ts",
+    "apps/bot/**/*.ts",
+    "packages/**/*.ts",
+    "scripts/**/*.mjs",
+    "drizzle.config.ts",
+    "vitest.node.config.ts"
+  ]
 }

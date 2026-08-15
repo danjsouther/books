@@ -28,4 +28,40 @@ jobs:
 
       - run: npm run build
 
-      - run: npm test
+      - run: npm run test:web
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    # A real Postgres, because what these specs cover *is* Postgres behaviour:
+    # check constraints, advisory locks, and transaction boundaries. A service
+    # container is simpler and faster than testcontainers here.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: books
+          POSTGRES_PASSWORD: books
+          POSTGRES_DB: books
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U books"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run test:node
+        env:
+          DATABASE_URL: postgres://books:books@localhost:5432/books

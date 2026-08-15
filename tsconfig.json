@@ -24,7 +24,8 @@
        rather than a build output — there is no build step between packages. */
     "paths": {
       "@books/domain": ["./packages/domain/src/index.ts"],
-      "@books/api": ["./packages/api/src/index.ts"]
+      "@books/api": ["./packages/api/src/index.ts"],
+      "@books/db": ["./packages/db/src/index.ts"]
     }
   },
   "angularCompilerOptions": {
