@@ -6,13 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Project foundation (2026-08-15)
+
+Turned the bare scaffold into something that can safely be built on. TypeScript
+now runs fully strict, with `noUncheckedIndexedAccess` and
+`exactOptionalPropertyTypes` on and Angular's `strictTemplates` enabled — all
+far cheaper to adopt now than after the app has grown. ESLint arrives configured
+with type-aware rules, template accessibility checks, and rules encoding this
+project's Angular conventions, and continuous integration now gates formatting,
+linting, and type checking alongside the existing build and tests.
+
+Tailwind CSS supplies styling, with the palette and the five reading-status
+colours defined as design tokens. The stock Angular welcome page is replaced by
+the real application shell: a skip link, header navigation, a focusable main
+region, and a live region that announces route changes to screen readers.
+Documentation now covers the architecture decisions and the backlog.
+
 ### Changed — Client-side rendering only (2026-08-15)
 
 Removed server-side rendering. Every page in this application sits behind a
 Discord login, so there is nothing to render for an anonymous visitor and no
-search engine to serve — while per-user server rendering carries real risk,
-since HTML that varies by member must never be cached or handed to the wrong
-person.
+search engine to serve — while per-user server rendering brings real risk, since
+HTML that varies by member must never be cached or handed to the wrong person.
 
 Dropping it removes hydration, transfer state, and host allow-listing from the
 deployment, and leaves a single browser bundle as the only build artifact. That

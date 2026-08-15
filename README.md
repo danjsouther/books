@@ -1,59 +1,55 @@
 # Books
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.7.
+A private reading tracker for a Discord friend group. Members sign in with
+Discord, add books and group them into series, track their own reading status
+and rating, and see upcoming releases on a calendar. A Discord bot answers
+`/upcoming` from the same data.
 
-## Development server
+Everything is behind a login — there are no public pages.
 
-To start a local development server, run:
+## Status
 
-```bash
-ng serve
-```
+Early. The foundation is in place (strict TypeScript, linting, Tailwind, the app
+shell); the database, API, authentication, and features are not built yet. See
+[docs/architecture.md](docs/architecture.md) for the decisions made so far and
+[docs/TODO.md](docs/TODO.md) for the backlog.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Requirements
 
-## Code scaffolding
+- Node 24
+- npm 11
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+## Getting started
 
 ```bash
-ng build
+npm ci
+npm start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+The app runs at http://localhost:4200.
 
-## Running unit tests
+## Scripts
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+| Script                 | What it does                                     |
+| ---------------------- | ------------------------------------------------ |
+| `npm start`            | Dev server with hot reload                       |
+| `npm run build`        | Production browser bundle into `dist/web`        |
+| `npm test`             | Unit tests (Vitest, via the Angular CLI builder) |
+| `npm run lint`         | ESLint over TypeScript and templates             |
+| `npm run lint:fix`     | ESLint with autofix                              |
+| `npm run typecheck`    | `tsc -b`, no emit beyond `out-tsc`               |
+| `npm run format`       | Prettier, write                                  |
+| `npm run format:check` | Prettier, check only — this is what CI runs      |
 
-```bash
-ng test
-```
+CI runs `format:check`, `lint`, `typecheck`, `build`, and `test` on every push
+and pull request to `main` and `dev`.
 
-## Running end-to-end tests
+## Conventions
 
-For end-to-end (e2e) testing, run:
+Angular and TypeScript conventions for this project are in
+[.claude/CLAUDE.md](.claude/CLAUDE.md) and are enforced by ESLint where a rule
+exists for them. Git branching, commit, and changelog rules are in
+[.claude/skills/git/](.claude/skills/git/).
 
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Accessibility is a requirement, not a nice-to-have: the app must pass axe checks
+and meet WCAG AA, including focus management, colour contrast, and ARIA.
