@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
@@ -6,7 +8,11 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      // `AuthStore`'s bootstrap `httpResource` runs as soon as anything touches
+      // it, which the guard on every route does — the router needs real routes
+      // (not `[]`) for that navigation to resolve, and HTTP testing providers
+      // are what keep the `/auth/me` request from hitting the network.
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 

@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — The app shell and sign-in (2026-08-16)
+
+The browser app can now sign in, navigate, and stay signed in across a refresh.
+Every route except `/login` requires a session; visiting one without signing in
+first lands on `/login` and returns to the original destination afterward, rather
+than losing it. There is no client-readable session cookie by design, so the app
+asks the server once on boot whether a visit is authenticated, and the whole
+route tree waits on that answer before deciding what to show — never redirecting
+a signed-in member to `/login` just because that answer hasn't arrived yet.
+
+A shared list-store factory now exists for every collection page still to come:
+one place that owns paging, a debounced search filter, and the loading state a
+page needs, rather than each future books/series/trash page reimplementing the
+same handful of signals. Every route in the app is wired up and reachable today
+— the activity and changes feeds already render real data end to end — but most
+are placeholders their real Phase 6-8 UI will replace; this phase is what proves
+the routing, the session check, and the data-fetching plumbing all work before
+there's a page worth building on top of them.
+
 ### Added — The API surface (2026-08-16)
 
 Books, series, and authors now have a full API: create, edit, delete, restore, and
