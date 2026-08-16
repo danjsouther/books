@@ -16,7 +16,7 @@ export default defineConfig({
   test: {
     name: 'node',
     environment: 'node',
-    include: ['packages/**/*.spec.ts', 'apps/server/**/*.spec.ts'],
+    include: ['packages/**/*.spec.ts', 'apps/server/**/*.spec.ts', 'apps/bot/**/*.spec.ts'],
     // Integration specs share one database and truncate between tests, so they
     // must not run concurrently.
     fileParallelism: false,

@@ -1,9 +1,11 @@
-import type { ReleaseListQuery, ReleasesResponse } from '@books/domain';
-import { and, asc, eq, gte, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
+import type { ReleaseListQuery, ReleasePrecision, ReleasesResponse } from '@books/domain';
+import { and, asc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../client';
 import { books } from '../schema/books';
+import { series } from '../schema/series';
 import { bookUserStatus } from '../schema/shelf';
 import { authorsByBookIds, toBookSummary } from './books';
+import { liveBooks } from './active';
 
 /**
  * One query for the whole window, bucketed by precision in application code rather
@@ -75,4 +77,75 @@ function emptyReleases(filters: ReleaseListQuery): ReleasesResponse {
     undated: [],
     window: { from: filters.from, to: filters.to },
   };
+}
+
+/** Response item of `listUpcomingReleases` — flat and chronological, unlike
+ *  `ReleasesResponse`'s precision buckets, since the bot's `/upcoming` embed
+ *  groups by month itself rather than by precision. */
+export interface UpcomingRelease {
+  readonly id: string;
+  readonly title: string;
+  readonly releaseDate: string;
+  readonly releasePrecision: ReleasePrecision;
+  readonly seriesId: string | null;
+  readonly seriesName: string | null;
+  readonly seriesPosition: string | null;
+}
+
+export interface UpcomingReleasesFilters {
+  readonly from: string;
+  readonly to: string;
+  /** Also include month/year-precision books, not just day-precision. */
+  readonly includeTba: boolean;
+  readonly seriesId?: string;
+  /** Restricts to this viewer's `plan`-status books. */
+  readonly mineUserId?: string;
+}
+
+const DAY_ONLY: ReleasePrecision[] = ['day'];
+const DAY_MONTH_YEAR: ReleasePrecision[] = ['day', 'month', 'year'];
+
+/**
+ * The bot's own query, built on `liveBooks()` directly rather than
+ * `activeBooks()` — `activeBooks()` returns a plain `select().from(books)`
+ * with no room for the `series` join this embed needs, but `liveBooks()` is
+ * the same soft-delete predicate it's built from, applied to a custom
+ * joined `select` instead. Never a hand-rolled `deleted_at IS NULL`.
+ */
+export async function listUpcomingReleases(
+  db: Db,
+  filters: UpcomingReleasesFilters,
+): Promise<UpcomingRelease[]> {
+  const clauses: (SQL | undefined)[] = [
+    inArray(books.releasePrecision, filters.includeTba ? DAY_MONTH_YEAR : DAY_ONLY),
+    gte(books.releaseDate, filters.from),
+    lte(books.releaseDate, filters.to),
+  ];
+  if (filters.seriesId !== undefined) clauses.push(eq(books.seriesId, filters.seriesId));
+  if (filters.mineUserId !== undefined) {
+    clauses.push(sql`${books.id} IN (
+      SELECT ${bookUserStatus.bookId} FROM ${bookUserStatus}
+      WHERE ${bookUserStatus.userId} = ${filters.mineUserId} AND ${bookUserStatus.status} = 'plan'
+    )`);
+  }
+
+  const rows = await db
+    .select({
+      id: books.id,
+      title: books.title,
+      releaseDate: books.releaseDate,
+      releasePrecision: books.releasePrecision,
+      seriesId: books.seriesId,
+      seriesName: series.name,
+      seriesPosition: books.seriesPosition,
+    })
+    .from(books)
+    .leftJoin(series, eq(series.id, books.seriesId))
+    .where(liveBooks(...clauses))
+    .orderBy(asc(books.releaseDate), asc(books.title));
+
+  // `releaseDate`/`seriesPosition` are non-null here: the precision filter
+  // above guarantees `releaseDate` (only `unknown`-precision books have a
+  // null date), and a book missing from a series simply has a null `seriesId`.
+  return rows.map((row) => ({ ...row, releaseDate: row.releaseDate! }));
 }
