@@ -8,6 +8,7 @@
 export * from './activity';
 export * from './author';
 export * from './book';
+export * from './calendar';
 export * from './change';
 export * from './diff';
 export * from './errors';
