@@ -13,6 +13,17 @@ export interface SelectOption {
  * scratch for a handful of filter options would mean re-deriving most of
  * `app-combobox` for no real benefit here, so this deliberately stays inline —
  * a real simplification worth recording, not an oversight.
+ *
+ * `selectionMode="explicit"` is required, not the default. `Listbox` defaults
+ * to `selectionMode="follow"` — "the focused item is automatically selected"
+ * — and establishes an initial active item (the first one, via roving
+ * tabindex) on mount whether or not anyone has interacted with it yet. Left
+ * at the default, `AppSelect` silently reports its first option as selected
+ * immediately after render, with no click or keypress involved — a real,
+ * previously-undetected bug (found by `select.spec.ts`) that a consumer
+ * without a debounce between the model and its effect (unlike
+ * `createListStore`'s filter debounce, which happened to mask it) would see
+ * as an unrequested filter applied on page load.
  */
 @Component({
   selector: 'app-select',
@@ -20,6 +31,7 @@ export interface SelectOption {
   template: `
     <div
       ngListbox
+      selectionMode="explicit"
       [attr.aria-label]="ariaLabel()"
       [(value)]="internalValue"
       class="flex flex-wrap gap-2"

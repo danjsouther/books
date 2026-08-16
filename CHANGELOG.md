@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Activity, changes, and the release job (2026-08-16)
+
+Two new feeds, and the catalog now announces itself. The activity feed
+(`/activity`, the landing page) is what people are doing — shelf changes,
+ratings, and a release day arriving — in plain sentences, filterable by kind
+and by member, loaded a page at a time with a "Load more" button rather than
+infinite scroll. The changes feed (`/changes`) is what the catalog has
+become: every create, edit, delete, restore, and revert, with a link straight
+into that record's own diff view and a one-click Revert on the row itself. A
+burst of edits to the same book by the same person within an hour collapses
+into a single "edited 4 times" row instead of flooding the page.
+
+A release job now runs once at boot and daily just after local midnight,
+announcing any day-precision book whose release date has arrived — exactly
+once, ever, even across restarts, and never for a historical book added long
+after the fact.
+
+Nothing changed in the API or database this time — both feeds' endpoints
+already existed from Phase 4. What did surface, caught by real tests rather
+than inspection: the release job's first backdating guard compared exact
+instants instead of calendar dates and rejected books released only
+yesterday; and every filter built on the shared `AppSelect` component,
+including ones already shipped, had been silently self-selecting its first
+option on load. Both are fixed; see
+[docs/architecture.md](docs/architecture.md) for the detail.
+
 ### Added — The calendar and the release list (2026-08-16)
 
 Book releases now have two homes: a month calendar with a release on every

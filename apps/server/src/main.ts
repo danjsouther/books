@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { loadEnv } from '@books/config';
 import { createDb } from '@books/db';
 import { createApiRouter, createDiscordClient, type ApiDeps } from '@books/api';
+import { scheduleReleaseAnnouncementJob } from './jobs/releases';
 import { resolveWebDistDir, serveWebBundle } from './static';
 
 // esbuild inlines this at build time (see scripts/build-server.mjs). Under
@@ -51,12 +52,15 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: { code: 'internal_error', message: 'Something went wrong.' } });
 });
 
+const releaseJob = scheduleReleaseAnnouncementJob(db);
+
 const server = app.listen(env.PORT, () => {
   console.log(`books api listening on http://localhost:${String(env.PORT)}`);
 });
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
+    void releaseJob.stop();
     server.close(() => {
       void pool.end().finally(() => process.exit(0));
     });
