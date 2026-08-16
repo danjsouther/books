@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — A Discord bot, with `/upcoming` (2026-08-16)
+
+The app now has a presence in Discord itself, not just a login flow. `/upcoming`
+lists releases in a chosen window (30/90/180/365 days, default 90), narrowable
+to one series via autocomplete and, with `mine:true`, to only the books you've
+marked as planned — replying ephemerally when it's just for you, publicly
+otherwise. A Discord account that has never signed into the web app gets a
+plain "you haven't signed in yet" reply rather than an empty or confusing
+result. `include-tba` widens the list to books whose month or year is known
+but not the exact day.
+
+The bot is its own process (`apps/bot`), talking to the same database the web
+app and API do rather than calling the API over the network — a design choice
+that kept this phase from touching `apps/web` or `packages/api` at all. Slash
+commands are registered with `npm run bot:deploy-commands`, run by hand,
+never automatically on startup.
+
+See [docs/architecture.md](docs/architecture.md) for why the bot needed its
+own Discord client entirely separate from the web login flow's, and for how
+Discord's hard embed limits (25 fields, 1024 characters per field, 6000
+total) are enforced defensively rather than assumed safe.
+
 ### Added — Activity, changes, and the release job (2026-08-16)
 
 Two new feeds, and the catalog now announces itself. The activity feed

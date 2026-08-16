@@ -16,6 +16,79 @@ plan, not here — this file is for work that falls outside that plan.)_
 
 ## Medium
 
+- [ ] **Add a `/book <title>` Discord command**
+
+  ```
+  `apps/bot/src/commands/upcoming.ts` is the only slash command that exists —
+  it lists releases in a window, not a single book. There is no command that
+  looks up one book by title and shows its detail (cover, series, release
+  date, community rating) the way `apps/web`'s `BookDetailPage`
+  (`apps/web/src/app/features/books/book-detail-page.ts`) does.
+
+  `packages/db`'s `listUpcomingReleases` (`packages/db/src/queries/releases.ts`)
+  and `listSeries`'s `q`-search pattern (`packages/db/src/queries/series.ts`)
+  are the closest existing building blocks — a books-by-title search doesn't
+  exist yet at the query layer either (`GET /books?q=` searches titles via the
+  API, but the bot talks to `packages/db` directly, per Phase 9's pattern, not
+  through HTTP).
+
+  Wanted: `/book <title>` with autocomplete (mirroring `/upcoming`'s `series`
+  option's `listSeries`-backed autocomplete), replying with an embed built the
+  same way `apps/bot/src/format/embeds.ts` builds `/upcoming`'s.
+
+  Open decisions: what happens on more than one title match (a picker via
+  autocomplete resolving to an id, the way `/upcoming series` already does, or
+  a "did you mean" list in the reply); whether the embed shows the viewer's
+  own shelf status when the caller is a linked member (`findUserByDiscordId`,
+  added in Phase 9, already answers "is this caller linked").
+  ```
+
+- [ ] **Add a `/shelf @user` Discord command**
+
+  ```
+  `packages/db/src/queries/users.ts`'s `listUserShelf(db, userId, filters)`
+  already powers the web app's member-profile shelf view and supports
+  `status`/`seriesId`/`q` filters and `updated`/`title`/`rating`/`release`
+  sort — it is a ready-made query, not something that needs building from
+  scratch. What's missing is the Discord side: no command resolves a mentioned
+  Discord user to an app user (the join is `findUserByDiscordId`, added in
+  Phase 9 for `/upcoming mine:true`, directly reusable here) or formats a
+  shelf as an embed.
+
+  Wanted: `/shelf @user` (or with no mention, the caller's own shelf), optional
+  `status` filter, replying with an embed grouped or sorted the way the web
+  profile page presents it.
+
+  Open decisions: what an unlinked mentioned user gets (an ephemeral "they
+  haven't signed in" reply, mirroring `/upcoming`'s `mine:true` gate,
+  vs. silently empty); pagination shape if a shelf is larger than one embed's
+  6000-character budget (`apps/bot/src/format/embeds.ts`'s truncation logic is
+  the template to reuse, not reinvent).
+  ```
+
+- [ ] **Post `book.released` events to a Discord channel**
+
+  ```
+  `apps/server/src/jobs/releases.ts`'s `runReleaseAnnouncementJob` already
+  writes a `book.released` activity row (`packages/db/src/schema/activity.ts`)
+  the moment a day-precision book's release date arrives, idempotently. That
+  event only reaches the web app's activity feed
+  (`apps/web/src/app/features/activity/activity-page.ts`) today — nothing
+  posts it to Discord.
+
+  Wanted: the bot (or the server job itself, via a bot-owned webhook/channel
+  send) announces each new `book.released` row to a configured channel.
+
+  Open decisions: this needs a `guild_settings` table (announcement channel
+  id per guild) that doesn't exist yet — no schema work has started; whether
+  the release job posts directly (coupling `apps/server` to Discord) or the
+  bot polls/subscribes to new `book.released` rows on some interval instead
+  (keeping the coupling one-directional, bot → DB, the way every other bot
+  query already works); message format (reuse `apps/bot/src/format/embeds.ts`
+  or a plain announcement string, since a full embed may be overkill for one
+  book).
+  ```
+
 - [ ] **Ship an Electron desktop client**
 
   ```

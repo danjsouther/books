@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 /**
- * The subset of the eventual env surface that auth needs to fail fast at boot.
- * Phase 10 adds the rest (`TZ`, `LOG_LEVEL`, the bot's variables, …) alongside
+ * The subset of the eventual env surface that auth and the bot need to fail
+ * fast at boot. Phase 10 adds the rest (`TZ`, `LOG_LEVEL`, …) alongside
  * Docker Compose — this schema only grows then, it does not get restructured.
  */
 const schema = z.object({
@@ -38,6 +38,18 @@ const schema = z.object({
   DISCORD_REDIRECT_URI: z.string().url(),
   /** Required, not optional — this is the membership gate, not a filter. */
   DISCORD_ALLOWED_GUILD_ID: z.string().min(1),
+
+  DISCORD_BOT_TOKEN: z.string().min(1),
+  DISCORD_APP_ID: z.string().min(1),
+  /** Guild-scoped command registration (instant) when set; global (up to 1h
+   *  propagation) when absent. Optional, unlike `DISCORD_ALLOWED_GUILD_ID` —
+   *  this is a deploy-target choice, not an access gate. */
+  DISCORD_GUILD_ID: z.string().optional(),
+  /** Where the bot sends a member to sign in — distinct from `PUBLIC_BASE_URL`,
+   *  which is specifically the browser's own origin for the OAuth redirect and
+   *  the CSRF `Origin` check. The bot has no browser-facing concern of its
+   *  own, only "where do I send someone." */
+  WEB_BASE_URL: z.string().url(),
 });
 
 export type Env = z.infer<typeof schema>;

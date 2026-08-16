@@ -443,6 +443,65 @@ _consecutive_ (not "anywhere on the page within an hour of each other") — is
 directly unit-tested without a `TestBed`. The component wraps it in exactly
 one `computed()` line.
 
+## The Discord bot: a separate client, a separate process, the same database
+
+`apps/bot` is a third Node process alongside `apps/server`, not a feature
+bolted onto the existing one. It talks to Postgres directly through
+`packages/db` — the same package `apps/server` uses — rather than calling its
+own HTTP API over the network, which is why `packages/config`'s env schema
+and `packages/db`'s query layer grew slightly (`WEB_BASE_URL`,
+`DISCORD_BOT_TOKEN`/`DISCORD_APP_ID`/`DISCORD_GUILD_ID`,
+`findUserByDiscordId`, `listUpcomingReleases`) while nothing in
+`packages/api` or `apps/web` changed at all.
+
+**The bot has its own `discord.js` client, entirely unrelated to
+`createDiscordClient()`** (`packages/api/src/auth/discord-client.ts`). That
+existing client wraps the OAuth2 _user login_ flow — authorization-code
+exchange against Discord's REST API, no persistent connection. The bot needs
+a **gateway connection** authenticated with a bot token, a different
+credential and a different protocol entirely; conflating the two names would
+have been the more confusing choice, not the simpler one.
+
+**`listUpcomingReleases` uses `liveBooks()` directly instead of
+`activeBooks()`.** `activeBooks(db, ...extra)`
+(`packages/db/src/queries/active.ts`) returns a plain `select().from(books)`
+with no room for the `series` join the `/upcoming` embed needs (series name
+and position). `liveBooks(...)` is the exact predicate `activeBooks()` is
+itself built from — `and(isNull(books.deletedAt), ...extra)` — so building a
+custom joined `select` around it is still "going through the soft-delete
+guard," just without the ready-made wrapper that doesn't fit a join. The rule
+this preserves is "never hand-roll `deleted_at IS NULL` inline," not "always
+call the exact function named `activeBooks`."
+
+**`WEB_BASE_URL` is a distinct env var from `PUBLIC_BASE_URL`, not a rename.**
+`PUBLIC_BASE_URL` is specifically the browser's own origin, used to build the
+OAuth redirect and validate `Origin`/`Referer` on mutating requests — a
+concern the bot doesn't have at all. `WEB_BASE_URL` answers one question only:
+where does the bot send someone in a reply ("visit {WEB_BASE_URL}/login")?
+They happen to be the same value in dev, but keeping them separate means a
+deployment where the bot's public-facing link differs from the browser's own
+origin (a different subdomain, say) doesn't require overloading one variable
+to mean two things.
+
+**Discord's embed limits are enforced defensively, not assumed.**
+`apps/bot/src/format/embeds.ts`'s `buildUpcomingEmbed` stops adding month
+fields at 25, truncates any single field to 1024 characters, and stops
+adding further fields once the running total would cross 6000 — because
+Discord rejects the _entire_ message if any of these are exceeded, not just
+the offending part. A calendar-heavy multi-month `/upcoming 365` window hits
+these caps sooner than intuition suggests, which is exactly why the function
+enforces them itself rather than trusting the caller to pick a safe `within`
+value.
+
+**The dispatch/error-wrapping logic in `apps/bot/src/client.ts` is a plain
+exported function, not inline in the `Events.InteractionCreate` listener** —
+`handleInteraction(interaction, registry, deps)` takes the interaction as a
+parameter, so `client.spec.ts` exercises the "a command throws → ephemeral
+'Something went wrong.'" contract with a mock object, never a real gateway
+connection. The reply mechanism genuinely differs depending on whether the
+command had already deferred (`editReply` vs. `reply`), which is exactly the
+kind of branch that's easy to get backwards without a direct test.
+
 ## Accessibility rules that tooling cannot enforce
 
 Two contracts are written into the source as comments because no linter will

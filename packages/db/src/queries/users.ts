@@ -53,6 +53,14 @@ export async function findUserById(db: Db, id: string): Promise<User | undefined
   return row;
 }
 
+/** The bot's join key — `interaction.user.id` matches `discordId` directly,
+ *  so this is how `/upcoming mine:true` tells an app member from a Discord
+ *  account that has never signed into the web app. */
+export async function findUserByDiscordId(db: Db, discordId: string): Promise<User | undefined> {
+  const [row] = await db.select().from(users).where(eq(users.discordId, discordId)).limit(1);
+  return row;
+}
+
 // See the identical note in `queries/series.ts`: `${users.id}` renders as a bare
 // `"id"` inside a `sql` template, which is ambiguous — or silently wrong — once it
 // is nested inside a correlated subquery. Qualified explicitly here rather than
