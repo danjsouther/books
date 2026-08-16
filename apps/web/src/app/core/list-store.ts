@@ -1,5 +1,5 @@
 import { httpResource } from '@angular/common/http';
-import { computed, signal, type Signal } from '@angular/core';
+import { computed, linkedSignal, signal, type Signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
 import type { ListResponse } from '@books/domain';
@@ -14,6 +14,10 @@ export interface ListStore<TItem, TFilters extends Record<string, unknown>> {
   setFilter<K extends keyof TFilters>(key: K, value: TFilters[K]): void;
   clearFilters(): void;
   goToPage(page: number): void;
+  /** Re-runs the current request — for when the list itself hasn't changed
+   *  filters but the underlying data has (e.g. restoring a row out of a trash
+   *  list, where re-setting `page` to its own value wouldn't notify anything). */
+  reload(): void;
 }
 
 /**
@@ -44,24 +48,39 @@ export function createListStore<TItem, TFilters extends Record<string, unknown>>
     initialValue: defaultFilters,
   });
 
-  const params = computed(() => ({
-    ...debouncedFilters(),
-    page: page(),
-    pageSize: pageSize(),
-  }));
+  // `null`/`''` means "no opinion" for a filter — e.g. no series selected, no
+  // status chosen — and must be OMITTED from the query string, not sent as an
+  // empty value: several filter params (`seriesId`, `status`, ...) are
+  // `.uuid()`/`.enum()`-validated server-side when present at all, so
+  // `seriesId=''` is a 400, not "no filter".
+  const params = computed(() => {
+    const query: Record<string, string | number | boolean> = { page: page(), pageSize: pageSize() };
+    for (const [key, value] of Object.entries(debouncedFilters())) {
+      if (value === null || value === undefined || value === '') continue;
+      query[key] = value as string | number | boolean;
+    }
+    return query;
+  });
 
   const emptyPage: ListResponse<TItem> = { items: [], page: 1, pageSize: 20, total: 0 };
-  const resource = httpResource<ListResponse<TItem>>(
-    () => ({ url, params: params() as Record<string, string | number | boolean> }),
-    { defaultValue: emptyPage },
-  );
+  const resource = httpResource<ListResponse<TItem>>(() => ({ url, params: params() }), {
+    defaultValue: emptyPage,
+  });
   // `value()` throws in the resource's error state rather than falling back to
   // `defaultValue` — `hasValue()` is what makes reading it safe unconditionally,
   // including when a request fails.
   const value = computed(() => (resource.hasValue() ? resource.value() : emptyPage));
 
+  // The previous page's items stay rendered while the next page loads, rather
+  // than flashing to empty — `linkedSignal` only recomputes from `value()` when
+  // not loading, and falls back to its own previous output otherwise.
+  const displayItems = linkedSignal<{ items: TItem[]; loading: boolean }, TItem[]>({
+    source: () => ({ items: value().items, loading: resource.isLoading() }),
+    computation: (source, previous) => (source.loading && previous ? previous.value : source.items),
+  });
+
   return {
-    items: computed(() => value().items),
+    items: displayItems,
     total: computed(() => value().total),
     page,
     pageSize,
@@ -78,5 +97,8 @@ export function createListStore<TItem, TFilters extends Record<string, unknown>>
       page.set(1);
     },
     goToPage: (p) => page.set(p),
+    reload: () => {
+      resource.reload();
+    },
   };
 }

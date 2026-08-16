@@ -240,6 +240,71 @@ silently *not erroring*) whenever the inner table happens to have its own `id`co
 `bookCount`/`avgRating` qualify the outer reference explicitly
 (`sql.raw('"series"."id"')`) rather than relying on accidental scope resolution.
 
+## Signal Forms and `@angular/aria`: the first real usage, and what it cost
+
+Phase 6 is the first place either `@angular/forms/signals` or `@angular/aria` gets
+used anywhere in this codebase. Both are genuinely untested territory for this
+project, and both had gaps between their own documentation and their actual
+runtime behavior — found by writing the tests, not by reading the types.
+
+**`focusMode="activedescendant"` is required on `ngListbox` inside a combobox
+popup, and the package's own example doesn't set it.** `Listbox` defaults to
+`focusMode="roving"`, which moves real DOM focus onto whichever option is
+highlighted — impossible inside a combobox, where focus has to stay on the text
+input for typing to keep working. Without the explicit override, `app-combobox`
+(`shared/ui/combobox.ts`) still _looked_ fully functional: the popup opened,
+options highlighted visually via `data-active`, a click still selected an
+option. What silently didn't work was `aria-activedescendant` on the combobox's
+own input — the one attribute a screen reader actually needs to announce which
+option is highlighted while typing. `combobox.spec.ts` is what caught it, by
+asserting on the rendered attribute rather than trusting the visual behavior.
+
+**`[formField]` on a plain native `<input>`/`<textarea>` requires a non-nullable
+`string`.** Binding it to a `WritableSignal<string | null>` field is a compile
+error, not a runtime surprise — but it meant `BookFormModel`/`SeriesFormModel`
+use `''` for "not set" on every plain-text field, converting to `null` once, at
+the API boundary (`toApiInput()`), rather than carrying `string | null` through
+the form the way the domain schema does. `<input type="date">` and components
+implementing `FormValueControl` (the combobox, `AuthorsInput`) are the
+exceptions — both accept `null` directly, which is why `releaseDate` and
+`seriesId` keep their nullable domain type in the form model.
+
+**`pattern()`/`required()`/`minLength()`/`maxLength()` don't accept a nullable
+field either** — only `min`/`max`/`minDate`/`maxDate` are typed for `| null`.
+The ASIN format check is a hand-written `validate()` instead of `pattern()` for
+exactly this reason.
+
+**`npm run typecheck` (`tsc -b`) does not catch Angular template errors** —
+an unknown `[formField]` binding (from a forgotten import), a type mismatch
+between a field and the control it's bound to, both compile cleanly under
+`tsc -b` and only fail under `ng build`/`ng test`, which run the real Angular
+compiler's template type-checking pass. Every page in this phase was verified
+against `ng build`, not just `npm run typecheck`, for exactly this reason —
+`npm run typecheck` is necessary but not sufficient for anything touching a
+component template.
+
+### What Phase 6 deferred
+
+The master plan calls for a live, async duplicate-ASIN check
+(`validateAsync`/`validateHttp`) while typing. There is no endpoint that does an
+exact-ASIN, live-row-only lookup — `GET /books?q=` searches titles — and adding
+one would be new API surface in a phase scoped to the web UI. A duplicate ASIN
+is instead caught by the same `409`-conflict flow the concurrency UX already
+needs (`createBook`'s `findLiveDuplicate` already 409s on a live clash): the
+difference between a live warning while typing and a clear error immediately on
+submit is small for a few-member private app.
+
+`createListStore`'s query-param URL sync (surviving a reload, being shareable)
+is still deferred — Phase 6 built and used the filter UI Phase 5 had no
+consumer for yet, but URL sync itself remains a gap for whichever page next
+needs a link to a specific filtered view.
+
+"Last edited by X" on the book/series detail page was dropped: `GET
+/books/:id` carries a version number but not the editor's identity, and
+resolving `changedBy` (a uuid on the revision, not the book) to a username would
+mean a second request for a single line of text. "Version N · History" stands
+in its place.
+
 ## Accessibility rules that tooling cannot enforce
 
 Two contracts are written into the source as comments because no linter will

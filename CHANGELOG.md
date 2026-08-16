@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Books, series, and their history (2026-08-16)
+
+Books and series now have a real interface: a filterable, paged list; a detail
+page with a cover, series link, and everyone's shelf status and rating side by
+side; a create/edit form; and a browsable revision history with a field-level
+diff between any two versions and a one-click restore. Deleting either moves it
+to a shared trash page rather than removing it, with an inline Undo and a
+tombstone on the detail page in the meantime.
+
+Saving while someone else has edited the same record is handled explicitly
+rather than silently overwritten or silently lost: the form keeps exactly what
+was typed, explains what happened, and links to the history to see what
+changed. A shared, reusable list-filter toolbar, pagination, and a diff view now
+exist for every future list and history page to reuse rather than rebuild.
+
+This is also the first use of Signal Forms and `@angular/aria` anywhere in the
+app — both had real gaps between their documented examples and their actual
+runtime behavior, caught by writing tests rather than trusting the types. See
+[docs/architecture.md](docs/architecture.md) for what those gaps were and what
+this phase deliberately deferred.
+
 ### Added — The app shell and sign-in (2026-08-16)
 
 The browser app can now sign in, navigate, and stay signed in across a refresh.
