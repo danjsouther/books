@@ -1,0 +1,48 @@
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div class="min-h-dvh flex flex-col bg-surface text-ink">
+  <header class="border-b border-border">
+    <div class="mx-auto flex w-full max-w-5xl items-center gap-6 px-4 py-3">
+      <a routerLink="/" class="text-lg font-semibold tracking-tight">{{ title() }}</a>
+
+      <nav aria-label="Main" class="flex-1">
+        <ul class="flex gap-4 text-sm">
+          @for (item of navItems; track item.path) {
+            <li>
+              <a
+                [routerLink]="item.path"
+                routerLinkActive="font-semibold underline"
+                class="rounded-sm px-1 py-0.5 hover:underline"
+              >
+                {{ item.label }}
+              </a>
+            </li>
+          }
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!--
+    tabindex="-1" so the skip link and post-navigation focus management can move
+    focus here. Never remove it without replacing the focus target.
+  -->
+  <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+    <router-outlet />
+  </main>
+
+  <footer class="border-t border-border">
+    <div class="mx-auto w-full max-w-5xl px-4 py-4 text-sm text-ink-muted">
+      A reading list for people who argue about release dates.
+    </div>
+  </footer>
+</div>
+
+<!--
+  Route announcements for screen readers. The router does not announce
+  navigation on its own in an SPA, so without this a keyboard/SR user gets no
+  feedback that the page changed.
+-->
+<p aria-live="polite" aria-atomic="true" class="sr-only">{{ routeAnnouncement() }}</p>
+
+<app-flash-banner />

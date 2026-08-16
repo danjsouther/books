@@ -1,0 +1,20 @@
+/* Everything that runs on Node: the API server, the bot, the shared packages, and
+   the build scripts. Type-checked only — esbuild does the emitting. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "apps/server/**/*.ts",
+    "apps/bot/**/*.ts",
+    "packages/**/*.ts",
+    "scripts/**/*.mjs",
+    "drizzle.config.ts",
+    "vitest.node.config.ts"
+  ]
+}

@@ -1,0 +1,15 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../out-tsc/spec",
+    "rootDir": "../..",
+    "types": ["node", "vitest/globals"],
+    /* Same boundary as tsconfig.app.json — a spec must not reach server-only code either. */
+    "paths": {
+      "@books/domain": ["../../packages/domain/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
+}

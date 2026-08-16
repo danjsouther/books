@@ -1,0 +1,7 @@
+dist/
+out-tsc/
+coverage/
+.angular/
+node_modules/
+package-lock.json
+.claude/skills/

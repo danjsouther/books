@@ -1,0 +1,47 @@
+/*
+ * Global styles. Design tokens live in `tailwind.css`; this file is for the
+ * handful of rules that cannot be expressed as utilities.
+ */
+
+/*
+ * A visible focus indicator on everything, meeting the 3:1 contrast minimum.
+ * Angular Aria ships no styles at all, so without this its widgets are
+ * keyboard-navigable but invisibly so.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The skip link is off-screen until focused, then pinned to the top-left. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 50;
+
+  &:focus {
+    left: 0.5rem;
+    top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-surface);
+    border: 2px solid var(--color-focus);
+    border-radius: 4px;
+  }
+}
+
+/* Focusing <main> via the skip link should not draw a ring around the page. */
+main:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
