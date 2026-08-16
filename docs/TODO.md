@@ -16,6 +16,30 @@ plan, not here — this file is for work that falls outside that plan.)_
 
 ## Medium
 
+- [ ] **Build and publish Docker images from CI**
+
+  ```
+  `Dockerfile` builds three targets (`server`, `bot`, `migrate` — see
+  `docs/architecture.md`'s "Deployment" section) and all three are confirmed
+  working: built locally and run end to end via `docker-compose.yml`
+  (Postgres → migrate → server + bot, `books_bot`'s read-only grant verified
+  by hand). `.github/workflows/ci.yml` only compiles the app
+  (`build`/`build:bot`/`build:migrate`) — it never runs `docker build`, and
+  nothing pushes an image anywhere.
+
+  Wanted: CI builds all three targets on merge to `main` (or on a tag) and
+  pushes them to a registry, so a deployment pulls a known-good image
+  instead of building on the host.
+
+  Open decisions: which registry (GHCR is the obvious default for a
+  GitHub-hosted repo, needs no separate account); tagging scheme (git SHA,
+  semver tag, `latest`, or some combination); whether this needs
+  multi-platform builds (`linux/amd64` vs `linux/arm64`, depending on what
+  the homelab host actually runs) or a single target platform is fine;
+  whether image builds should block merging (a CI job) or only run
+  after (a separate release workflow).
+  ```
+
 - [ ] **Add a `/book <title>` Discord command**
 
   ```

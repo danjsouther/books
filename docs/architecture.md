@@ -502,6 +502,81 @@ connection. The reply mechanism genuinely differs depending on whether the
 command had already deferred (`editReply` vs. `reply`), which is exactly the
 kind of branch that's easy to get backwards without a direct test.
 
+## Deployment: one Dockerfile, three targets, a real read-only role
+
+`Dockerfile` builds three named targets (`server`, `bot`, `migrate`) rather
+than three separate files — the `deps`/`build` stages (install everything,
+run every `npm run build*` script) are identical work regardless of which
+final image gets shipped, so duplicating them three times would just be
+three places to keep in sync.
+
+**`packages/config/src/env.ts`'s single shared schema became two schemas
+during this phase, not by plan but by necessity.** Compose is where "does
+each service actually get only what it needs" stops being theoretical: the
+bot and server had shared one `loadEnv()` schema since Phase 9, which meant
+booting the server required `DISCORD_BOT_TOKEN` and booting the bot required
+`AUTH_JWT_SECRET` — harmless in local dev, where everything reads from the
+same `.env`, but a real problem the moment two separate containers get two
+separate, genuinely different environments. `loadServerEnv()`/`loadBotEnv()`
+now validate a `baseSchema` (the handful of fields both processes actually
+need — `DATABASE_URL`, `TZ`, `LOG_LEVEL`, `NODE_ENV`, `PORT`) extended with
+each process's own real requirements, discovered while writing
+`docker-compose.yml` and realizing the alternative was stuffing
+`unused-by-server`-shaped placeholder secrets into the server's environment
+block just to satisfy a schema that had over-reached.
+
+**A `books_bot` Postgres role is real, verified access control, not a
+documentation gesture.** `docker/initdb/01-books-bot-role.sh` creates it
+once, on a fresh volume, and grants it `SELECT` — nothing else. The
+non-obvious part is `ALTER DEFAULT PRIVILEGES FOR ROLE "$POSTGRES_USER"`:
+this script runs before the `migrate` service ever creates a single table,
+so a plain `GRANT SELECT ON ALL TABLES` at that point covers zero tables.
+Default privileges are scoped to the role that _creates_ an object, not the
+role that sets the default, so naming the same role the `migrate` service's
+`DATABASE_URL` connects as is what makes every table migrations create
+afterward automatically grant `books_bot` read access, with no second
+script to keep in sync as the schema grows. Verified directly, not just
+read as correct: with the full stack running, `books_bot` can `SELECT` from
+`activity` and `users` — both created by a migration that ran after the
+initdb script — and a `DELETE` from that same role fails with `permission
+denied for table books`.
+
+**`pgcrypto` and `citext` are not created, deliberately, not by oversight.**
+`gen_random_uuid()` (used by every UUID primary key) is a Postgres 13+
+built-in — nothing on `postgres:17-alpine` needs `pgcrypto` for it — and
+author-name matching (`packages/db/src/mutations/authors.ts`) is done via
+SQL `lower()`/JS `.toLowerCase()`, never `citext`, confirmed by grepping the
+whole schema for it and finding nothing. The initdb script only creates the
+role; there was nothing else for it to do, and adding extension-creation
+statements for extensions nothing uses would be dead configuration.
+
+**The `migrate` Compose service needed its own esbuild bundle, not a reuse
+of `tsx`.** `npm run db:migrate` runs `packages/db/src/cli/migrate.ts`
+through `tsx`, a devDependency absent from the `npm ci --omit=dev` runtime
+image. `scripts/build-migrate.mjs` mirrors `build-server.mjs`/
+`build-bot.mjs`, with one addition the other two don't need: `migrate.ts`'s
+`migrationsFolder` resolves relative to its own `import.meta.url`, which
+after bundling is `dist/migrate/main.js` — so the script also copies
+`packages/db/src/migrations` to `dist/migrate/migrations` after the esbuild
+step, or the bundle boots and immediately fails to find any migration to
+run. Caught by actually running the built bundle against Postgres before
+writing the Dockerfile around it, not by reasoning about the bundler's
+behavior in the abstract.
+
+**A real bug, found only by curling the running container from the host,
+not by reading the compose file:** the server's `environment.PORT` and the
+`ports:` host-mapping both initially read from the same `${PORT}` variable.
+Setting a different host port (to test alongside an already-running dev
+server on 4000) silently changed the _container-internal_ listen port too,
+so the published mapping (host → container:4000) pointed at a port the app
+had stopped listening on. The container's own `HEALTHCHECK` still passed
+throughout, because it also read `process.env.PORT` and therefore agreed
+with whatever the app actually did — which is exactly why this looked fine
+from inside the container and only broke from outside it. Fixed by hardcoding
+the container's internal `PORT: 4000` (matching `EXPOSE`/`HEALTHCHECK`,
+never overridable) and introducing a separate `SERVER_PORT` variable that
+controls only the host-side mapping.
+
 ## Accessibility rules that tooling cannot enforce
 
 Two contracts are written into the source as comments because no linter will

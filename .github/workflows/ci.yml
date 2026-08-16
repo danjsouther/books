@@ -28,6 +28,10 @@ jobs:
 
       - run: npm run build
 
+      - run: npm run build:bot
+
+      - run: npm run build:migrate
+
       - run: npm run test:web
 
   integration:
