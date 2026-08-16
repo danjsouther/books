@@ -203,6 +203,43 @@ JSON rather than through a loopback or custom-protocol redirect — there is
 nowhere real to redirect to. The `client` column and the branch are real and
 tested; only the handoff mechanism is provisional.
 
+## The API surface: one list contract, Zod schemas living in `@books/domain`
+
+Every collection endpoint — books, series, a series' books, trash, changes, users, a
+user's shelf — shares one envelope (`ListResponse<T>`) and one pagination scheme
+(`page`/`pageSize`, capped at 100, every `ORDER BY` ending in an `id` tiebreaker so a
+sort with ties still pages stably). `/activity` is the deliberate exception: it is
+keyset-paginated on `id`, not offset, because it is the one endpoint written to
+continuously — offset pagination is exactly where a feed with rows arriving mid-page
+duplicates or drops items. See `docs/api.md` for the full surface.
+
+Request-body and query-string validation runs through Zod schemas defined in
+`@books/domain`, not `@books/api`. The reason is Phase 5, not this phase: Angular's
+`httpResource` accepts a `parse` option, and a schema that already lives in the
+isomorphic package is exactly what that option wants — the same `BookCreateSchema`
+that rejects a bad `POST /books` body on the server can validate what the form sends
+before it ever leaves the browser. `@books/api` route handlers call `Schema.parse()`
+directly inside their async handler with no `try/catch`; a thrown `ZodError`
+propagates to `.catch(next)` and `error-handler.ts` already maps it to a clean `400
+validation_failed` with `details: issues`.
+
+One Zod trap worth recording: an update schema is **not** `CreateSchema.partial()`.
+Every create-schema field carries a `.default(...)` for the create path, and Zod
+applies that default whenever the key is absent from the input — `.partial()` only
+makes the key optional, it does not suppress the default underneath. A `PATCH` that
+sends `{title}` and nothing else would, with `.partial()`, silently reset every other
+field — `authors` included — back to its create-time default instead of leaving it
+alone, which is the opposite of what a patch means. `BookUpdateSchema` and
+`SeriesUpdateSchema` are therefore written out explicitly, every field `.optional()`
+with no default, so "absent" means "unchanged."
+
+Query builders that correlate an outer table's column inside a nested subquery carry
+a similar trap: `sql\`${outerTable.id}\``renders as a bare, unqualified`"id"`, which
+resolves against whichever table is innermost in scope — silently wrong (or, worse,
+silently *not erroring*) whenever the inner table happens to have its own `id`column.`queries/series.ts`'s `bookCount`/`nextRelease`and`queries/users.ts`'s
+`bookCount`/`avgRating` qualify the outer reference explicitly
+(`sql.raw('"series"."id"')`) rather than relying on accidental scope resolution.
+
 ## Accessibility rules that tooling cannot enforce
 
 Two contracts are written into the source as comments because no linter will

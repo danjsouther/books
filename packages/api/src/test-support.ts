@@ -1,6 +1,7 @@
 import type { Db } from '@books/db';
 import cookieParser from 'cookie-parser';
 import express, { type Express } from 'express';
+import request from 'supertest';
 import { createApiRouter } from './router';
 import type { ApiDeps } from './types';
 import type {
@@ -95,4 +96,41 @@ export function buildTestApp(db: Db, overrides: Partial<ApiDeps['auth']> = {}): 
   app.use('/api/v1', createApiRouter({ version: 'test', db, auth, discord }));
 
   return { app, discord, auth };
+}
+
+/** Logs a fresh member in through the real Discord-callback path (desktop, so the
+ *  tokens come back as JSON rather than cookies) and returns a bearer header and
+ *  that member's id — the shared login step every non-auth route spec needs before
+ *  it can call anything past `requireAuth`. */
+export async function loginTestUser(
+  testApp: TestApp,
+): Promise<{ userId: string; authHeader: { Authorization: string } }> {
+  const start = await request(testApp.app).get('/api/v1/auth/discord/start?client=desktop');
+  const location = start.headers['location'];
+  if (typeof location !== 'string') throw new Error('No redirect from /discord/start.');
+  const state = new URL(location).searchParams.get('state');
+  if (state === null) throw new Error('No state in authorize URL.');
+
+  const login = await request(testApp.app).get(
+    `/api/v1/auth/discord/callback?code=test-code&state=${state}`,
+  );
+  const body = login.body as { accessToken?: unknown };
+  if (typeof body.accessToken !== 'string')
+    throw new Error('Login did not return an access token.');
+
+  const me = await request(testApp.app)
+    .get('/api/v1/auth/me')
+    .set('Authorization', `Bearer ${body.accessToken}`);
+  const meBody = me.body as { id?: unknown };
+  if (typeof meBody.id !== 'string') throw new Error('/auth/me did not return an id.');
+
+  return { userId: meBody.id, authHeader: { Authorization: `Bearer ${body.accessToken}` } };
+}
+
+/** `supertest`'s `res.body` is typed `any` — every route spec needs to narrow it
+ *  before touching a property, or `@typescript-eslint/no-unsafe-member-access`
+ *  rejects it. One explicit cast per response beats scattering `as` everywhere the
+ *  body is touched. */
+export function bodyAs<T>(res: { body: unknown }): T {
+  return res.body as T;
 }

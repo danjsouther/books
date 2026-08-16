@@ -16,12 +16,20 @@ export { seed } from './seed';
 export * as schema from './schema';
 
 export * from './queries/active';
+export * from './queries/activity';
+export * from './queries/books';
+export * from './queries/changes';
 export * from './queries/oauth-states';
 export * from './queries/refresh-tokens';
+export * from './queries/releases';
+export * from './queries/revisions';
+export * from './queries/series';
+export * from './queries/trash';
 export * from './queries/users';
 export * from './mutations/authors';
 export * from './mutations/books';
 export * from './mutations/series';
+export * from './mutations/shelf';
 export {
   createWithRevision,
   updateWithRevision,

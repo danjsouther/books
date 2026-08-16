@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — The API surface (2026-08-16)
+
+Books, series, and authors now have a full API: create, edit, delete, restore, and
+revert, plus a browsable revision history for both books and series with a diff
+between any two versions. Every edit and delete is a version, never a rewrite, so
+reverting a revert works and a soft-deleted record renders as a tombstone with a
+Restore button rather than vanishing. A book's authors are part of that history too —
+changing who wrote a book is an edit like any other, and appears in its diff.
+
+Members now have a shelf: a status and a rating per book, which doubles as the
+source for "my upcoming releases," a ratings summary on every book, and a member
+profile page. Every shelf change writes an activity feed entry alongside it, in the
+same transaction, so the feed can never disagree with the shelf. The calendar's data
+now exists behind `/releases`, pre-bucketed by how much of a release date is actually
+known — day, month, year, or nothing at all — so the calendar and a release list
+render from the identical payload. A changes feed unions both catalog tables' history
+into one reverse-chronological list, and a trash page lists everything currently
+soft-deleted across books and series together.
+
+Every collection endpoint shares one pagination contract — the same
+`page`/`pageSize`/`sort`/`dir` params and the same envelope — except the activity
+feed, which is paginated by cursor instead of page number, since it is the one list
+being written to while someone might be reading it. Request validation runs through
+Zod schemas that live in the shared, browser-safe package rather than the server
+alone, so the same rule that rejects a bad request on the server will validate a form
+in the browser before it is ever sent. See [docs/api.md](docs/api.md) for the full
+surface and [docs/architecture.md](docs/architecture.md) for the reasoning behind it.
+
 ### Added — Discord login (2026-08-15)
 
 Members sign in with Discord. The server validates guild membership against
