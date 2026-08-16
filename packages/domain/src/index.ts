@@ -5,6 +5,18 @@
  * onto them.
  */
 
+export * from './activity';
+export * from './author';
+export * from './book';
+export * from './change';
+export * from './diff';
 export * from './errors';
 export * from './health';
+export * from './list';
+export * from './release';
+export * from './revision';
+export * from './series';
+export * from './shelf';
+export * from './trash';
 export * from './user';
+export * from './users';

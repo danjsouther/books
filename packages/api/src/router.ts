@@ -6,7 +6,15 @@ import { errorHandler } from './middleware/error-handler';
 import { createHttpLogger } from './middleware/logger';
 import { authRateLimiter } from './middleware/rate-limit';
 import { requestId } from './middleware/request-id';
+import { createActivityRouter } from './routes/activity';
 import { createAuthRouter } from './routes/auth';
+import { createAuthorsRouter } from './routes/authors';
+import { createBooksRouter } from './routes/books';
+import { createChangesRouter } from './routes/changes';
+import { createReleasesRouter } from './routes/releases';
+import { createSeriesRouter } from './routes/series';
+import { createTrashRouter } from './routes/trash';
+import { createUsersRouter } from './routes/users';
 import type { ApiDeps } from './types';
 
 export type { ApiDeps, AuthConfig, AuthenticatedUser } from './types';
@@ -42,11 +50,18 @@ export function createApiRouter(deps: ApiDeps): Router {
 
   router.use('/auth', authRateLimiter(), createAuthRouter(deps));
 
-  // Phase 4's book/series/etc. routes mount below this line and inherit auth for
-  // free. Nothing does yet, so this currently guards an empty stretch of router —
-  // every remaining request is unmatched, and gets a clean 404 rather than
-  // falling through to the SPA fallback or a bare 500.
+  // Everything below this line requires auth by construction — no route down here
+  // remembers to check for itself.
   router.use(requireAuth);
+
+  router.use('/books', createBooksRouter(deps));
+  router.use('/series', createSeriesRouter(deps));
+  router.use('/authors', createAuthorsRouter(deps));
+  router.use('/releases', createReleasesRouter(deps));
+  router.use('/activity', createActivityRouter(deps));
+  router.use('/changes', createChangesRouter(deps));
+  router.use('/trash', createTrashRouter(deps));
+  router.use('/users', createUsersRouter(deps));
   router.use((req, _res, next) => {
     next(new AppError('not_found', `No such route: ${req.method} ${req.originalUrl}`));
   });
