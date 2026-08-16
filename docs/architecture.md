@@ -367,6 +367,82 @@ unconditional search input doesn't fit. `ReleasesPage` builds its own small
 filter row (a series combobox + a checkbox) instead of forcing the shared
 component to fit a resource it wasn't designed for.
 
+## The feeds and the release job: nothing new in the API, three real bugs in the UI
+
+Phase 8 is the first phase since Phase 5 that changes nothing in
+`packages/api`/`packages/db`/`packages/domain` — `GET /activity` and
+`GET /changes` were already complete, tested, and correct. All of the work,
+and all three bugs this section documents, were in `apps/web` and
+`apps/server`.
+
+**`ActivityItem.payload` for `book.added` is `{}`, and `ChangeItem` has no
+"reverted to vN" field.** Both were confirmed by reading
+`packages/db/src/mutations/books.ts` and `packages/domain/src/change.ts`
+directly before writing any UI copy, rather than assuming the master plan's
+illustrative sentences ("added _Leviathan Wakes_ to _The Expanse_", "reverted
+_Leviathan Wakes_ to v2 → v7") matched the actual response shape. They don't:
+`book.added` carries no series reference, and a revert's `ChangeItem` carries
+only the new version it created, not the version it reverted from. The
+Activity and Changes rows render the simpler, honest sentence instead of
+adding a field to a response shape other things already depend on.
+
+**The release job's backdating guard compared instants, not dates, and
+caught its own bug on the first real test run.** The first version of
+`runReleaseAnnouncementJob`'s guard was
+`createdAt <= releaseDate::timestamptz + interval '1 day'` — which looks like
+a one-day grace window but isn't one: `releaseDate + 1 day` lands on a
+midnight, so a book released yesterday and inserted this afternoon has a
+`createdAt` _later than_ that midnight and gets wrongly treated as a
+backdated historical import. The fix casts both sides to a date before
+comparing (`createdAt::date <= releaseDate::date + 1`), which is what "one
+day of grace regardless of time-of-day" actually requires. Caught by
+`releases.spec.ts`'s very first assertion failing against a real Postgres,
+not by inspection — the kind of off-by-one that looks obviously correct
+until it's run against real timestamps.
+
+**`AppSelect` silently self-selected its first option on mount.**
+`@angular/aria`'s `Listbox` defaults to `selectionMode="follow"` — the
+focused item is automatically selected — and establishes an initial active
+item (the first one, via roving tabindex) whether or not anyone has
+interacted with the widget yet. `AppSelect` (built in Phase 6, reused by
+`books-list-page.ts`'s status filter ever since) never overrode this, so
+every `AppSelect` in the app has been reporting its first option selected
+immediately after render. Phase 6/7 never caught it because
+`createListStore`'s 250ms filter debounce happens to swallow a spurious
+selection that arrives synchronously on mount before any real user action.
+`ActivityPage` has no such debounce — it fetches immediately on any filter
+signal change — so the bug surfaced immediately as a second, unwanted
+`kind=book.added` request straight after the real initial request. Fixed
+with `selectionMode="explicit"` on `AppSelect`'s underlying `ngListbox`,
+with a regression spec (`select.spec.ts`, previously nonexistent) asserting
+no option reports selected on mount. Filed as a shared-component fix rather
+than working around it per-consumer, since every existing `AppSelect` filter
+in the app had the identical latent bug, only invisible where a debounce
+happened to hide it.
+
+**Why `ActivityPage` and `ChangesPage` are built differently.**
+`GET /activity` is keyset-paginated (`before`/`nextCursor` on a `bigserial`
+id) because the feed is written to continuously; `GET /changes` is
+offset-paginated because it isn't. `ChangesPage` reuses `createListStore` and
+the existing `Pagination` component outright — a genuine fit, not a stretch.
+`ActivityPage` cannot: accumulating a growing list across "Load more" clicks
+while resetting to empty on a filter change is fundamentally imperative, and
+forcing `httpResource` plus an `effect()` to do that accumulation is exactly
+the class of bug the calendar's focus-stealing effect (Phase 7) already
+demonstrated is easy to get wrong. `ActivityPage` uses plain `HttpClient`
+calls instead. Neither page uses `app-list-toolbar`: neither
+`ActivityListQuery` nor `ChangeListQuery` has a `q` (free-text search) field,
+so the toolbar's unconditional search box doesn't fit either resource — the
+same call `ReleasesPage` already made in Phase 7.
+
+**The noise-collapsing rule lives in one pure function, not a `computed()`
+inline in the component.** `collapse-changes.ts`'s `collapseChanges()` takes
+`ChangeItem[]` and returns collapsed rows with no Angular import at all,
+so the rule — same actor, same entity, `edited`, within one hour,
+_consecutive_ (not "anywhere on the page within an hour of each other") — is
+directly unit-tested without a `TestBed`. The component wraps it in exactly
+one `computed()` line.
+
 ## Accessibility rules that tooling cannot enforce
 
 Two contracts are written into the source as comments because no linter will
