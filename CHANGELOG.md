@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — The calendar and the release list (2026-08-16)
+
+Book releases now have two homes: a month calendar with a release on every
+day it lands, and a chronological release list grouped by month, with a
+separate section for books whose year is known but not the month, and
+another for books with no date at all yet. Both share one "Plan" toggle — a
+real button, not an icon, that says outright what it does — so marking a
+future book as something you're anticipating takes one click from either
+view, with an immediate confirmation and no page reload. An "only my planned
+releases" filter narrows either view to exactly that list.
+
+The calendar is fully keyboard-navigable: arrow keys move between days, Page
+Up/Down step a month at a time, Shift+Page Up/Down step a year, and
+Ctrl+Home jumps back to today. Moving to a new month re-places focus on the
+same day of the new month and announces the change and how many releases it
+holds, rather than dropping focus back to the top of the page the way a
+naive re-render would.
+
+This is the first use of `@angular/aria`'s `Grid` anywhere in the app — see
+[docs/architecture.md](docs/architecture.md) for what it needed (surprisingly
+little) and for a focus-stealing bug the calendar's own test suite caught
+before it shipped.
+
 ### Added — Books, series, and their history (2026-08-16)
 
 Books and series now have a real interface: a filterable, paged list; a detail

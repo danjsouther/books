@@ -31,11 +31,19 @@ export const routes: Routes = [
         path: 'series',
         loadChildren: () => import('./features/series/series.routes').then((m) => m.routes),
       },
-      // The calendar and the release list share one `ReleaseStore` once Phase 7
-      // gives them real content — see the plan note on why that wrapper route
-      // isn't added yet.
+      // The calendar and the release list share one `ReleaseStore`
+      // (`core/release-store.ts`). `calendar` redirects to the current
+      // month so the URL is always linkable and back-button-correct.
       {
         path: 'calendar',
+        pathMatch: 'full',
+        redirectTo: () => {
+          const now = new Date();
+          return `/calendar/${String(now.getFullYear())}/${String(now.getMonth() + 1)}`;
+        },
+      },
+      {
+        path: 'calendar/:year/:month',
         loadComponent: () =>
           import('./features/calendar/calendar-page').then((m) => m.CalendarPage),
         title: 'Calendar',

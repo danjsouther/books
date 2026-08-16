@@ -305,6 +305,68 @@ resolving `changedBy` (a uuid on the revision, not the book) to a username would
 mean a second request for a single line of text. "Version N · History" stands
 in its place.
 
+## The calendar: what Grid needed, and what it didn't
+
+Phase 7 is the first real use of `@angular/aria`'s `Grid`. Unlike `Listbox`
+inside a combobox (Phase 6), `Grid` needed no manual `activeDescendant` wiring
+at all — `Grid.activeDescendant` is a `Signal<string | undefined>` the
+directive computes and maintains itself, confirmed by reading
+`node_modules/@angular/aria/types/grid.d.ts` directly before writing any code
+rather than assuming it worked the same way `Listbox` does.
+
+**One `ngGridCellWidget` per cell, not one per interactive element.**
+`GridCell` holds its widget as a single private reference
+(`_widget`/`_getWidget()`), so a day with two releases wraps both title links
+and both Plan buttons in one `<div ngGridCellWidget widgetType="complex">`,
+never one widget per link. Get this wrong and only the first release's
+controls would ever receive the grid's "enter the cell" keyboard handling —
+the rest would render but be keyboard-unreachable.
+
+**The real bug this phase caught wasn't in `@angular/aria` at all.** The
+effect that refocuses a day cell and announces the release count after a
+month change was originally written to track `store.releases()` alongside
+`year()`/`month()`, on the theory that the live-region text needed the
+release count as a dependency. It does — but tracking it turned every
+async resolution of the releases request into something indistinguishable
+from a real month change, so focus got stolen from wherever the user actually
+was the moment the network response landed, including on the very first page
+load. `calendar-page.spec.ts`'s "does not steal focus on the initial render"
+test caught it immediately; the fix reads `store.releases()` through
+`untracked()` so only `year()`/`month()` actually decide whether a navigation
+happened, and the release count for the announcement is read without becoming
+a trigger for it.
+
+**Knowing whether a release is already planned needed a second request, not
+new API surface.** `BookSummary`/`ReleasesResponse` carry no per-viewer status
+— nothing in a `/releases` response says whether the viewer has marked a given
+book `plan`, which the Plan toggle's `aria-pressed` state needs regardless of
+whatever the visible "only my planned" filter is set to. `listReleases`
+already supports `mine=true`, filtering to exactly the books the viewer has
+marked `plan` — so `ReleaseStore` (`core/release-store.ts`) makes a second,
+unconditionally-`mine:true` request over the identical window, independent of
+the user-facing `mineOnly` filter, rather than adding a field to the response
+shape. Same call as the Phase 6 duplicate-ASIN deferral: reuse an existing
+filter over new API surface when the existing one already answers the
+question.
+
+**`new Date()` appears in two places, deliberately, and both are the
+"real now" case rather than the ISO-string-parsing footgun.** The
+`/calendar` → `/calendar/:year/:month` redirect and each page's "what's
+today" calculation both read the actual system clock once, to answer "what
+month is it right now for this viewer" — genuinely different from
+`new Date('2027-03-05')`, which parses a _known_ ISO string as UTC midnight
+and silently misreports the date in any timezone west of Greenwich. Both
+call sites use local getters (`getFullYear()`/`getMonth()`/`getDate()`), not
+`toISOString()`, specifically because `toISOString()` is UTC and would
+misreport "today" in the evening for exactly the same class of viewer.
+
+**The release list doesn't use `app-list-toolbar`.** `ReleaseListQuery` has no
+`q` (text search) or `sort` field — releases aren't searched by keyword, and
+the response is already grouped by precision — so the shared toolbar's
+unconditional search input doesn't fit. `ReleasesPage` builds its own small
+filter row (a series combobox + a checkbox) instead of forcing the shared
+component to fit a resource it wasn't designed for.
+
 ## Accessibility rules that tooling cannot enforce
 
 Two contracts are written into the source as comments because no linter will
