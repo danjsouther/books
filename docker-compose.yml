@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-books}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-books}
+      BOOKS_BOT_PASSWORD: ${BOOKS_BOT_PASSWORD:?BOOKS_BOT_PASSWORD is required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: applies migrations and exits. Never runs at app startup — see
+  # packages/db/src/migrate.ts's own doc comment on why two processes racing
+  # this on boot is a real failure mode.
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-books}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-books}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  server:
+    build:
+      context: .
+      target: server
+    environment:
+      NODE_ENV: production
+      # Deliberately not driven by a host-side env var: the app always
+      # listens on 4000 inside the container, matching this Dockerfile's
+      # EXPOSE/HEALTHCHECK. SERVER_PORT below controls which *host* port maps
+      # to it — conflating the two here would silently break the mapping the
+      # moment someone changes SERVER_PORT, since the app would start
+      # listening on a port nothing forwards to.
+      PORT: 4000
+      TZ: ${TZ:-UTC}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
+      # The owner role — "server: full" in the env-surface split this and the
+      # bot service's DATABASE_URL implement.
+      DATABASE_URL: postgres://${POSTGRES_USER:-books}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-books}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?AUTH_JWT_SECRET is required}
+      AUTH_ACCESS_TTL_MIN: ${AUTH_ACCESS_TTL_MIN:-15}
+      AUTH_REFRESH_TTL_DAYS: ${AUTH_REFRESH_TTL_DAYS:-30}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?DISCORD_CLIENT_ID is required}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?DISCORD_CLIENT_SECRET is required}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:?DISCORD_REDIRECT_URI is required}
+      DISCORD_ALLOWED_GUILD_ID: ${DISCORD_ALLOWED_GUILD_ID:?DISCORD_ALLOWED_GUILD_ID is required}
+    ports:
+      - '${SERVER_PORT:-4000}:4000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  bot:
+    build:
+      context: .
+      target: bot
+    environment:
+      NODE_ENV: production
+      TZ: ${TZ:-UTC}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # The read-only role — "bot: read-only role" in the env-surface split.
+      # Created once by docker/initdb/01-books-bot-role.sh.
+      DATABASE_URL: postgres://books_bot:${BOOKS_BOT_PASSWORD}@postgres:5432/${POSTGRES_DB:-books}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:?DISCORD_BOT_TOKEN is required}
+      DISCORD_APP_ID: ${DISCORD_APP_ID:?DISCORD_APP_ID is required}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
+      WEB_BASE_URL: ${WEB_BASE_URL:?WEB_BASE_URL is required}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

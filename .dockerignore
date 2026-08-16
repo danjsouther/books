@@ -1,0 +1,14 @@
+node_modules
+dist
+.angular
+.git
+.github
+.claude
+.vscode
+coverage
+*.log
+.env
+.env.*
+!.env.example
+README.md
+docs

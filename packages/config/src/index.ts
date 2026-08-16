@@ -1,1 +1,1 @@
-export { loadEnv, type Env } from './env';
+export { loadServerEnv, loadBotEnv, type ServerEnv, type BotEnv } from './env';

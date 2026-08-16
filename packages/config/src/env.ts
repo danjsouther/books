@@ -1,21 +1,40 @@
 import { z } from 'zod';
 
 /**
- * The subset of the eventual env surface that auth and the bot need to fail
- * fast at boot. Phase 10 adds the rest (`TZ`, `LOG_LEVEL`, …) alongside
- * Docker Compose — this schema only grows then, it does not get restructured.
+ * Fields every process (server, bot) needs. Each entry point validates only
+ * this plus its own extension — not one shared schema for everything —
+ * because Docker Compose is where "does each service only get what it
+ * actually needs" stops being theoretical: a bot container has no business
+ * requiring `AUTH_JWT_SECRET`, and a server container has no business
+ * requiring `DISCORD_BOT_TOKEN`. `packages/db/src/cli/migrate.ts` doesn't use
+ * this module at all — it reads `DATABASE_URL` directly via
+ * `packages/db/src/client.ts`'s `databaseUrl()`.
  */
-const schema = z.object({
+const baseSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
+  /** Read natively by Node for every `Date`/`Intl` operation — nothing here
+   *  consumes this value directly. Matters because the release job
+   *  (`apps/server/src/jobs/releases.ts`) runs "just after local midnight";
+   *  without this set explicitly a container inherits UTC, not the
+   *  deployment's actual local time. */
+  TZ: z.string().default('UTC'),
+  /** `packages/api/src/middleware/logger.ts` reads this directly from
+   *  `process.env`, not from a loader's return value — its `pino` singleton
+   *  is constructed at module-load time, before any call site's loader
+   *  necessarily runs. It's validated here anyway so a bad value is
+   *  documented and caught at boot, even though pino's own construction
+   *  already throws on an invalid level regardless. */
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
+  DATABASE_URL: z.string().min(1),
+});
 
+const serverSchema = baseSchema.extend({
   /** The origin the browser actually loads the app from — `http://localhost:4200`
    *  in dev, since the Angular dev-server proxy keeps the API same-origin from the
    *  browser's point of view. Used to build the Discord redirect target and to
    *  validate `Origin`/`Referer` on mutating requests. */
   PUBLIC_BASE_URL: z.string().url(),
-
-  DATABASE_URL: z.string().min(1),
 
   /** No default, deliberately — a weak or committed secret is the entire access
    *  token scheme's failure mode. 32 characters is the practical floor for an
@@ -38,7 +57,9 @@ const schema = z.object({
   DISCORD_REDIRECT_URI: z.string().url(),
   /** Required, not optional — this is the membership gate, not a filter. */
   DISCORD_ALLOWED_GUILD_ID: z.string().min(1),
+});
 
+const botSchema = baseSchema.extend({
   DISCORD_BOT_TOKEN: z.string().min(1),
   DISCORD_APP_ID: z.string().min(1),
   /** Guild-scoped command registration (instant) when set; global (up to 1h
@@ -52,18 +73,28 @@ const schema = z.object({
   WEB_BASE_URL: z.string().url(),
 });
 
-export type Env = z.infer<typeof schema>;
+export type ServerEnv = z.infer<typeof serverSchema>;
+export type BotEnv = z.infer<typeof botSchema>;
 
-/**
- * Parses and validates `process.env` once, at boot. A missing or malformed value
- * fails the process immediately with every problem listed at once, rather than
- * surfacing as a confusing 500 the first time the code path is hit.
- */
-export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+function parseOrThrow<T extends z.ZodType>(schema: T, source: NodeJS.ProcessEnv): z.infer<T> {
   const result = schema.safeParse(source);
   if (!result.success) {
     const issues = result.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`);
     throw new Error(`Invalid environment configuration:\n${issues.join('\n')}`);
   }
   return result.data;
+}
+
+/**
+ * Parses and validates `process.env` once, at boot. A missing or malformed
+ * value fails the process immediately with every problem listed at once,
+ * rather than surfacing as a confusing runtime error the first time the code
+ * path is hit.
+ */
+export function loadServerEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
+  return parseOrThrow(serverSchema, source);
+}
+
+export function loadBotEnv(source: NodeJS.ProcessEnv = process.env): BotEnv {
+  return parseOrThrow(botSchema, source);
 }

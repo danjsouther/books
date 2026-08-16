@@ -1,4 +1,4 @@
-import { loadEnv } from '@books/config';
+import { loadBotEnv } from '@books/config';
 import { REST, Routes } from 'discord.js';
 import { upcomingCommand } from './commands/upcoming';
 
@@ -9,7 +9,7 @@ import { upcomingCommand } from './commands/upcoming';
  * process restarts.
  */
 async function main(): Promise<void> {
-  const env = loadEnv();
+  const env = loadBotEnv();
   const commands = [upcomingCommand.data.toJSON()];
   const rest = new REST().setToken(env.DISCORD_BOT_TOKEN);
 

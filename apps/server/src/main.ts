@@ -1,7 +1,7 @@
 import cookieParser from 'cookie-parser';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
-import { loadEnv } from '@books/config';
+import { loadServerEnv } from '@books/config';
 import { createDb } from '@books/db';
 import { createApiRouter, createDiscordClient, type ApiDeps } from '@books/api';
 import { scheduleReleaseAnnouncementJob } from './jobs/releases';
@@ -11,7 +11,7 @@ import { resolveWebDistDir, serveWebBundle } from './static';
 // `tsx watch` it is simply absent, hence the fallback.
 const version = process.env['APP_VERSION'] ?? '0.0.0-dev';
 
-const env = loadEnv();
+const env = loadServerEnv();
 const { db, pool } = createDb(env.DATABASE_URL);
 
 const deps: ApiDeps = {

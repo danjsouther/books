@@ -12,6 +12,7 @@
     "build:web": "ng build",
     "build:server": "node scripts/build-server.mjs",
     "build:bot": "node scripts/build-bot.mjs",
+    "build:migrate": "node scripts/build-migrate.mjs",
     "bot:deploy-commands": "tsx --env-file-if-exists=.env apps/bot/src/deploy-commands.ts",
     "test": "npm run test:web && npm run test:node",
     "test:web": "ng test",

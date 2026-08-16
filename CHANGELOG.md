@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Docker Compose deployment (2026-08-16)
+
+The app now runs the way it will actually be deployed: `docker compose up`
+builds and starts Postgres, applies migrations in a one-shot service that
+runs once and exits, and starts the server and the bot — nothing races
+another service to apply the same migration, because nothing but that
+one-shot service ever runs one. The bot connects to Postgres as a separate,
+read-only role, created once by an init script and verified to actually
+enforce that: it can read every table, including ones added by migrations
+that ran after the role was created, and cannot write to any of them.
+
+Getting each container only the environment variables it actually needs
+turned into real work, not configuration: the server and the bot had shared
+one validated environment schema since the bot was added, which was free in
+local development (everything reads from the same `.env`) and would have
+meant stuffing placeholder Discord bot credentials into the server's
+container just to satisfy a schema that asked for more than that process
+uses. They now validate two schemas built from one shared base. See
+[docs/architecture.md](docs/architecture.md) for this and for a second bug
+Compose surfaced — a port-mapping variable that also, silently, changed
+which port the app listened on inside the container.
+
 ### Added — A Discord bot, with `/upcoming` (2026-08-16)
 
 The app now has a presence in Discord itself, not just a login flow. `/upcoming`
