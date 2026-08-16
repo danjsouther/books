@@ -14,6 +14,16 @@ export const routes: Routes = [
     title: 'New series',
   },
   {
+    path: ':id/edit',
+    loadComponent: () => import('./series-form-page').then((m) => m.SeriesFormPage),
+    title: 'Edit series',
+  },
+  {
+    path: ':id/history',
+    loadComponent: () => import('./series-history-page').then((m) => m.SeriesHistoryPage),
+    title: 'Series history',
+  },
+  {
     path: ':id',
     loadComponent: () => import('./series-detail-page').then((m) => m.SeriesDetailPage),
     title: 'Series',

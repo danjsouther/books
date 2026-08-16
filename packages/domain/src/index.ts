@@ -11,6 +11,7 @@ export * from './book';
 export * from './change';
 export * from './diff';
 export * from './errors';
+export * from './format';
 export * from './health';
 export * from './list';
 export * from './release';
