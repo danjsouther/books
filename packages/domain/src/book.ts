@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BOOK_STATUSES } from './shelf';
-import { ListQuerySchema } from './list';
+import { ListQuerySchema, booleanQueryParam } from './list';
 import type { UserBookStatus } from './shelf';
 
 /** How much of a release date is actually known. See `docs/data-model.md`. */
@@ -68,8 +68,8 @@ export const BookListQuerySchema = ListQuerySchema.extend({
   ratedBy: z.string().uuid().optional(),
   releasedFrom: z.string().optional(),
   releasedTo: z.string().optional(),
-  hasDate: z.coerce.boolean().optional(),
-  includeDeleted: z.coerce.boolean().default(false),
+  hasDate: booleanQueryParam.optional(),
+  includeDeleted: booleanQueryParam.default(false),
   sort: z.enum(['title', 'release', 'created', 'updated', 'rating']).default('title'),
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
