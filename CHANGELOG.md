@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Cover art on the releases page (2026-08-17)
+
+Every release row now leads with the book's cover, matching the books
+page, and each row's cover and text are a single link to the book. The TBA
+and Undated sections, which previously showed a bare title, now name the
+series as well.
+
+The page had been fetching the first 100 series into a lookup map purely to
+name a release's series; it reads `seriesName` off the release itself now,
+so that second request is gone along with its silent 100-series ceiling.
+
 ### Added — List and grid views on the books page (2026-08-17)
 
 The books page now offers two layouts behind a toggle, remembered across
