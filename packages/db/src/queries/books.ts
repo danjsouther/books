@@ -14,6 +14,7 @@ import { bookUserStatus } from '../schema/shelf';
 import { authorsOfBook } from '../mutations/authors';
 import type { Book } from '../mutations/books';
 import { paginate } from '../lib/paginate';
+import { tokenizedMatch } from '../lib/text-search';
 
 export function toBookSummary(
   row: Book,
@@ -82,9 +83,7 @@ function booksRatedBy(userId: string) {
 function buildWhere(filters: BookListQuery): SQL | undefined {
   const clauses: (SQL | undefined)[] = [];
   if (!filters.includeDeleted) clauses.push(isNull(books.deletedAt));
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${books.title} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(books.title, filters.q));
   if (filters.seriesId !== undefined) clauses.push(eq(books.seriesId, filters.seriesId));
   if (filters.author !== undefined) clauses.push(booksByAuthorName(filters.author));
   if (filters.status !== undefined) clauses.push(booksWithStatus(filters.status));

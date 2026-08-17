@@ -12,6 +12,7 @@ import { and, asc, desc, eq, getTableName, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../client';
 import { books } from '../schema/books';
 import { paginate } from '../lib/paginate';
+import { tokenizedMatch } from '../lib/text-search';
 import { bookUserStatus } from '../schema/shelf';
 import { users } from '../schema/users';
 import { authorsByBookIds, toBookSummary } from './books';
@@ -102,9 +103,7 @@ export async function listUsers(
   filters: UserListQuery,
 ): Promise<{ items: UserSummary[]; total: number }> {
   const clauses: (SQL | undefined)[] = [];
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${users.username} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(users.username, filters.q));
   const where = and(...clauses);
 
   const orderColumn = USER_SORT_COLUMNS[filters.sort];
@@ -180,9 +179,7 @@ export async function listUserShelf(
   const clauses: (SQL | undefined)[] = [eq(bookUserStatus.userId, userId)];
   if (filters.status !== undefined) clauses.push(eq(bookUserStatus.status, filters.status));
   if (filters.seriesId !== undefined) clauses.push(eq(books.seriesId, filters.seriesId));
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${books.title} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(books.title, filters.q));
   const where = and(...clauses);
 
   const orderColumn = SHELF_SORT_COLUMNS[filters.sort];

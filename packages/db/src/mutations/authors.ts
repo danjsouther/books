@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../client';
 import { authorBooks } from '../schema/author-books';
 import { authors } from '../schema/authors';
+import { tokenizedMatch } from '../lib/text-search';
 import type { Tx } from './with-revision';
 
 export type Author = typeof authors.$inferSelect;
@@ -136,13 +137,16 @@ export async function authorsOfBook(tx: Tx | Db, bookId: string): Promise<Author
     .orderBy(asc(authorBooks.position));
 }
 
-/** Name-prefix lookup for author autocomplete. */
+/**
+ * Token lookup for author autocomplete. Was a name *prefix* match, which is the
+ * one thing an author search must not be: "sanderson" found nothing, because
+ * every stored name starts with a given name. Every other `q` filter in this
+ * package shares `tokenizedMatch` now, so "brandon sanderson" and "sanderson
+ * brandon" both land too.
+ */
 export async function listAuthors(db: Db, query: string, limit = 20): Promise<Author[]> {
-  const q = query.trim().toLowerCase();
+  const match = tokenizedMatch(authors.name, query);
   const rows = db.select().from(authors);
-  if (q === '') return rows.orderBy(asc(authors.name)).limit(limit);
-  return rows
-    .where(sql`lower(${authors.name}) LIKE ${`${q}%`}`)
-    .orderBy(asc(authors.name))
-    .limit(limit);
+  if (match === undefined) return rows.orderBy(asc(authors.name)).limit(limit);
+  return rows.where(match).orderBy(asc(authors.name)).limit(limit);
 }

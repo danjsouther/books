@@ -1,14 +1,13 @@
 import type { TrashItem, TrashListQuery } from '@books/domain';
-import { and, eq, isNotNull, sql, type SQL } from 'drizzle-orm';
+import { and, eq, isNotNull, type SQL } from 'drizzle-orm';
 import type { Db } from '../client';
 import { books } from '../schema/books';
 import { series } from '../schema/series';
+import { tokenizedMatch } from '../lib/text-search';
 
 async function fetchTrashedBooks(db: Db, filters: TrashListQuery): Promise<TrashItem[]> {
   const clauses: (SQL | undefined)[] = [isNotNull(books.deletedAt)];
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${books.title} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(books.title, filters.q));
   if (filters.deletedBy !== undefined) clauses.push(eq(books.deletedBy, filters.deletedBy));
 
   const rows = await db
@@ -27,9 +26,7 @@ async function fetchTrashedBooks(db: Db, filters: TrashListQuery): Promise<Trash
 
 async function fetchTrashedSeries(db: Db, filters: TrashListQuery): Promise<TrashItem[]> {
   const clauses: (SQL | undefined)[] = [isNotNull(series.deletedAt)];
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${series.name} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(series.name, filters.q));
   if (filters.deletedBy !== undefined) clauses.push(eq(series.deletedBy, filters.deletedBy));
 
   const rows = await db
