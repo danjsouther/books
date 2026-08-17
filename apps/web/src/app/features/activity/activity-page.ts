@@ -15,6 +15,7 @@ import { AppSelect, type SelectOption } from '../../shared/ui/select';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { PageHeader } from '../../shared/ui/page-header';
 import { Skeleton } from '../../shared/ui/skeleton';
+import { collapseActivity } from './collapse-activity';
 
 const KIND_LABELS: Record<ActivityKind, string> = {
   'book.added': 'Added',
@@ -23,7 +24,9 @@ const KIND_LABELS: Record<ActivityKind, string> = {
   'shelf.removed': 'Removed from shelf',
   'book.released': 'Released',
 };
-const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
+const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.filter(
+  (k) => k !== 'shelf.removed',
+).map((k) => ({
   id: k,
   label: KIND_LABELS[k],
 }));
@@ -66,13 +69,13 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
       />
     </div>
 
-    @if (isLoading() && items().length === 0) {
+    @if (isLoading() && displayItems().length === 0) {
       <app-skeleton />
-    } @else if (items().length === 0) {
+    } @else if (displayItems().length === 0) {
       <app-empty-state title="No activity yet" />
     } @else {
       <ul class="list">
-        @for (item of items(); track item.id) {
+        @for (item of displayItems(); track item.id) {
           <li class="row">
             <time [attr.datetime]="item.createdAt" [attr.title]="item.createdAt" class="time">
               {{ relativeTime(item.createdAt) }}
@@ -80,51 +83,51 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
             —
             @switch (item.kind) {
               @case ('book.added') {
-                <strong>{{ item.actor?.username }}</strong> <strong>added</strong>
+                <strong>{{ item.actor?.username }}</strong
+                >&nbsp;<strong>added</strong>
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
+                  &nbsp;<a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
                 }
               }
               @case ('status.changed') {
-                <strong>{{ item.actor?.username }}</strong> <strong>marked</strong>
+                <strong>{{ item.actor?.username }}</strong
+                >&nbsp;<strong>marked</strong>&nbsp;
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
+                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a
+                  >&nbsp;
                 }
-                as <strong>{{ toValue(item) }}</strong>
-                @if (fromValue(item) !== null) {
-                  <span class="muted">(was {{ fromValue(item) }})</span>
-                }
+                as&nbsp;<strong>{{ toValue(item) }}</strong>
               }
               @case ('rating.changed') {
-                <strong>{{ item.actor?.username }}</strong>
+                <strong>{{ item.actor?.username }}</strong
+                >&nbsp;
                 @if (toValue(item) === null) {
-                  <strong>cleared their rating</strong> for
+                  <strong>cleared their rating</strong>&nbsp;for&nbsp;
                 } @else {
-                  <strong>rated</strong>
+                  <strong>rated</strong>&nbsp;
                 }
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
+                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a
+                  >&nbsp;
                 }
                 @if (toValue(item) !== null) {
                   <strong>{{ toValue(item) }}/10</strong>
                 }
-                @if (fromValue(item) !== null) {
-                  <span class="muted">(was {{ fromValue(item) }})</span>
-                }
               }
               @case ('shelf.removed') {
-                <strong>{{ item.actor?.username }}</strong> <strong>removed</strong>
+                <strong>{{ item.actor?.username }}</strong
+                >&nbsp;<strong>removed</strong>
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
+                  &nbsp;<a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
                 }
-                from their shelf
+                &nbsp;from their shelf
               }
               @case ('book.released') {
-                📕
+                📕&nbsp;
                 @if (item.book) {
                   <strong
                     ><a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a></strong
-                  >
+                  >&nbsp;
                 }
                 <strong>is out today</strong>
               }
@@ -200,6 +203,11 @@ export class ActivityPage {
   );
 
   protected readonly items = signal<ActivityItem[]>([]);
+  /** At most one `status.changed`/`rating.changed` row per (member, book, UTC
+   *  day) across everything loaded so far — including a same-day duplicate
+   *  split across two "Load more" pages, since this recomputes over the full
+   *  accumulated `items`, not just the page that just arrived. */
+  protected readonly displayItems = computed(() => collapseActivity(this.items()));
   protected readonly nextCursor = signal<number | null>(null);
   protected readonly isLoading = signal(false);
 
@@ -242,10 +250,6 @@ export class ActivityPage {
 
   protected relativeTime(iso: string): string {
     return formatRelativeTime(iso, Date.now());
-  }
-
-  protected fromValue(item: ActivityItem): unknown {
-    return (item.payload as { from?: unknown }).from ?? null;
   }
 
   protected toValue(item: ActivityItem): unknown {
