@@ -13,6 +13,73 @@ browser's `prefers-color-scheme`, instead of always rendering light. The
 custom reading-status container colors gained matching dark-mode variants
 so status chips keep their verified contrast in both themes.
 
+### Changed — Drop Changes from primary navigation (2026-08-17)
+
+The Changes route and its backing revision history stay intact — book and
+series History pages and Restore still depend on them — but it's no longer
+a primary nav destination, which was overkill for a small group of friends.
+The footer tagline was updated to match.
+
+### Changed — Debounce status and rating updates (2026-08-17)
+
+Clicking through several statuses or ratings in a row previously fired one
+PATCH per click. Status and rating changes now flow through a debounced
+Subject and settle to a single request 600ms after the last click. A failed
+save rolls back to the last server-confirmed value rather than whatever was
+clicked immediately before it, staying correct even mid-burst.
+
+### Fixed — Enter not adding an author with no matching suggestion (2026-08-17)
+
+MatAutocomplete's own keydown handling on the shared input swallowed Enter
+before MatChipInput's `matChipInputTokenEnd` ever fired, so typing a name
+with no matching suggestion and pressing Enter cleared the input without
+adding anything.
+
+### Changed — Collapse same-day activity into one row (2026-08-17)
+
+A member clicking through several statuses or ratings for the same book on
+the same UTC day previously produced one activity-feed row per click. The
+feed now keeps at most one status-changed/rating-changed row per member,
+book, and day across everything loaded so far, including across a "Load
+more" page boundary.
+
+### Added — Sort-direction toggle for list filters (2026-08-17)
+
+The list toolbar gains an explicit ascending/descending toggle next to the
+sort select, defaulting to whichever direction each sort option declares as
+natural (e.g. name ascending, recently-updated descending), wired through
+the books, series, and trash lists. The combobox and toolbar search field
+also gained a clear (x) button once they hold a value.
+
+### Changed — Click-to-deselect for single-select toggles (2026-08-17)
+
+Material's single-selector button-toggle group always keeps the clicked
+toggle checked, with no native click-to-deselect. The rating widget and the
+filter chip row now clear their own value on a re-click of the
+already-pressed option.
+
+### Added — Sort the book list by average rating (2026-08-17)
+
+Sorting uses a correlated subquery averaging each book's shelf ratings,
+NULLS LAST in both directions so an unrated book never outranks a
+top-rated one under descending order.
+
+### Fixed — Boolean query-string filters coercing "false" to true (2026-08-17)
+
+`z.coerce.boolean()` runs `Boolean(x)`, so the string encoding of a JS
+`false` came back `true` on the server — every request with `mine=false` or
+`includeDeleted=false` was silently filtered as if it were `true`.
+
+### Changed — Rebuild the web UI on Angular Material (2026-08-17)
+
+Replaced Tailwind and `@angular/aria` entirely with Angular Material
+components and an M3 theme across every page and shared UI primitive.
+
+### Changed — Multi-word search (2026-08-17)
+
+A member can now find a book, series, or author by any word in its name,
+not just a leading substring.
+
 ## 0.1.0 - 2026-08-16
 
 Initial release: a private, Discord-gated reading tracker with a web app,
