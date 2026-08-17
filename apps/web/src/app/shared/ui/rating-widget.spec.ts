@@ -31,4 +31,15 @@ describe('RatingWidget', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.value()).toBeNull();
   });
+
+  it('clicking the already-selected rating deselects it', () => {
+    const fixture = TestBed.createComponent(RatingWidget);
+    fixture.componentRef.setInput('value', 7);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const toggles = el.querySelectorAll<HTMLElement>('[role="radio"]');
+    toggles[7]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.value()).toBeNull();
+  });
 });

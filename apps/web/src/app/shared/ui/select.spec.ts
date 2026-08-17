@@ -32,4 +32,23 @@ describe('AppSelect', () => {
 
     expect(fixture.componentInstance.value()).toBe('b');
   });
+
+  it('clicking the already-selected option deselects it', () => {
+    const fixture = TestBed.createComponent(AppSelect);
+    fixture.componentRef.setInput('options', [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+    ]);
+    fixture.componentRef.setInput('value', 'b');
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const optionB = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]')).find(
+      (o) => o.textContent?.trim() === 'B',
+    );
+    optionB?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.value()).toBeNull();
+  });
 });
