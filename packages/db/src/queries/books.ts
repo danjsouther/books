@@ -5,7 +5,7 @@ import type {
   RatingSummary,
   UserBookStatus,
 } from '@books/domain';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../client';
 import { authorBooks } from '../schema/author-books';
 import { authors } from '../schema/authors';
@@ -14,6 +14,7 @@ import { bookUserStatus } from '../schema/shelf';
 import { authorsOfBook } from '../mutations/authors';
 import type { Book } from '../mutations/books';
 import { paginate } from '../lib/paginate';
+import { tokenizedMatch } from '../lib/text-search';
 
 export function toBookSummary(
   row: Book,
@@ -82,9 +83,7 @@ function booksRatedBy(userId: string) {
 function buildWhere(filters: BookListQuery): SQL | undefined {
   const clauses: (SQL | undefined)[] = [];
   if (!filters.includeDeleted) clauses.push(isNull(books.deletedAt));
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${books.title} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(books.title, filters.q));
   if (filters.seriesId !== undefined) clauses.push(eq(books.seriesId, filters.seriesId));
   if (filters.author !== undefined) clauses.push(booksByAuthorName(filters.author));
   if (filters.status !== undefined) clauses.push(booksWithStatus(filters.status));
@@ -97,15 +96,22 @@ function buildWhere(filters: BookListQuery): SQL | undefined {
   return and(...clauses);
 }
 
+/** No per-book rating column exists — this is the per-book average across
+ *  `bookUserStatus`, correlated against the outer `books` row. Unlike
+ *  `series.ts`'s equivalent subqueries, `bookUserStatus` has no `id` column of
+ *  its own to collide with `books.id`, so no explicit outer-table
+ *  qualification is needed for the correlation to bind correctly. */
+const AVG_RATING = sql<number | null>`(
+  SELECT avg(${bookUserStatus.rating})::float8 FROM ${bookUserStatus}
+  WHERE ${bookUserStatus.bookId} = ${books.id} AND ${bookUserStatus.rating} IS NOT NULL
+)`;
+
 const SORT_COLUMNS = {
   title: books.title,
   release: books.releaseDate,
   created: books.createdAt,
   updated: books.updatedAt,
-  // No per-book rating column exists; sorting by rating without an aggregate join
-  // is not supported yet, so it falls back to title. Revisit if the book list ever
-  // needs to sort by average rating.
-  rating: books.title,
+  rating: AVG_RATING,
 } as const;
 
 export async function listBooks(
@@ -114,7 +120,14 @@ export async function listBooks(
 ): Promise<{ items: BookSummary[]; total: number }> {
   const where = buildWhere(filters);
   const orderColumn = SORT_COLUMNS[filters.sort];
-  const order = filters.dir === 'desc' ? desc(orderColumn) : asc(orderColumn);
+  // Postgres defaults unmatched-elsewhere NULLs to sort FIRST under DESC — for
+  // `rating` that would put every unrated book ahead of the best-rated one, the
+  // opposite of "highest first". `NULLS LAST` keeps "no opinion" at the bottom
+  // regardless of direction, which is what a member picking "Rating" wants.
+  const order =
+    filters.dir === 'desc'
+      ? sql`${orderColumn} DESC NULLS LAST`
+      : sql`${orderColumn} ASC NULLS LAST`;
 
   const rows = db
     .select()

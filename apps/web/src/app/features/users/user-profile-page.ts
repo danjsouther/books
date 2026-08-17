@@ -4,7 +4,13 @@ import { Component, input } from '@angular/core';
 @Component({
   selector: 'app-user-profile-page',
   imports: [],
-  template: `<h1 class="text-2xl font-semibold">Member {{ id() }}</h1>`,
+  template: `<h1>Member {{ id() }}</h1>`,
+  styles: `
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+  `,
 })
 export class UserProfilePage {
   readonly id = input.required<string>();

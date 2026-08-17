@@ -57,11 +57,11 @@ describe('CalendarPage', () => {
     await settle(fixture);
 
     const el = fixture.nativeElement as HTMLElement;
-    const cells = el.querySelectorAll('td[ngGridCell], td[role="gridcell"], td');
+    const cells = el.querySelectorAll('.day-cell');
     expect(cells.length).toBe(42);
   });
 
-  it('renders a release inside a single ngGridCellWidget for its day', async () => {
+  it('renders a release inside a single day cell', async () => {
     const fixture = create('2027', '3');
     flushReleases({
       dated: [
@@ -90,7 +90,7 @@ describe('CalendarPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     const cell = el.querySelector('#cell-2027-03-05')!;
     expect(cell).toBeTruthy();
-    const widgets = cell.querySelectorAll('[ngGridCellWidget]');
+    const widgets = cell.querySelectorAll('.releases');
     expect(widgets.length).toBe(1);
     expect(cell.textContent).toContain('Leviathan Wakes');
   });

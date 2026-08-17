@@ -137,10 +137,35 @@ describe.skipIf(!hasDatabase)('author resolution and linking', () => {
     expect(await authorsOfBook(db, trimmed)).toHaveLength(0);
   });
 
-  it('finds authors by name prefix for autocomplete', async () => {
+  it('finds authors by a leading fragment for autocomplete', async () => {
     await db.transaction((tx) => resolveAuthors(tx, ['Martha Wells', 'Marlon James', 'Ali Smith']));
 
     const matches = await listAuthors(db, 'mar');
     expect(matches.map((a) => a.name)).toEqual(['Marlon James', 'Martha Wells']);
+  });
+
+  // The old prefix match failed the most natural thing a member types: a
+  // surname, or the words of a name in any order.
+  it('finds authors by surname and by out-of-order tokens', async () => {
+    await db.transaction((tx) => resolveAuthors(tx, ['Martha Wells', 'Marlon James', 'Ali Smith']));
+
+    expect((await listAuthors(db, 'wells')).map((a) => a.name)).toEqual(['Martha Wells']);
+    expect((await listAuthors(db, 'wells martha')).map((a) => a.name)).toEqual(['Martha Wells']);
+    // Every token must match — this is an AND, not an OR.
+    expect(await listAuthors(db, 'martha james')).toEqual([]);
+  });
+
+  it('treats LIKE metacharacters in the query as literal text', async () => {
+    await db.transaction((tx) => resolveAuthors(tx, ['Martha Wells', 'Marlon James']));
+
+    expect(await listAuthors(db, '%')).toEqual([]);
+    expect(await listAuthors(db, '_')).toEqual([]);
+  });
+
+  it('returns everything for a blank or whitespace-only query', async () => {
+    await db.transaction((tx) => resolveAuthors(tx, ['Martha Wells', 'Marlon James']));
+
+    expect(await listAuthors(db, '')).toHaveLength(2);
+    expect(await listAuthors(db, '   ')).toHaveLength(2);
   });
 });

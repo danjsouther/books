@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ListQuerySchema } from './list';
+import { ListQuerySchema, booleanQueryParam } from './list';
 
 export const SeriesCreateSchema = z.object({
   name: z.string().min(1),
@@ -22,8 +22,8 @@ export type SeriesUpdate = z.infer<typeof SeriesUpdateSchema>;
 
 export const SeriesListQuerySchema = ListQuerySchema.extend({
   q: z.string().optional(),
-  hasUpcoming: z.coerce.boolean().optional(),
-  includeDeleted: z.coerce.boolean().default(false),
+  hasUpcoming: booleanQueryParam.optional(),
+  includeDeleted: booleanQueryParam.default(false),
   sort: z.enum(['name', 'bookCount', 'nextRelease']).default('name'),
 });
 export type SeriesListQuery = z.infer<typeof SeriesListQuerySchema>;
@@ -45,7 +45,7 @@ export interface SeriesDetail extends SeriesSummary {
 
 export const SeriesBooksQuerySchema = ListQuerySchema.extend({
   status: z.string().optional(),
-  hasDate: z.coerce.boolean().optional(),
+  hasDate: booleanQueryParam.optional(),
   sort: z.enum(['position', 'release', 'title']).default('position'),
 });
 export type SeriesBooksQuery = z.infer<typeof SeriesBooksQuerySchema>;

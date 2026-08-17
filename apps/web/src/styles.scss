@@ -1,38 +1,77 @@
-/*
- * Global styles. Design tokens live in `tailwind.css`; this file is for the
- * handful of rules that cannot be expressed as utilities.
- */
+// Include theming for Angular Material with `mat.theme()`.
+// This Sass mixin will define CSS variables that are used for styling Angular Material
+// components according to the Material 3 design spec.
+// Learn more about theming and how to use it for your application's
+// custom components at https://material.angular.dev/guide/theming
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+
+  // Extended M3 color roles for the 5 reading statuses. Material's built-in
+  // roles (primary/secondary/tertiary/error/neutral) have no slot for
+  // app-specific semantic statuses, so these follow the same
+  // container/on-container tonal pairing M3 uses for its own roles: a
+  // high-tone container (~90 L) paired with a low-tone on-container (~30 L)
+  // in the same hue. Verified (see scratch calc) to clear 4.5:1 text
+  // contrast between container/on-container, all >7:1. At this lightness
+  // the container fill itself can't also clear 3:1 against a white
+  // --mat-sys-surface without going dark enough to look like a solid badge
+  // rather than an M3 container, so status chips must render with a
+  // 1px border in --status-*-on-container (see chip.ts) for boundary
+  // perceivability instead of relying on fill contrast alone.
+  // `plan` (anticipated, unreleased) and `backlog` (available, not started)
+  // are the pair most easily confused — kept distinct in hue, not just tone.
+  --status-plan-container: oklch(92% 0.06 300);
+  --status-plan-on-container: oklch(32% 0.14 300);
+  --status-backlog-container: oklch(93% 0.015 265);
+  --status-backlog-on-container: oklch(35% 0.02 265);
+  --status-reading-container: oklch(91% 0.07 235);
+  --status-reading-on-container: oklch(32% 0.13 235);
+  --status-completed-container: oklch(91% 0.08 150);
+  --status-completed-on-container: oklch(30% 0.12 150);
+  --status-dropped-container: oklch(92% 0.06 25);
+  --status-dropped-on-container: oklch(33% 0.14 25);
+}
+
+body {
+  // Default the application to a light color theme. This can be changed to
+  // `dark` to enable the dark color theme, or to `light dark` to defer to the
+  // user's system settings.
+  color-scheme: light;
+
+  // Set a default background, font and text colors for the application using
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  // Reset the user agent margin.
+  margin: 0;
+  height: 100%;
+}
 
 /*
- * A visible focus indicator on everything, meeting the 3:1 contrast minimum.
- * Angular Aria ships no styles at all, so without this its widgets are
- * keyboard-navigable but invisibly so.
+ * Visible focus indicator for native elements not yet rebuilt on Material
+ * (mat-* components ship their own focus indicator via the M3 theme, so
+ * this only needs to cover plain a/button/input/etc. during the migration
+ * and for any that stay native, e.g. status-picker/rating-widget).
  */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-focus);
+  outline: 2px solid var(--mat-sys-primary);
   outline-offset: 2px;
   border-radius: 2px;
-}
-
-/* The skip link is off-screen until focused, then pinned to the top-left. */
-.skip-link {
-  position: absolute;
-  left: -9999px;
-  z-index: 50;
-
-  &:focus {
-    left: 0.5rem;
-    top: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: var(--color-surface);
-    border: 2px solid var(--color-focus);
-    border-radius: 4px;
-  }
-}
-
-/* Focusing <main> via the skip link should not draw a ring around the page. */
-main:focus {
-  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -95,7 +95,7 @@ describe('ActivityPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelectorAll('li')).toHaveLength(1);
 
-    const statusOption = Array.from(el.querySelectorAll<HTMLElement>('[role="option"]')).find(
+    const statusOption = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]')).find(
       (o) => o.textContent?.trim() === 'Status changed',
     );
     expect(statusOption).toBeTruthy();

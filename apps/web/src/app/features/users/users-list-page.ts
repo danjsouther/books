@@ -7,18 +7,43 @@ import type { ListResponse, UserSummary } from '@books/domain';
   selector: 'app-users-list-page',
   imports: [RouterLink],
   template: `
-    <h1 class="text-2xl font-semibold">Members</h1>
+    <h1>Members</h1>
     @if (users.isLoading()) {
-      <p class="mt-4 text-ink-muted">Loading…</p>
+      <p class="muted">Loading…</p>
     }
     @if (users.hasValue()) {
-      <ul class="mt-4 space-y-1">
+      <ul class="list">
         @for (user of users.value().items; track user.id) {
           <li>
-            <a [routerLink]="[user.id]" class="underline">{{ user.username }}</a>
+            <a [routerLink]="[user.id]">{{ user.username }}</a>
           </li>
         }
       </ul>
+    }
+  `,
+  styles: `
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .muted {
+      margin-top: 1rem;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
     }
   `,
 })

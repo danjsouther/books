@@ -1,5 +1,5 @@
-import { Listbox, Option } from '@angular/aria/listbox';
-import { Component, effect, input, linkedSignal, model } from '@angular/core';
+import { Component, input, model } from '@angular/core';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 
 export interface SelectOption {
   readonly id: string;
@@ -7,46 +7,37 @@ export interface SelectOption {
 }
 
 /**
- * A single-select, always-visible `ngListbox` — a filter chip row, not a
- * collapsing dropdown. `@angular/aria` has no built-in trigger/popup mechanism
- * for a bare `Listbox` (that machinery belongs to `Combobox`); building one from
- * scratch for a handful of filter options would mean re-deriving most of
- * `app-combobox` for no real benefit here, so this deliberately stays inline —
- * a real simplification worth recording, not an oversight.
- *
- * `selectionMode="explicit"` is required, not the default. `Listbox` defaults
- * to `selectionMode="follow"` — "the focused item is automatically selected"
- * — and establishes an initial active item (the first one, via roving
- * tabindex) on mount whether or not anyone has interacted with it yet. Left
- * at the default, `AppSelect` silently reports its first option as selected
- * immediately after render, with no click or keypress involved — a real,
- * previously-undetected bug (found by `select.spec.ts`) that a consumer
- * without a debounce between the model and its effect (unlike
- * `createListStore`'s filter debounce, which happened to mask it) would see
- * as an unrequested filter applied on page load.
+ * A single-select, always-visible filter chip row — `MatButtonToggleGroup`
+ * with no `multiple` attribute gives single-select semantics (a radiogroup)
+ * for free, but NOT click-to-deselect: confirmed in Material's own source
+ * (`MatButtonToggle._onButtonClick()`, `button-toggle.mjs`) that a
+ * single-selector toggle always sets `newChecked = true` on click, with no
+ * native way to click a pressed toggle back off. `value` is nullable here —
+ * "no filter selected" is a real, valid state — so this listens to each
+ * individual toggle's own `(change)` (which fires on every click,
+ * including a re-click of the already-pressed one, unlike the group's own
+ * `(change)`) and clears the value itself when the clicked option was
+ * already selected.
  */
 @Component({
   selector: 'app-select',
-  imports: [Listbox, Option],
+  imports: [MatButtonToggleModule],
   template: `
-    <div
-      ngListbox
-      selectionMode="explicit"
-      [attr.aria-label]="ariaLabel()"
-      [(value)]="internalValue"
-      class="flex flex-wrap gap-2"
-    >
+    <mat-button-toggle-group class="row" [attr.aria-label]="ariaLabel()" [value]="value()">
       @for (opt of options(); track opt.id) {
-        <div
-          ngOption
-          [value]="opt.id"
-          [label]="opt.label"
-          class="cursor-pointer rounded-full border border-border px-3 py-1 text-sm aria-selected:border-focus aria-selected:bg-focus/10 data-active:ring-2 data-active:ring-focus"
-        >
+        <mat-button-toggle [value]="opt.id" (change)="onToggleChange(opt.id)">
           {{ opt.label }}
-        </div>
+        </mat-button-toggle>
       }
-    </div>
+    </mat-button-toggle-group>
+  `,
+  styles: `
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      border: none;
+    }
   `,
 })
 export class AppSelect {
@@ -54,14 +45,7 @@ export class AppSelect {
   readonly ariaLabel = input('');
   readonly value = model<string | null>(null);
 
-  protected readonly internalValue = linkedSignal<string[]>(() =>
-    this.value() === null ? [] : [this.value()!],
-  );
-
-  constructor() {
-    effect(() => {
-      const selected = this.internalValue()[0] ?? null;
-      if (selected !== this.value()) this.value.set(selected);
-    });
+  protected onToggleChange(id: string): void {
+    this.value.set(this.value() === id ? null : id);
   }
 }

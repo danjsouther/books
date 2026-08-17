@@ -1,48 +1,32 @@
-<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <mat-toolbar color="primary">
+    <a routerLink="/" class="brand">{{ title() }}</a>
 
-<div class="min-h-dvh flex flex-col bg-surface text-ink">
-  <header class="border-b border-border">
-    <div class="mx-auto flex w-full max-w-5xl items-center gap-6 px-4 py-3">
-      <a routerLink="/" class="text-lg font-semibold tracking-tight">{{ title() }}</a>
+    <nav aria-label="Main">
+      <ul class="nav-list">
+        @for (item of navItems; track item.path) {
+          <li>
+            <a [routerLink]="item.path" routerLinkActive="active" class="nav-link">
+              {{ item.label }}
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+  </mat-toolbar>
+</header>
 
-      <nav aria-label="Main" class="flex-1">
-        <ul class="flex gap-4 text-sm">
-          @for (item of navItems; track item.path) {
-            <li>
-              <a
-                [routerLink]="item.path"
-                routerLinkActive="font-semibold underline"
-                class="rounded-sm px-1 py-0.5 hover:underline"
-              >
-                {{ item.label }}
-              </a>
-            </li>
-          }
-        </ul>
-      </nav>
-    </div>
-  </header>
+<main>
+  <router-outlet />
+</main>
 
-  <!--
-    tabindex="-1" so the skip link and post-navigation focus management can move
-    focus here. Never remove it without replacing the focus target.
-  -->
-  <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-    <router-outlet />
-  </main>
-
-  <footer class="border-t border-border">
-    <div class="mx-auto w-full max-w-5xl px-4 py-4 text-sm text-ink-muted">
-      A reading list for people who argue about release dates.
-    </div>
-  </footer>
-</div>
+<footer>
+  <div class="footer-content">A book tracker for friends</div>
+</footer>
 
 <!--
   Route announcements for screen readers. The router does not announce
   navigation on its own in an SPA, so without this a keyboard/SR user gets no
   feedback that the page changed.
 -->
-<p aria-live="polite" aria-atomic="true" class="sr-only">{{ routeAnnouncement() }}</p>
-
-<app-flash-banner />
+<p aria-live="polite" aria-atomic="true" class="cdk-visually-hidden">{{ routeAnnouncement() }}</p>

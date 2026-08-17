@@ -48,7 +48,7 @@ const CHANGE_KIND_OPTIONS: readonly SelectOption[] = CHANGE_KINDS.map((k) => ({ 
   template: `
     <app-page-header title="Changes" />
 
-    <div class="mb-4 flex flex-wrap items-center gap-3">
+    <div class="filters">
       <app-select
         ariaLabel="Filter by entity type"
         [options]="entityTypeOptions"
@@ -79,10 +79,10 @@ const CHANGE_KIND_OPTIONS: readonly SelectOption[] = CHANGE_KINDS.map((k) => ({ 
     } @else if (store.items().length === 0) {
       <app-empty-state title="No changes match your filters" />
     } @else {
-      <ul class="mt-4 divide-y divide-border">
+      <ul class="list">
         @for (row of displayRows(); track row.entityType + row.entityId + row.version) {
-          <li class="py-3 text-sm">
-            <a [routerLink]="entityLink(row)" class="font-medium underline">{{ row.title }}</a>
+          <li class="row">
+            <a [routerLink]="entityLink(row)" class="title">{{ row.title }}</a>
             @switch (row.changeKind) {
               @case ('created') {
                 — <strong>created</strong> → v{{ row.version }}
@@ -107,11 +107,11 @@ const CHANGE_KIND_OPTIONS: readonly SelectOption[] = CHANGE_KINDS.map((k) => ({ 
               }
               @default {}
             }
-            <span class="ml-2">
-              <a [routerLink]="historyLink(row)" class="underline">View diff</a>
+            <span class="view-actions">
+              <a [routerLink]="historyLink(row)">View diff</a>
               @if (row.changeKind !== 'created') {
                 ·
-                <button type="button" class="underline" (click)="revert(row)">Revert</button>
+                <button type="button" class="link-btn" (click)="revert(row)">Revert</button>
               }
             </span>
           </li>
@@ -125,6 +125,49 @@ const CHANGE_KIND_OPTIONS: readonly SelectOption[] = CHANGE_KINDS.map((k) => ({ 
       [total]="store.total()"
       (goToPage)="store.goToPage($event)"
     />
+  `,
+  styles: `
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .list {
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .row {
+      padding: 0.75rem 0;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+    }
+
+    .title {
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    .view-actions {
+      margin-left: 0.5rem;
+    }
+
+    .link-btn {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+    }
   `,
 })
 export class ChangesPage {

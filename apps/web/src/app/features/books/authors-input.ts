@@ -1,6 +1,12 @@
 import { httpResource } from '@angular/common/http';
 import { Component, computed, input, model, signal } from '@angular/core';
 import type { FormValueControl } from '@angular/forms/signals';
+import {
+  MatAutocompleteModule,
+  type MatAutocompleteSelectedEvent,
+} from '@angular/material/autocomplete';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import type { Author } from '@books/domain';
 
 /**
@@ -13,50 +19,38 @@ import type { Author } from '@books/domain';
  */
 @Component({
   selector: 'app-authors-input',
-  imports: [],
+  imports: [MatChipsModule, MatFormFieldModule, MatAutocompleteModule],
   template: `
-    <div class="rounded-sm border border-border p-2">
-      <ul class="flex flex-wrap gap-2">
+    <mat-form-field subscriptSizing="dynamic" class="field">
+      <mat-label>{{ label() }}</mat-label>
+      <mat-chip-grid #grid [attr.aria-label]="label()">
         @for (name of value(); track name) {
-          <li class="flex items-center gap-1 rounded-full bg-surface-sunken px-2 py-1 text-sm">
+          <mat-chip-row (removed)="remove(name)">
             {{ name }}
-            <button
-              type="button"
-              class="text-ink-muted"
-              [attr.aria-label]="'Remove ' + name"
-              (click)="remove(name)"
-            >
-              ✕
-            </button>
-          </li>
+            <button type="button" matChipRemove [attr.aria-label]="'Remove ' + name">✕</button>
+          </mat-chip-row>
         }
-      </ul>
+      </mat-chip-grid>
       <input
         #authorInput
-        type="text"
-        [attr.aria-label]="label()"
         placeholder="Add an author"
-        class="mt-2 w-full border-0 p-1 text-sm outline-none"
+        [matChipInputFor]="grid"
+        [matAutocomplete]="auto"
         [value]="query()"
-        (input)="query.set(authorInput.value)"
+        (input)="query.set($any($event.target).value)"
         (keydown.enter)="onEnter($event, authorInput)"
       />
-      @if (suggestions().length > 0) {
-        <ul class="mt-1 divide-y divide-border border-t border-border">
-          @for (suggestion of suggestions(); track suggestion.id) {
-            <li>
-              <button
-                type="button"
-                class="w-full px-1 py-1 text-left text-sm hover:bg-surface-sunken"
-                (click)="add(suggestion.name, authorInput)"
-              >
-                {{ suggestion.name }}
-              </button>
-            </li>
-          }
-        </ul>
-      }
-    </div>
+      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSelected($event)">
+        @for (suggestion of suggestions(); track suggestion.id) {
+          <mat-option [value]="suggestion.name">{{ suggestion.name }}</mat-option>
+        }
+      </mat-autocomplete>
+    </mat-form-field>
+  `,
+  styles: `
+    .field {
+      width: 100%;
+    }
   `,
 })
 export class AuthorsInput implements FormValueControl<string[]> {
@@ -77,20 +71,36 @@ export class AuthorsInput implements FormValueControl<string[]> {
     return this.suggestionsResource.value().filter((a) => !this.value().includes(a.name));
   });
 
-  protected add(name: string, input: HTMLInputElement): void {
+  protected add(name: string): void {
     const trimmed = name.trim();
     if (trimmed === '' || this.value().includes(trimmed)) return;
     this.value.update((names) => [...names, trimmed]);
     this.query.set('');
-    input.value = '';
   }
 
   protected remove(name: string): void {
     this.value.update((names) => names.filter((n) => n !== name));
   }
 
+  /**
+   * Not `matChipInputTokenEnd` — that event never fired for a query with no
+   * matching suggestions (confirmed live: typing an unmatched name and
+   * pressing Enter cleared the input but added nothing). `MatAutocomplete`'s
+   * own keydown handling on the same input swallows Enter before
+   * `MatChipInput`'s token-end logic sees it. Handling Enter directly here,
+   * ahead of the autocomplete panel's own listener, avoids that race
+   * entirely — and since `(optionSelected)` already covers picking an
+   * existing suggestion by click or arrow-keys+Enter, this only needs to
+   * add whatever is currently typed.
+   */
   protected onEnter(event: Event, input: HTMLInputElement): void {
     event.preventDefault();
-    this.add(input.value, input);
+    this.add(input.value);
+    input.value = '';
+  }
+
+  protected onSelected(event: MatAutocompleteSelectedEvent): void {
+    this.add(event.option.viewValue);
+    event.option.deselect();
   }
 }

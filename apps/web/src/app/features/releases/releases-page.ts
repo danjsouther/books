@@ -1,6 +1,8 @@
 import { httpResource } from '@angular/common/http';
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { formatReleaseDate, type BookSummary, type ListResponse } from '@books/domain';
 import { createReleaseStore } from '../../core/release-store';
 import { AppCombobox, type ComboboxOption } from '../../shared/ui/combobox';
@@ -55,11 +57,21 @@ function monthLabelFor(key: string): string {
  */
 @Component({
   selector: 'app-releases-page',
-  imports: [RouterLink, PageHeader, AppCombobox, Chip, PlanToggle, ResultCount, EmptyState],
+  imports: [
+    RouterLink,
+    PageHeader,
+    AppCombobox,
+    Chip,
+    PlanToggle,
+    ResultCount,
+    EmptyState,
+    MatButtonModule,
+    MatCheckboxModule,
+  ],
   template: `
     <app-page-header title="Releases" />
 
-    <div class="mb-4 flex flex-wrap items-center gap-3">
+    <div class="filters">
       <app-combobox
         placeholder="Filter by series"
         ariaLabel="Filter by series"
@@ -69,15 +81,9 @@ function monthLabelFor(key: string): string {
         [value]="store.seriesId() || null"
         (valueChange)="store.seriesId.set($event ?? '')"
       />
-      <label class="flex items-center gap-2 text-sm">
-        <input
-          #mineOnlyInput
-          type="checkbox"
-          [checked]="store.mineOnly()"
-          (change)="store.mineOnly.set(mineOnlyInput.checked)"
-        />
+      <mat-checkbox [checked]="store.mineOnly()" (change)="store.mineOnly.set($event.checked)">
         Only my planned releases
-      </label>
+      </mat-checkbox>
     </div>
 
     <app-result-count [total]="totalCount()" noun="releases" />
@@ -89,28 +95,26 @@ function monthLabelFor(key: string): string {
       />
     } @else {
       @for (group of monthGroups(); track group.key) {
-        <section class="mt-6">
-          <h2 class="text-lg font-semibold">{{ group.label }}</h2>
-          <ul class="mt-2 divide-y divide-border">
+        <section class="group">
+          <h2>{{ group.label }}</h2>
+          <ul class="list">
             @for (book of group.books; track book.id) {
-              <li class="flex items-center justify-between gap-3 py-2">
+              <li class="row">
                 <div>
-                  <a [routerLink]="['/books', book.id]" class="font-medium underline">{{
-                    book.title
-                  }}</a>
+                  <a [routerLink]="['/books', book.id]" class="title">{{ book.title }}</a>
                   @if (book.seriesId) {
-                    <p class="text-sm text-ink-muted">
+                    <p class="muted">
                       {{ seriesNames().get(book.seriesId) ?? 'Series' }}
                       @if (book.seriesPosition) {
                         — #{{ book.seriesPosition }}
                       }
                     </p>
                   }
-                  <p class="text-sm text-ink-muted">
+                  <p class="muted">
                     {{ formatReleaseDate(book.releaseDate, book.releasePrecision) }}
                   </p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="row-actions">
                   @if (store.plannedIds().has(book.id)) {
                     <app-chip label="plan" tone="plan" />
                   }
@@ -127,16 +131,14 @@ function monthLabelFor(key: string): string {
       }
 
       @if (yearGroups().length > 0) {
-        <section class="mt-6">
-          <h2 class="text-lg font-semibold">TBA</h2>
+        <section class="group">
+          <h2>TBA</h2>
           @for (group of yearGroups(); track group.year) {
-            <h3 class="mt-3 font-medium">{{ group.year }} (month TBA)</h3>
-            <ul class="mt-2 divide-y divide-border">
+            <h3>{{ group.year }} (month TBA)</h3>
+            <ul class="list">
               @for (book of group.books; track book.id) {
-                <li class="flex items-center justify-between gap-3 py-2">
-                  <a [routerLink]="['/books', book.id]" class="font-medium underline">{{
-                    book.title
-                  }}</a>
+                <li class="row">
+                  <a [routerLink]="['/books', book.id]" class="title">{{ book.title }}</a>
                   <app-plan-toggle
                     [title]="book.title"
                     [pressed]="store.plannedIds().has(book.id)"
@@ -150,14 +152,12 @@ function monthLabelFor(key: string): string {
       }
 
       @if (store.releases().undated.length > 0) {
-        <section class="mt-6">
-          <h2 class="text-lg font-semibold">Undated</h2>
-          <ul class="mt-2 divide-y divide-border">
+        <section class="group">
+          <h2>Undated</h2>
+          <ul class="list">
             @for (book of store.releases().undated; track book.id) {
-              <li class="flex items-center justify-between gap-3 py-2">
-                <a [routerLink]="['/books', book.id]" class="font-medium underline">{{
-                  book.title
-                }}</a>
+              <li class="row">
+                <a [routerLink]="['/books', book.id]" class="title">{{ book.title }}</a>
                 <app-plan-toggle
                   [title]="book.title"
                   [pressed]="store.plannedIds().has(book.id)"
@@ -170,15 +170,70 @@ function monthLabelFor(key: string): string {
       }
     }
 
-    <div class="mt-6 text-center">
-      <button
-        type="button"
-        class="rounded-sm border border-border px-3 py-1.5 text-sm"
-        (click)="showMore()"
-      >
-        Show next 12 months
-      </button>
+    <div class="show-more">
+      <button mat-stroked-button type="button" (click)="showMore()">Show next 12 months</button>
     </div>
+  `,
+  styles: `
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .group {
+      margin-top: 1.5rem;
+    }
+
+    h2 {
+      font: var(--mat-sys-title-large);
+      margin: 0;
+    }
+
+    h3 {
+      font: var(--mat-sys-title-medium);
+      margin: 0.75rem 0 0;
+    }
+
+    .list {
+      margin: 0.5rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .title {
+      font-weight: 600;
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+    }
+
+    .muted {
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+      margin: 0;
+    }
+
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .show-more {
+      margin-top: 1.5rem;
+      text-align: center;
+    }
   `,
 })
 export class ReleasesPage {

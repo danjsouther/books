@@ -1,7 +1,20 @@
 import { DecimalPipe, NgOptimizedImage } from '@angular/common';
 import { httpResource } from '@angular/common/http';
-import { Component, computed, inject, input, linkedSignal, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { debounceTime, Subject } from 'rxjs';
 import { formatReleaseDate, type AuthorRef, type BookDetail, type BookStatus } from '@books/domain';
 import { Flash } from '../../core/flash';
 import { Chip } from '../../shared/ui/chip';
@@ -29,83 +42,66 @@ const COMMUNITY_PAGE_SIZE = 10;
     Chip,
     Pagination,
     DecimalPipe,
+    MatButtonModule,
   ],
   template: `
     @if (detail.hasValue()) {
       @let book = detail.value();
 
       @if (book.deletedAt !== null) {
-        <div class="mb-6 rounded-md border border-status-dropped-fg/40 bg-status-dropped-bg p-4">
-          <p class="font-medium text-status-dropped-fg">This book is in the trash.</p>
-          <button
-            type="button"
-            class="mt-2 rounded-sm border border-border px-3 py-1.5 text-sm"
-            (click)="restore()"
-          >
+        <div class="trash-banner">
+          <p class="trash-message">This book is in the trash.</p>
+          <button mat-stroked-button type="button" class="restore-btn" (click)="restore()">
             Restore
           </button>
         </div>
       }
 
-      <div class="flex gap-6">
+      <div class="header">
         @if (book.coverUrl) {
           <img
             [ngSrc]="book.coverUrl"
             [alt]="'Cover of ' + book.title"
             width="160"
             height="240"
-            class="rounded-md border border-border"
+            class="cover"
           />
         } @else {
-          <div
-            class="flex h-60 w-40 items-center justify-center rounded-md border border-dashed border-border text-sm text-ink-muted"
-            aria-hidden="true"
-          >
-            No cover
-          </div>
+          <div class="no-cover" aria-hidden="true">No cover</div>
         }
 
-        <div class="flex-1">
-          <h1 class="text-2xl font-semibold">{{ book.title }}</h1>
+        <div class="details">
+          <h1>{{ book.title }}</h1>
           @if (book.subtitle) {
-            <p class="text-ink-muted">{{ book.subtitle }}</p>
+            <p class="muted">{{ book.subtitle }}</p>
           }
           @if (book.authors.length > 0) {
-            <p class="mt-1 text-sm">{{ authorNames(book.authors) }}</p>
+            <p class="authors">{{ authorNames(book.authors) }}</p>
           }
           @if (book.seriesId) {
-            <p class="mt-1 text-sm">
-              <a [routerLink]="['/series', book.seriesId]" class="underline">Part of a series</a>
+            <p class="series">
+              <a [routerLink]="['/series', book.seriesId]">Part of a series</a>
               @if (book.seriesPosition) {
                 — #{{ book.seriesPosition }}
               }
             </p>
           }
-          <p class="mt-2 text-sm text-ink-muted">
+          <p class="muted release-date">
             {{ formatReleaseDate(book.releaseDate, book.releasePrecision) }}
           </p>
           @if (book.description) {
-            <p class="mt-4">{{ book.description }}</p>
+            <p class="description">{{ book.description }}</p>
           }
 
-          <p class="mt-4 text-sm text-ink-muted">
+          <p class="muted version">
             Version {{ book.version }} ·
-            <a [routerLink]="['/books', book.id, 'history']" class="underline">History</a>
+            <a [routerLink]="['/books', book.id, 'history']">History</a>
           </p>
 
-          <div class="mt-4 flex gap-2">
-            <a
-              [routerLink]="['/books', book.id, 'edit']"
-              class="rounded-sm border border-border px-3 py-1.5 text-sm"
-            >
-              Edit
-            </a>
+          <div class="actions">
+            <a mat-stroked-button [routerLink]="['/books', book.id, 'edit']">Edit</a>
             @if (book.deletedAt === null) {
-              <button
-                type="button"
-                class="rounded-sm border border-border px-3 py-1.5 text-sm"
-                (click)="deleteDialog.showModal()"
-              >
+              <button mat-stroked-button type="button" (click)="deleteDialog.showModal()">
                 Delete
               </button>
             }
@@ -113,29 +109,29 @@ const COMMUNITY_PAGE_SIZE = 10;
         </div>
       </div>
 
-      <section class="mt-8 border-t border-border pt-6">
-        <h2 class="text-lg font-semibold">Your shelf</h2>
-        <div class="mt-3">
+      <section class="section">
+        <h2>Your shelf</h2>
+        <div class="section-row">
           <app-status-picker [value]="myStatus()" (valueChange)="setStatus($event)" />
         </div>
-        <div class="mt-3">
+        <div class="section-row">
           <app-rating-widget [value]="myRating()" (valueChange)="setRating($event)" />
         </div>
       </section>
 
-      <section class="mt-8 border-t border-border pt-6">
-        <h2 class="text-lg font-semibold">
+      <section class="section">
+        <h2>
           Everyone's take
           @if (book.ratingSummary.count > 0) {
-            <span class="text-sm font-normal text-ink-muted">
+            <span class="rating-summary">
               (average {{ book.ratingSummary.average | number: '1.1-1' }} from
               {{ book.ratingSummary.count }})
             </span>
           }
         </h2>
-        <ul class="mt-3 space-y-2">
+        <ul class="community-list">
           @for (entry of communityPage(); track entry.userId) {
-            <li class="flex items-center gap-3 text-sm">
+            <li class="community-row">
               <app-chip [label]="entry.status" [tone]="entry.status" />
               @if (entry.rating !== null) {
                 <span>Rated {{ entry.rating }}/10</span>
@@ -151,31 +147,155 @@ const COMMUNITY_PAGE_SIZE = 10;
         />
       </section>
 
-      <dialog #deleteDialog class="rounded-md border border-border p-6">
+      <dialog #deleteDialog class="confirm-dialog">
         <p>
           This moves <strong>{{ book.title }}</strong> to the trash. Anyone can restore it.
         </p>
-        <div class="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            class="rounded-sm border border-border px-3 py-1.5 text-sm"
-            (click)="deleteDialog.close()"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="rounded-sm border border-border px-3 py-1.5 text-sm"
-            (click)="confirmDelete()"
-          >
-            Move to trash
-          </button>
+        <div class="dialog-actions">
+          <button mat-stroked-button type="button" (click)="deleteDialog.close()">Cancel</button>
+          <button mat-flat-button type="button" (click)="confirmDelete()">Move to trash</button>
         </div>
       </dialog>
     } @else if (detail.isLoading()) {
-      <p class="text-ink-muted">Loading…</p>
+      <p class="muted">Loading…</p>
     } @else {
-      <p class="text-ink-muted">This book could not be found.</p>
+      <p class="muted">This book could not be found.</p>
+    }
+  `,
+  styles: `
+    .trash-banner {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border: 1px solid var(--status-dropped-on-container);
+      border-radius: 8px;
+      background: var(--status-dropped-container);
+    }
+
+    .trash-message {
+      font-weight: 600;
+      color: var(--status-dropped-on-container);
+      margin: 0;
+    }
+
+    .restore-btn {
+      margin-top: 0.5rem;
+    }
+
+    .header {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .cover {
+      border-radius: 8px;
+      border: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .no-cover {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 10rem;
+      height: 15rem;
+      border: 1px dashed var(--mat-sys-outline-variant);
+      border-radius: 8px;
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .details {
+      flex: 1;
+    }
+
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .muted {
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .authors,
+    .series {
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    .release-date {
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    .description {
+      margin-top: 1rem;
+    }
+
+    .version {
+      font-size: 0.875rem;
+      margin-top: 1rem;
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .section {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .section h2 {
+      font: var(--mat-sys-title-large);
+      margin: 0;
+    }
+
+    .section-row {
+      margin-top: 0.75rem;
+    }
+
+    .rating-summary {
+      font-size: 0.875rem;
+      font-weight: 400;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .community-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 0.75rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .community-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .confirm-dialog {
+      border-radius: 8px;
+      border: 1px solid var(--mat-sys-outline-variant);
+      padding: 1.5rem;
+      background: var(--mat-sys-surface);
+      color: var(--mat-sys-on-surface);
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
     }
   `,
 })
@@ -200,6 +320,21 @@ export class BookDetailPage {
     this.detail.hasValue() ? (this.detail.value().myStatus?.rating ?? null) : null,
   );
 
+  /**
+   * The server's last-acknowledged status/rating — separate from
+   * `myStatus`/`myRating`, which flip immediately on every click for instant
+   * feedback. Rolling a failed save back to "whatever was clicked just
+   * before this one" would still be wrong mid-burst; rolling back to the
+   * last value the server actually confirmed is the only value that's
+   * still true after several optimistic updates in a row.
+   */
+  private confirmedStatus: BookStatus = 'backlog';
+  private confirmedRating: number | null = null;
+  private hasSeededConfirmed = false;
+
+  private readonly statusChanges = new Subject<BookStatus>();
+  private readonly ratingChanges = new Subject<number | null>();
+
   protected readonly communityPageIndex = signal(1);
   protected readonly communityPageSize = COMMUNITY_PAGE_SIZE;
   protected readonly communityPage = computed(() => {
@@ -208,30 +343,61 @@ export class BookDetailPage {
     return this.detail.value().statuses.slice(start, start + COMMUNITY_PAGE_SIZE);
   });
 
+  constructor() {
+    // Seed the "confirmed" baseline exactly once, from whatever the server
+    // already had on load — re-running this on a later reload would clobber
+    // it with a value that might now be stale relative to an in-flight edit.
+    effect(() => {
+      if (!this.detail.hasValue() || this.hasSeededConfirmed) return;
+      const status = this.detail.value().myStatus;
+      untracked(() => {
+        this.confirmedStatus = status?.status ?? 'backlog';
+        this.confirmedRating = status?.rating ?? null;
+        this.hasSeededConfirmed = true;
+      });
+    });
+
+    // Debounced so that clicking through several statuses/ratings in a row
+    // — the display updates instantly on every click — sends one request
+    // and produces one activity-feed entry for the settled value, not one
+    // per click.
+    this.statusChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((status) => {
+      this.shelfApi.update(this.id(), { status }).subscribe({
+        next: () => {
+          this.confirmedStatus = status;
+        },
+        error: () => {
+          this.myStatus.set(this.confirmedStatus);
+          this.flash.show('Could not update your status — please try again.');
+        },
+      });
+    });
+
+    this.ratingChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((rating) => {
+      this.shelfApi.update(this.id(), { rating }).subscribe({
+        next: () => {
+          this.confirmedRating = rating;
+        },
+        error: () => {
+          this.myRating.set(this.confirmedRating);
+          this.flash.show('Could not update your rating — please try again.');
+        },
+      });
+    });
+  }
+
   protected authorNames(authors: readonly AuthorRef[]): string {
     return authors.map((a) => a.name).join(', ');
   }
 
   protected setStatus(status: BookStatus): void {
-    const previous = this.myStatus();
     this.myStatus.set(status);
-    this.shelfApi.update(this.id(), { status }).subscribe({
-      error: () => {
-        this.myStatus.set(previous);
-        this.flash.show('Could not update your status — please try again.');
-      },
-    });
+    this.statusChanges.next(status);
   }
 
   protected setRating(rating: number | null): void {
-    const previous = this.myRating();
     this.myRating.set(rating);
-    this.shelfApi.update(this.id(), { rating }).subscribe({
-      error: () => {
-        this.myRating.set(previous);
-        this.flash.show('Could not update your rating — please try again.');
-      },
-    });
+    this.ratingChanges.next(rating);
   }
 
   protected confirmDelete(): void {
