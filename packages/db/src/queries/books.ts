@@ -5,7 +5,7 @@ import type {
   RatingSummary,
   UserBookStatus,
 } from '@books/domain';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../client';
 import { authorBooks } from '../schema/author-books';
 import { authors } from '../schema/authors';
@@ -96,15 +96,22 @@ function buildWhere(filters: BookListQuery): SQL | undefined {
   return and(...clauses);
 }
 
+/** No per-book rating column exists — this is the per-book average across
+ *  `bookUserStatus`, correlated against the outer `books` row. Unlike
+ *  `series.ts`'s equivalent subqueries, `bookUserStatus` has no `id` column of
+ *  its own to collide with `books.id`, so no explicit outer-table
+ *  qualification is needed for the correlation to bind correctly. */
+const AVG_RATING = sql<number | null>`(
+  SELECT avg(${bookUserStatus.rating})::float8 FROM ${bookUserStatus}
+  WHERE ${bookUserStatus.bookId} = ${books.id} AND ${bookUserStatus.rating} IS NOT NULL
+)`;
+
 const SORT_COLUMNS = {
   title: books.title,
   release: books.releaseDate,
   created: books.createdAt,
   updated: books.updatedAt,
-  // No per-book rating column exists; sorting by rating without an aggregate join
-  // is not supported yet, so it falls back to title. Revisit if the book list ever
-  // needs to sort by average rating.
-  rating: books.title,
+  rating: AVG_RATING,
 } as const;
 
 export async function listBooks(
@@ -113,7 +120,14 @@ export async function listBooks(
 ): Promise<{ items: BookSummary[]; total: number }> {
   const where = buildWhere(filters);
   const orderColumn = SORT_COLUMNS[filters.sort];
-  const order = filters.dir === 'desc' ? desc(orderColumn) : asc(orderColumn);
+  // Postgres defaults unmatched-elsewhere NULLs to sort FIRST under DESC — for
+  // `rating` that would put every unrated book ahead of the best-rated one, the
+  // opposite of "highest first". `NULLS LAST` keeps "no opinion" at the bottom
+  // regardless of direction, which is what a member picking "Rating" wants.
+  const order =
+    filters.dir === 'desc'
+      ? sql`${orderColumn} DESC NULLS LAST`
+      : sql`${orderColumn} ASC NULLS LAST`;
 
   const rows = db
     .select()
