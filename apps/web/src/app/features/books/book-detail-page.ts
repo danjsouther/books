@@ -1,8 +1,20 @@
 import { DecimalPipe, NgOptimizedImage } from '@angular/common';
 import { httpResource } from '@angular/common/http';
-import { Component, computed, inject, input, linkedSignal, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { debounceTime, Subject } from 'rxjs';
 import { formatReleaseDate, type AuthorRef, type BookDetail, type BookStatus } from '@books/domain';
 import { Flash } from '../../core/flash';
 import { Chip } from '../../shared/ui/chip';
@@ -308,6 +320,21 @@ export class BookDetailPage {
     this.detail.hasValue() ? (this.detail.value().myStatus?.rating ?? null) : null,
   );
 
+  /**
+   * The server's last-acknowledged status/rating — separate from
+   * `myStatus`/`myRating`, which flip immediately on every click for instant
+   * feedback. Rolling a failed save back to "whatever was clicked just
+   * before this one" would still be wrong mid-burst; rolling back to the
+   * last value the server actually confirmed is the only value that's
+   * still true after several optimistic updates in a row.
+   */
+  private confirmedStatus: BookStatus = 'backlog';
+  private confirmedRating: number | null = null;
+  private hasSeededConfirmed = false;
+
+  private readonly statusChanges = new Subject<BookStatus>();
+  private readonly ratingChanges = new Subject<number | null>();
+
   protected readonly communityPageIndex = signal(1);
   protected readonly communityPageSize = COMMUNITY_PAGE_SIZE;
   protected readonly communityPage = computed(() => {
@@ -316,30 +343,61 @@ export class BookDetailPage {
     return this.detail.value().statuses.slice(start, start + COMMUNITY_PAGE_SIZE);
   });
 
+  constructor() {
+    // Seed the "confirmed" baseline exactly once, from whatever the server
+    // already had on load — re-running this on a later reload would clobber
+    // it with a value that might now be stale relative to an in-flight edit.
+    effect(() => {
+      if (!this.detail.hasValue() || this.hasSeededConfirmed) return;
+      const status = this.detail.value().myStatus;
+      untracked(() => {
+        this.confirmedStatus = status?.status ?? 'backlog';
+        this.confirmedRating = status?.rating ?? null;
+        this.hasSeededConfirmed = true;
+      });
+    });
+
+    // Debounced so that clicking through several statuses/ratings in a row
+    // — the display updates instantly on every click — sends one request
+    // and produces one activity-feed entry for the settled value, not one
+    // per click.
+    this.statusChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((status) => {
+      this.shelfApi.update(this.id(), { status }).subscribe({
+        next: () => {
+          this.confirmedStatus = status;
+        },
+        error: () => {
+          this.myStatus.set(this.confirmedStatus);
+          this.flash.show('Could not update your status — please try again.');
+        },
+      });
+    });
+
+    this.ratingChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((rating) => {
+      this.shelfApi.update(this.id(), { rating }).subscribe({
+        next: () => {
+          this.confirmedRating = rating;
+        },
+        error: () => {
+          this.myRating.set(this.confirmedRating);
+          this.flash.show('Could not update your rating — please try again.');
+        },
+      });
+    });
+  }
+
   protected authorNames(authors: readonly AuthorRef[]): string {
     return authors.map((a) => a.name).join(', ');
   }
 
   protected setStatus(status: BookStatus): void {
-    const previous = this.myStatus();
     this.myStatus.set(status);
-    this.shelfApi.update(this.id(), { status }).subscribe({
-      error: () => {
-        this.myStatus.set(previous);
-        this.flash.show('Could not update your status — please try again.');
-      },
-    });
+    this.statusChanges.next(status);
   }
 
   protected setRating(rating: number | null): void {
-    const previous = this.myRating();
     this.myRating.set(rating);
-    this.shelfApi.update(this.id(), { rating }).subscribe({
-      error: () => {
-        this.myRating.set(previous);
-        this.flash.show('Could not update your rating — please try again.');
-      },
-    });
+    this.ratingChanges.next(rating);
   }
 
   protected confirmDelete(): void {
