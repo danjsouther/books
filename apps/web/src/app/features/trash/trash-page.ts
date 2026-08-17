@@ -17,11 +17,12 @@ interface TrashFilters extends Record<string, unknown> {
   readonly q: string;
   readonly type: string;
   readonly sort: string;
+  readonly dir: 'asc' | 'desc';
 }
 
 const SORT_OPTIONS: readonly SortOption[] = [
-  { value: 'deletedAt', label: 'Recently deleted' },
-  { value: 'title', label: 'Title' },
+  { value: 'deletedAt', label: 'Recently deleted', defaultDir: 'desc' },
+  { value: 'title', label: 'Title', defaultDir: 'asc' },
 ];
 
 @Component({
@@ -46,6 +47,8 @@ const SORT_OPTIONS: readonly SortOption[] = [
       [sortOptions]="sortOptions"
       [sortValue]="store.filters().sort"
       (sortValueChange)="store.setFilter('sort', $event)"
+      [sortDir]="store.filters().dir"
+      (sortDirChange)="store.setFilter('dir', $event)"
     />
 
     <app-result-count [total]="store.total()" noun="items" />
@@ -113,6 +116,7 @@ export class TrashPage {
     q: '',
     type: '',
     sort: 'deletedAt',
+    dir: 'desc',
   });
 
   protected readonly sortOptions = SORT_OPTIONS;

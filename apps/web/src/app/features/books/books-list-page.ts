@@ -23,13 +23,14 @@ interface BookListFilters extends Record<string, unknown> {
   readonly seriesId: string;
   readonly status: string;
   readonly sort: string;
+  readonly dir: 'asc' | 'desc';
 }
 
 const SORT_OPTIONS: readonly SortOption[] = [
-  { value: 'title', label: 'Title' },
-  { value: 'release', label: 'Release date' },
-  { value: 'updated', label: 'Recently updated' },
-  { value: 'rating', label: 'Rating' },
+  { value: 'title', label: 'Title', defaultDir: 'asc' },
+  { value: 'release', label: 'Release date', defaultDir: 'asc' },
+  { value: 'updated', label: 'Recently updated', defaultDir: 'desc' },
+  { value: 'rating', label: 'Rating', defaultDir: 'desc' },
 ];
 
 const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: s, label: s }));
@@ -60,6 +61,8 @@ const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: 
       [sortOptions]="sortOptions"
       [sortValue]="store.filters().sort"
       (sortValueChange)="store.setFilter('sort', $event)"
+      [sortDir]="store.filters().dir"
+      (sortDirChange)="store.setFilter('dir', $event)"
     >
       <app-combobox
         placeholder="Filter by series"
@@ -70,13 +73,16 @@ const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: 
         [value]="store.filters().seriesId || null"
         (valueChange)="store.setFilter('seriesId', $event ?? '')"
       />
+    </app-list-toolbar>
+
+    <div class="status-row">
       <app-select
         ariaLabel="Filter by status"
         [options]="statusOptions"
         [value]="store.filters().status || null"
         (valueChange)="store.setFilter('status', $event ?? '')"
       />
-    </app-list-toolbar>
+    </div>
 
     <app-result-count [total]="store.total()" noun="books" />
 
@@ -111,6 +117,10 @@ const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: 
     />
   `,
   styles: `
+    .status-row {
+      margin-top: 1rem;
+    }
+
     .results {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
@@ -149,6 +159,7 @@ export class BooksListPage {
     seriesId: '',
     status: '',
     sort: 'title',
+    dir: 'asc',
   });
 
   protected readonly sortOptions = SORT_OPTIONS;

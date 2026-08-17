@@ -13,12 +13,13 @@ import { Skeleton } from '../../shared/ui/skeleton';
 interface SeriesListFilters extends Record<string, unknown> {
   readonly q: string;
   readonly sort: string;
+  readonly dir: 'asc' | 'desc';
 }
 
 const SORT_OPTIONS: readonly SortOption[] = [
-  { value: 'name', label: 'Name' },
-  { value: 'bookCount', label: 'Book count' },
-  { value: 'nextRelease', label: 'Next release' },
+  { value: 'name', label: 'Name', defaultDir: 'asc' },
+  { value: 'bookCount', label: 'Book count', defaultDir: 'desc' },
+  { value: 'nextRelease', label: 'Next release', defaultDir: 'asc' },
 ];
 
 @Component({
@@ -45,6 +46,8 @@ const SORT_OPTIONS: readonly SortOption[] = [
       [sortOptions]="sortOptions"
       [sortValue]="store.filters().sort"
       (sortValueChange)="store.setFilter('sort', $event)"
+      [sortDir]="store.filters().dir"
+      (sortDirChange)="store.setFilter('dir', $event)"
     />
 
     <app-result-count [total]="store.total()" noun="series" />
@@ -109,6 +112,7 @@ export class SeriesListPage {
   protected readonly store = createListStore<SeriesSummary, SeriesListFilters>('/api/v1/series', {
     q: '',
     sort: 'name',
+    dir: 'asc',
   });
 
   protected readonly sortOptions = SORT_OPTIONS;
