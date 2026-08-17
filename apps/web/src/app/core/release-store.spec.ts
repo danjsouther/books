@@ -14,6 +14,7 @@ function book(id: string, title = 'A Book'): BookSummary {
     subtitle: null,
     authors: [],
     seriesId: null,
+    seriesName: null,
     seriesPosition: null,
     releaseDate: '2027-03-05',
     releasePrecision: 'day',

@@ -26,6 +26,7 @@ function book(
     subtitle: null,
     authors: [],
     seriesId: null,
+    seriesName: null,
     seriesPosition: null,
     releaseDate,
     releasePrecision: precision,

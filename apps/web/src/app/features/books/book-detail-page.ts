@@ -1,4 +1,4 @@
-import { DecimalPipe, NgOptimizedImage } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { httpResource } from '@angular/common/http';
 import {
   Component,
@@ -17,6 +17,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { debounceTime, Subject } from 'rxjs';
 import { formatReleaseDate, type AuthorRef, type BookDetail, type BookStatus } from '@books/domain';
 import { Flash } from '../../core/flash';
+import { BookCover } from '../../shared/ui/book-cover';
 import { Chip } from '../../shared/ui/chip';
 import { Pagination } from '../../shared/ui/pagination';
 import { RatingWidget } from '../../shared/ui/rating-widget';
@@ -36,7 +37,7 @@ const COMMUNITY_PAGE_SIZE = 10;
   selector: 'app-book-detail-page',
   imports: [
     RouterLink,
-    NgOptimizedImage,
+    BookCover,
     StatusPicker,
     RatingWidget,
     Chip,
@@ -58,17 +59,7 @@ const COMMUNITY_PAGE_SIZE = 10;
       }
 
       <div class="header">
-        @if (book.coverUrl) {
-          <img
-            [ngSrc]="book.coverUrl"
-            [alt]="'Cover of ' + book.title"
-            width="160"
-            height="240"
-            class="cover"
-          />
-        } @else {
-          <div class="no-cover" aria-hidden="true">No cover</div>
-        }
+        <app-book-cover [src]="book.coverUrl" [title]="book.title" [width]="160" [height]="240" />
 
         <div class="details">
           <h1>{{ book.title }}</h1>
@@ -80,7 +71,7 @@ const COMMUNITY_PAGE_SIZE = 10;
           }
           @if (book.seriesId) {
             <p class="series">
-              <a [routerLink]="['/series', book.seriesId]">Part of a series</a>
+              <a [routerLink]="['/series', book.seriesId]">{{ book.seriesName ?? 'Series' }}</a>
               @if (book.seriesPosition) {
                 — #{{ book.seriesPosition }}
               }
@@ -184,23 +175,6 @@ const COMMUNITY_PAGE_SIZE = 10;
     .header {
       display: flex;
       gap: 1.5rem;
-    }
-
-    .cover {
-      border-radius: 8px;
-      border: 1px solid var(--mat-sys-outline-variant);
-    }
-
-    .no-cover {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 10rem;
-      height: 15rem;
-      border: 1px dashed var(--mat-sys-outline-variant);
-      border-radius: 8px;
-      font-size: 0.875rem;
-      color: var(--mat-sys-on-surface-variant);
     }
 
     .details {

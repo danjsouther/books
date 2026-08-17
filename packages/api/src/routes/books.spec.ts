@@ -1,4 +1,11 @@
-import type { BookDetail, FieldDiff, ListResponse, Revision, RevisionSummary } from '@books/domain';
+import type {
+  BookDetail,
+  BookSummary,
+  FieldDiff,
+  ListResponse,
+  Revision,
+  RevisionSummary,
+} from '@books/domain';
 import type { Db } from '@books/db';
 import { connectForTests, hasDatabase, truncateAll } from '@books/db/test-support';
 import type { Pool } from 'pg';
@@ -58,6 +65,22 @@ describe.skipIf(!hasDatabase)('Books', () => {
         await request(testApp.app).get('/api/v1/books?author=nobody').set(auth),
       );
       expect(miss.total).toBe(0);
+    });
+
+    it('names each listed book’s series, so a list needs no second lookup', async () => {
+      const series = bodyAs<{ id: string }>(
+        await request(testApp.app).post('/api/v1/series').set(auth).send({ name: 'The Expanse' }),
+      );
+      await createBook({ seriesId: series.id, seriesPosition: '1' });
+      await createBook({ title: 'Standalone' });
+
+      const body = bodyAs<ListResponse<BookSummary>>(
+        await request(testApp.app).get('/api/v1/books?sort=title').set(auth),
+      );
+      const inSeries = body.items.find((b) => b.title === 'Leviathan Wakes');
+      const standalone = body.items.find((b) => b.title === 'Standalone');
+      expect(inSeries?.seriesName).toBe('The Expanse');
+      expect(standalone?.seriesName).toBeNull();
     });
 
     it('excludes deleted books by default and includes them with includeDeleted', async () => {

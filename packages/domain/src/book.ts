@@ -82,6 +82,10 @@ export interface BookSummary {
   readonly subtitle: string | null;
   readonly authors: AuthorRef[];
   readonly seriesId: string | null;
+  /** Denormalized off `series.name` so a list of books can name its series without
+   *  a second request per page — null whenever `seriesId` is, and also if the
+   *  series row itself is gone. */
+  readonly seriesName: string | null;
   readonly seriesPosition: string | null;
   readonly releaseDate: string | null;
   readonly releasePrecision: ReleasePrecision;

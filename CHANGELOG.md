@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — List and grid views on the books page (2026-08-17)
+
+The books page now offers two layouts behind a toggle, remembered across
+visits: a dense list of one book per row in aligned columns — cover
+thumbnail, title, series, authors, release date — and a grid of cover-led
+tiles. Cover art was already stored for every book but had only ever
+surfaced on the book's own page.
+
+`BookSummary` gained a `seriesName` field to make this possible. It carried
+`seriesId` but no name, so nothing listing books could name a series
+without a second request per page. A book's own page now names its series
+too, in place of the placeholder "Part of a series" link.
+
 ### Changed — Follow the OS color-scheme preference (2026-08-17)
 
 The app now renders using Material's light/dark tokens driven by the

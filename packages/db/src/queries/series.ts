@@ -11,7 +11,7 @@ import { books } from '../schema/books';
 import { series } from '../schema/series';
 import type { Book } from '../mutations/books';
 import type { Series } from '../mutations/series';
-import { authorsByBookIds, toBookSummary } from './books';
+import { authorsByBookIds, seriesNamesByIds, toBookSummary } from './books';
 import { paginate } from '../lib/paginate';
 import { tokenizedMatch } from '../lib/text-search';
 
@@ -151,12 +151,18 @@ export async function listSeriesBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const authorsByBook = await authorsByBookIds(
-    db,
-    bookRows.map((b: Book) => b.id),
-  );
+  const [authorsByBook, seriesNames] = await Promise.all([
+    authorsByBookIds(
+      db,
+      bookRows.map((b: Book) => b.id),
+    ),
+    // Every row here belongs to `seriesId` by construction, but the name still has
+    // to be fetched — routing it through the shared helper keeps one lookup path
+    // rather than a special case that could drift from `toBookSummary`.
+    seriesNamesByIds(db, [seriesId]),
+  ]);
   return {
-    items: bookRows.map((row: Book) => toBookSummary(row, authorsByBook)),
+    items: bookRows.map((row: Book) => toBookSummary(row, authorsByBook, seriesNames)),
     total,
   };
 }
