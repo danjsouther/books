@@ -3,7 +3,9 @@ import {
   MatAutocompleteModule,
   type MatAutocompleteSelectedEvent,
 } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 
 export interface ComboboxOption {
@@ -17,7 +19,13 @@ export interface ComboboxOption {
  *  previous `@angular/aria`-based implementation had to do by hand. */
 @Component({
   selector: 'app-combobox',
-  imports: [MatAutocompleteModule, MatFormFieldModule, MatInputModule],
+  imports: [
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+  ],
   template: `
     <mat-form-field subscriptSizing="dynamic" class="field">
       <input
@@ -31,6 +39,17 @@ export interface ComboboxOption {
         [matAutocomplete]="auto"
         (input)="queryText.set(inputEl.value)"
       />
+      @if (queryText() || value()) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="'Clear ' + (ariaLabel() || placeholder())"
+          (click)="clear()"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      }
     </mat-form-field>
     <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSelected($event)">
       @for (opt of options(); track opt.id) {
@@ -66,5 +85,10 @@ export class AppCombobox {
     const selectedId = event.option.value as string;
     this.value.set(selectedId);
     this.queryText.set(event.option.viewValue);
+  }
+
+  protected clear(): void {
+    this.queryText.set('');
+    this.value.set(null);
   }
 }
