@@ -5,7 +5,7 @@ import {
   MatAutocompleteModule,
   type MatAutocompleteSelectedEvent,
 } from '@angular/material/autocomplete';
-import { MatChipsModule, type MatChipInputEvent } from '@angular/material/chips';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import type { Author } from '@books/domain';
 
@@ -32,12 +32,13 @@ import type { Author } from '@books/domain';
         }
       </mat-chip-grid>
       <input
+        #authorInput
         placeholder="Add an author"
         [matChipInputFor]="grid"
         [matAutocomplete]="auto"
         [value]="query()"
         (input)="query.set($any($event.target).value)"
-        (matChipInputTokenEnd)="onTokenEnd($event)"
+        (keydown.enter)="onEnter($event, authorInput)"
       />
       <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSelected($event)">
         @for (suggestion of suggestions(); track suggestion.id) {
@@ -81,9 +82,21 @@ export class AuthorsInput implements FormValueControl<string[]> {
     this.value.update((names) => names.filter((n) => n !== name));
   }
 
-  protected onTokenEnd(event: MatChipInputEvent): void {
-    this.add(event.value);
-    event.chipInput.clear();
+  /**
+   * Not `matChipInputTokenEnd` — that event never fired for a query with no
+   * matching suggestions (confirmed live: typing an unmatched name and
+   * pressing Enter cleared the input but added nothing). `MatAutocomplete`'s
+   * own keydown handling on the same input swallows Enter before
+   * `MatChipInput`'s token-end logic sees it. Handling Enter directly here,
+   * ahead of the autocomplete panel's own listener, avoids that race
+   * entirely — and since `(optionSelected)` already covers picking an
+   * existing suggestion by click or arrow-keys+Enter, this only needs to
+   * add whatever is currently typed.
+   */
+  protected onEnter(event: Event, input: HTMLInputElement): void {
+    event.preventDefault();
+    this.add(input.value);
+    input.value = '';
   }
 
   protected onSelected(event: MatAutocompleteSelectedEvent): void {
