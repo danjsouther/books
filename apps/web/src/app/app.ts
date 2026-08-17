@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
-import { FlashBanner } from './shared/ui/flash-banner';
+import { MatToolbarModule } from '@angular/material/toolbar';
 
 interface NavItem {
   readonly path: string;
@@ -11,7 +11,7 @@ interface NavItem {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, FlashBanner],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatToolbarModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

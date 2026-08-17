@@ -55,7 +55,7 @@ describe('BooksListPage', () => {
     await settle(fixture);
 
     const el = fixture.nativeElement as HTMLElement;
-    const readingOption = Array.from(el.querySelectorAll<HTMLElement>('[role="option"]')).find(
+    const readingOption = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]')).find(
       (o) => o.textContent?.trim() === 'reading',
     );
     expect(readingOption).toBeTruthy();

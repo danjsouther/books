@@ -1,8 +1,22 @@
 import { HttpErrorResponse, httpResource } from '@angular/common/http';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  untracked,
+} from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { FormField, form, hidden, required, submit, validate } from '@angular/forms/signals';
-import { firstValueFrom } from 'rxjs';
+import { FormField, form, required, submit, validate } from '@angular/forms/signals';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule, type MatSelectChange } from '@angular/material/select';
+import { debounceTime, firstValueFrom } from 'rxjs';
 import {
   RELEASE_PRECISIONS,
   type BookDetail,
@@ -56,170 +70,222 @@ const BLANK_MODEL: BookFormModel = {
 
 const ASIN_PATTERN = /^[A-Z0-9]{10}$/;
 
+/** The bare enum values (`day`, `unknown`, ...) are storage names, not labels a
+ *  member should have to interpret in a `<select>`. */
+const PRECISION_LABELS: Record<ReleasePrecision, string> = {
+  day: 'Exact day',
+  month: 'Month only',
+  year: 'Year only',
+  unknown: 'Unknown / not announced',
+};
+
 @Component({
   selector: 'app-book-form-page',
-  imports: [RouterLink, AuthorsInput, AppCombobox, FormField],
+  imports: [
+    RouterLink,
+    AuthorsInput,
+    AppCombobox,
+    FormField,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+  ],
   template: `
-    <h1 class="text-2xl font-semibold">{{ id() ? 'Edit book' : 'Add a book' }}</h1>
+    <h1>{{ id() ? 'Edit book' : 'Add a book' }}</h1>
 
     @if (conflictMessage(); as message) {
-      <div class="mt-4 rounded-md border border-status-dropped-fg/40 bg-status-dropped-bg p-4">
-        <p class="text-status-dropped-fg">{{ message }}</p>
-        <div class="mt-2 flex gap-3 text-sm">
+      <div class="conflict-banner">
+        <p class="conflict-message">{{ message }}</p>
+        <div class="conflict-actions">
           @if (id(); as bookId) {
-            <a [routerLink]="['/books', bookId, 'history']" class="underline">Review the changes</a>
+            <a [routerLink]="['/books', bookId, 'history']">Review the changes</a>
           }
-          <button type="button" class="underline" (click)="reloadAndDiscardMyChanges()">
+          <button type="button" class="link-btn" (click)="reloadAndDiscardMyChanges()">
             Reload and discard my changes
           </button>
         </div>
       </div>
     }
 
-    <form (submit)="onSubmit($event)" class="mt-6 space-y-4">
-      <div>
-        <label for="title" class="block text-sm font-medium">Title</label>
-        <input
-          id="title"
-          type="text"
-          [formField]="bookForm.title"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-        />
-        @for (error of bookForm.title().errors(); track error.kind) {
-          <p class="mt-1 text-sm text-status-dropped-fg">{{ error.message }}</p>
-        }
+    <form (submit)="onSubmit($event)" class="form">
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Title</mat-label>
+        <input matInput id="title" type="text" [formField]="bookForm.title" />
+      </mat-form-field>
+      @for (error of bookForm.title().errors(); track error.kind) {
+        <p class="field-error">{{ error.message }}</p>
+      }
+
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Subtitle</mat-label>
+        <input matInput id="subtitle" type="text" [formField]="bookForm.subtitle" />
+      </mat-form-field>
+
+      <div class="field-group">
+        <span class="field-label">Authors</span>
+        <app-authors-input [formField]="bookForm.authors" label="Authors" />
       </div>
 
-      <div>
-        <label for="subtitle" class="block text-sm font-medium">Subtitle</label>
-        <input
-          id="subtitle"
-          type="text"
-          [formField]="bookForm.subtitle"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-        />
-      </div>
-
-      <div>
-        <span class="block text-sm font-medium">Authors</span>
-        <app-authors-input class="mt-1 block" [formField]="bookForm.authors" label="Authors" />
-      </div>
-
-      <div>
-        <label for="series" class="block text-sm font-medium">Series</label>
+      <div class="field-group">
+        <label for="series" class="field-label">Series</label>
         <app-combobox
-          id="series"
-          class="mt-1 block"
+          inputId="series"
           placeholder="Search for a series"
           ariaLabel="Series"
           [formField]="bookForm.seriesId"
           [options]="seriesOptions()"
+          [loading]="seriesResource.isLoading()"
           [queryText]="seriesQuery()"
           (queryTextChange)="seriesQuery.set($event)"
         />
       </div>
 
-      <div>
-        <label for="seriesPosition" class="block text-sm font-medium">Position in series</label>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Position in series</mat-label>
         <input
+          matInput
           id="seriesPosition"
           type="text"
           [formField]="bookForm.seriesPosition"
           placeholder="e.g. 1 or 1.5"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
         />
-      </div>
+      </mat-form-field>
 
-      <div>
-        <label for="releasePrecision" class="block text-sm font-medium"
-          >Release date precision</label
-        >
-        <select
-          #precisionSelect
-          id="releasePrecision"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-          [value]="bookForm.releasePrecision().value()"
-          (change)="setPrecision(precisionSelect.value)"
-        >
-          @for (precision of precisions; track precision) {
-            <option [value]="precision">{{ precision }}</option>
-          }
-        </select>
-      </div>
-
-      @if (!bookForm.releaseDate().hidden()) {
-        <div>
-          <label for="releaseDate" class="block text-sm font-medium">Release date</label>
-          <input
-            id="releaseDate"
-            type="date"
-            [formField]="bookForm.releaseDate"
-            class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-          />
-          @for (error of bookForm.releaseDate().errors(); track error.kind) {
-            <p class="mt-1 text-sm text-status-dropped-fg">{{ error.message }}</p>
-          }
-        </div>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Release date</mat-label>
+        <input
+          #releaseDateInput
+          matInput
+          id="releaseDate"
+          type="date"
+          [value]="bookForm.releaseDate().value() ?? ''"
+          (input)="setReleaseDate(releaseDateInput.value)"
+          aria-describedby="releaseDateHint"
+        />
+        <mat-hint id="releaseDateHint">Leave blank if it hasn't been announced yet.</mat-hint>
+      </mat-form-field>
+      @for (error of bookForm.releaseDate().errors(); track error.kind) {
+        <p class="field-error">{{ error.message }}</p>
       }
 
-      <div>
-        <label for="pageCount" class="block text-sm font-medium">Page count</label>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>How precise is this date?</mat-label>
+        <mat-select
+          id="releasePrecision"
+          [value]="bookForm.releasePrecision().value()"
+          (selectionChange)="setPrecision($event)"
+        >
+          @for (precision of precisions; track precision.value) {
+            <mat-option [value]="precision.value">{{ precision.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Page count</mat-label>
         <input
           #pageCountInput
+          matInput
           id="pageCount"
           type="number"
           min="1"
           [value]="bookForm.pageCount().value() ?? ''"
           (input)="setPageCount(pageCountInput.value)"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
         />
-      </div>
+      </mat-form-field>
 
-      <div>
-        <label for="asin" class="block text-sm font-medium">ASIN</label>
-        <input
-          id="asin"
-          type="text"
-          [formField]="bookForm.asin"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-        />
-        @for (error of bookForm.asin().errors(); track error.kind) {
-          <p class="mt-1 text-sm text-status-dropped-fg">{{ error.message }}</p>
-        }
-      </div>
-
-      <div>
-        <label for="coverUrl" class="block text-sm font-medium">Cover URL</label>
-        <input
-          id="coverUrl"
-          type="text"
-          [formField]="bookForm.coverUrl"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-        />
-      </div>
-
-      <div>
-        <label for="description" class="block text-sm font-medium">Description</label>
-        <textarea
-          id="description"
-          [formField]="bookForm.description"
-          rows="4"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-        ></textarea>
-      </div>
-
-      @if (formError(); as message) {
-        <p class="text-sm text-status-dropped-fg">{{ message }}</p>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>ASIN</mat-label>
+        <input matInput id="asin" type="text" [formField]="bookForm.asin" />
+      </mat-form-field>
+      @for (error of bookForm.asin().errors(); track error.kind) {
+        <p class="field-error">{{ error.message }}</p>
       }
 
-      <button
-        type="submit"
-        [disabled]="bookForm().submitting()"
-        class="rounded-sm border border-border px-4 py-2"
-      >
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Cover URL</mat-label>
+        <input matInput id="coverUrl" type="text" [formField]="bookForm.coverUrl" />
+      </mat-form-field>
+
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Description</mat-label>
+        <textarea matInput id="description" [formField]="bookForm.description" rows="4"></textarea>
+      </mat-form-field>
+
+      @if (formError(); as message) {
+        <p class="field-error">{{ message }}</p>
+      }
+
+      <button mat-flat-button type="submit" [disabled]="bookForm().submitting()">
         {{ id() ? 'Save changes' : 'Add book' }}
       </button>
     </form>
+  `,
+  styles: `
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .conflict-banner {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--status-dropped-on-container);
+      border-radius: 8px;
+      background: var(--status-dropped-container);
+    }
+
+    .conflict-message {
+      color: var(--status-dropped-on-container);
+      margin: 0;
+    }
+
+    .conflict-actions {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+    }
+
+    .link-btn {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      max-width: 32rem;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .field-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .field-error {
+      color: var(--mat-sys-error);
+      font-size: 0.875rem;
+      margin: -0.25rem 0 0.5rem;
+    }
   `,
 })
 export class BookFormPage {
@@ -228,7 +294,10 @@ export class BookFormPage {
   private readonly booksApi = inject(BooksApi);
   private readonly router = inject(Router);
 
-  protected readonly precisions = RELEASE_PRECISIONS;
+  protected readonly precisions = RELEASE_PRECISIONS.map((value) => ({
+    value,
+    label: PRECISION_LABELS[value],
+  }));
   // Not `protected`: `book-form-page.spec.ts` drives Signal Forms state
   // (`bookForm`, `model`, `loadedVersion`, `conflictMessage`) directly, since
   // asserting on `field().valid()`/`hidden()` is how this phase's Signal Forms
@@ -240,15 +309,33 @@ export class BookFormPage {
   protected readonly formError = signal<string | null>(null);
 
   protected readonly seriesQuery = signal('');
-  private readonly seriesResource = httpResource<ListResponse<SeriesSummary>>(
-    () => ({ url: '/api/v1/series', params: { q: this.seriesQuery(), pageSize: 10 } }),
+  // Debounced for the same reason `createListStore` debounces its filters: this
+  // fires on every keystroke, and one request per character is both wasteful and
+  // the thing that made the option array churn hardest.
+  private readonly debouncedSeriesQuery = toSignal(
+    toObservable(this.seriesQuery).pipe(debounceTime(250)),
+    { initialValue: '' },
+  );
+  protected readonly seriesResource = httpResource<ListResponse<SeriesSummary>>(
+    () => ({ url: '/api/v1/series', params: { q: this.debouncedSeriesQuery(), pageSize: 10 } }),
     { defaultValue: { items: [], page: 1, pageSize: 10, total: 0 } },
   );
+  private readonly seriesItems = computed<SeriesSummary[]>(() =>
+    this.seriesResource.hasValue() ? this.seriesResource.value().items : [],
+  );
+  // The previous results stay on screen while the next request is in flight —
+  // `defaultValue` is an empty page, so without this the popup blanks to "No
+  // matches." between every keystroke and its result. Same shape as the
+  // `displayItems` `linkedSignal` in `core/list-store.ts`.
+  private readonly displaySeries = linkedSignal<
+    { items: SeriesSummary[]; loading: boolean },
+    SeriesSummary[]
+  >({
+    source: () => ({ items: this.seriesItems(), loading: this.seriesResource.isLoading() }),
+    computation: (source, previous) => (source.loading && previous ? previous.value : source.items),
+  });
   protected readonly seriesOptions = computed<ComboboxOption[]>(() =>
-    (this.seriesResource.hasValue() ? this.seriesResource.value().items : []).map((s) => ({
-      id: s.id,
-      label: s.name,
-    })),
+    this.displaySeries().map((s) => ({ id: s.id, label: s.name })),
   );
 
   readonly existing = httpResource<BookDetail>(() =>
@@ -261,7 +348,6 @@ export class BookFormPage {
       when: (ctx) => ctx.valueOf(p.releasePrecision) !== 'unknown',
       message: 'A release date is required unless the precision is unknown.',
     });
-    hidden(p.releaseDate, { when: (ctx) => ctx.valueOf(p.releasePrecision) === 'unknown' });
     validate(p.asin, ({ value }) => {
       const asin = value();
       if (asin === '') return undefined;
@@ -298,12 +384,51 @@ export class BookFormPage {
     });
   }
 
-  protected setPrecision(value: string): void {
-    this.bookForm.releasePrecision().value.set(value as ReleasePrecision);
+  /**
+   * `releaseDate` and `releasePrecision` are not independent: the database
+   * enforces `(precision = 'unknown') = (release_date IS NULL)`
+   * (`books_release_precision_date_agree`), so any state where one is set
+   * without the other is a 500 waiting to happen on save. These two handlers
+   * are the only writers, and each keeps the pair in agreement — which is also
+   * what lets the date input stay visible unconditionally, rather than hiding
+   * behind a precision the member has to discover and change first.
+   */
+  protected setReleaseDate(raw: string): void {
+    if (raw === '') {
+      this.bookForm.releaseDate().value.set(null);
+      this.bookForm.releasePrecision().value.set('unknown');
+      return;
+    }
+    this.bookForm.releaseDate().value.set(raw);
+    if (this.bookForm.releasePrecision().value() === 'unknown') {
+      this.bookForm.releasePrecision().value.set('day');
+    }
+  }
+
+  protected setPrecision(event: MatSelectChange): void {
+    const precision = event.value as ReleasePrecision;
+    this.bookForm.releasePrecision().value.set(precision);
+    if (precision === 'unknown') this.bookForm.releaseDate().value.set(null);
   }
 
   protected setPageCount(raw: string): void {
     this.bookForm.pageCount().value.set(raw === '' ? null : Number(raw));
+  }
+
+  /**
+   * `releaseDate` is documented as "always the earliest date consistent with
+   * `releasePrecision`" (`@books/domain`'s `book.ts`, and the column comment in
+   * `packages/db/src/schema/books.ts`), and nothing on the server enforces it —
+   * the seed data just hand-writes `-01` day parts. An `<input type="date">`
+   * can only ever hand back a full day, so "June 2027" arrives here as some
+   * arbitrary June day; truncating it is what makes the stored value mean what
+   * the precision claims.
+   */
+  private normalizeReleaseDate(date: string | null, precision: ReleasePrecision): string | null {
+    if (date === null || precision === 'unknown') return null;
+    if (precision === 'month') return `${date.slice(0, 7)}-01`;
+    if (precision === 'year') return `${date.slice(0, 4)}-01-01`;
+    return date;
   }
 
   /** The one place `''` (this form's "not set") turns back into `null` (the
@@ -316,7 +441,7 @@ export class BookFormPage {
       authors: model.authors,
       seriesId: model.seriesId,
       seriesPosition: model.seriesPosition === '' ? null : model.seriesPosition,
-      releaseDate: model.releaseDate,
+      releaseDate: this.normalizeReleaseDate(model.releaseDate, model.releasePrecision),
       releasePrecision: model.releasePrecision,
       pageCount: model.pageCount,
       asin: model.asin === '' ? null : model.asin,

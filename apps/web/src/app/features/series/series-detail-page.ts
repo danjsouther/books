@@ -1,66 +1,54 @@
 import { httpResource } from '@angular/common/http';
 import { Component, inject, input, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import type { BookSummary, ListResponse, SeriesDetail } from '@books/domain';
 import { Flash } from '../../core/flash';
 import { SeriesApi } from './series-api';
 
 @Component({
   selector: 'app-series-detail-page',
-  imports: [RouterLink],
+  imports: [RouterLink, MatButtonModule],
   template: `
     @if (detail.hasValue()) {
       @let series = detail.value();
 
       @if (series.deletedAt !== null) {
-        <div class="mb-6 rounded-md border border-status-dropped-fg/40 bg-status-dropped-bg p-4">
-          <p class="font-medium text-status-dropped-fg">This series is in the trash.</p>
-          <button
-            type="button"
-            class="mt-2 rounded-sm border border-border px-3 py-1.5 text-sm"
-            (click)="restore()"
-          >
+        <div class="trash-banner">
+          <p class="trash-message">This series is in the trash.</p>
+          <button mat-stroked-button type="button" class="restore-btn" (click)="restore()">
             Restore
           </button>
         </div>
       }
 
-      <h1 class="text-2xl font-semibold">{{ series.name }}</h1>
+      <h1>{{ series.name }}</h1>
       @if (series.description) {
-        <p class="mt-2">{{ series.description }}</p>
+        <p class="description">{{ series.description }}</p>
       }
-      <p class="mt-2 text-sm text-ink-muted">
+      <p class="muted version">
         Version {{ series.version }} ·
-        <a [routerLink]="['/series', series.id, 'history']" class="underline">History</a>
+        <a [routerLink]="['/series', series.id, 'history']">History</a>
       </p>
 
-      <div class="mt-4 flex gap-2">
-        <a
-          [routerLink]="['/series', series.id, 'edit']"
-          class="rounded-sm border border-border px-3 py-1.5 text-sm"
-        >
-          Edit
-        </a>
+      <div class="actions">
+        <a mat-stroked-button [routerLink]="['/series', series.id, 'edit']">Edit</a>
         @if (series.deletedAt === null) {
-          <button
-            type="button"
-            class="rounded-sm border border-border px-3 py-1.5 text-sm"
-            (click)="deleteDialog.showModal()"
-          >
+          <button mat-stroked-button type="button" (click)="deleteDialog.showModal()">
             Delete
           </button>
         }
       </div>
 
-      <section class="mt-8 border-t border-border pt-6">
-        <h2 class="text-lg font-semibold">Books in this series</h2>
+      <section class="section">
+        <h2>Books in this series</h2>
         @if (books.hasValue()) {
-          <ul class="mt-3 space-y-1">
+          <ul class="book-list">
             @for (book of books.value().items; track book.id) {
               <li>
-                <a [routerLink]="['/books', book.id]" class="underline">{{ book.title }}</a>
+                <a [routerLink]="['/books', book.id]">{{ book.title }}</a>
                 @if (book.seriesPosition) {
-                  <span class="text-sm text-ink-muted"> — #{{ book.seriesPosition }}</span>
+                  <span class="muted"> — #{{ book.seriesPosition }}</span>
                 }
               </li>
             }
@@ -68,32 +56,102 @@ import { SeriesApi } from './series-api';
         }
       </section>
 
-      <dialog #deleteDialog class="rounded-md border border-border p-6">
+      <dialog #deleteDialog class="confirm-dialog">
         <p>
           This moves <strong>{{ series.name }}</strong> to the trash. Anyone can restore it. Its
           books are unaffected.
         </p>
-        <div class="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            class="rounded-sm border border-border px-3 py-1.5 text-sm"
-            (click)="deleteDialog.close()"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="rounded-sm border border-border px-3 py-1.5 text-sm"
-            (click)="confirmDelete()"
-          >
-            Move to trash
-          </button>
+        <div class="dialog-actions">
+          <button mat-stroked-button type="button" (click)="deleteDialog.close()">Cancel</button>
+          <button mat-flat-button type="button" (click)="confirmDelete()">Move to trash</button>
         </div>
       </dialog>
     } @else if (detail.isLoading()) {
-      <p class="text-ink-muted">Loading…</p>
+      <p class="muted">Loading…</p>
     } @else {
-      <p class="text-ink-muted">This series could not be found.</p>
+      <p class="muted">This series could not be found.</p>
+    }
+  `,
+  styles: `
+    .trash-banner {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border: 1px solid var(--status-dropped-on-container);
+      border-radius: 8px;
+      background: var(--status-dropped-container);
+    }
+
+    .trash-message {
+      font-weight: 600;
+      color: var(--status-dropped-on-container);
+      margin: 0;
+    }
+
+    .restore-btn {
+      margin-top: 0.5rem;
+    }
+
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .description {
+      margin-top: 0.5rem;
+    }
+
+    .muted {
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .version {
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .section {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .section h2 {
+      font: var(--mat-sys-title-large);
+      margin: 0;
+    }
+
+    .book-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin: 0.75rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .confirm-dialog {
+      border-radius: 8px;
+      border: 1px solid var(--mat-sys-outline-variant);
+      padding: 1.5rem;
+      background: var(--mat-sys-surface);
+      color: var(--mat-sys-on-surface);
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
     }
   `,
 })

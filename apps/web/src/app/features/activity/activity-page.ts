@@ -1,6 +1,7 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import {
   ACTIVITY_KINDS,
   type ActivityFeed,
@@ -43,11 +44,11 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
  */
 @Component({
   selector: 'app-activity-page',
-  imports: [RouterLink, PageHeader, AppSelect, AppCombobox, EmptyState, Skeleton],
+  imports: [RouterLink, PageHeader, AppSelect, AppCombobox, EmptyState, Skeleton, MatButtonModule],
   template: `
     <app-page-header title="Activity" />
 
-    <div class="mb-4 flex flex-wrap items-center gap-3">
+    <div class="filters">
       <app-select
         ariaLabel="Filter by kind"
         [options]="kindOptions"
@@ -70,14 +71,10 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
     } @else if (items().length === 0) {
       <app-empty-state title="No activity yet" />
     } @else {
-      <ul class="divide-y divide-border">
+      <ul class="list">
         @for (item of items(); track item.id) {
-          <li class="py-3 text-sm">
-            <time
-              [attr.datetime]="item.createdAt"
-              [attr.title]="item.createdAt"
-              class="text-ink-muted"
-            >
+          <li class="row">
+            <time [attr.datetime]="item.createdAt" [attr.title]="item.createdAt" class="time">
               {{ relativeTime(item.createdAt) }}
             </time>
             —
@@ -85,21 +82,17 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
               @case ('book.added') {
                 <strong>{{ item.actor?.username }}</strong> <strong>added</strong>
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]" class="underline">{{
-                    item.book.title
-                  }}</a>
+                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
                 }
               }
               @case ('status.changed') {
                 <strong>{{ item.actor?.username }}</strong> <strong>marked</strong>
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]" class="underline">{{
-                    item.book.title
-                  }}</a>
+                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
                 }
                 as <strong>{{ toValue(item) }}</strong>
                 @if (fromValue(item) !== null) {
-                  <span class="text-ink-muted">(was {{ fromValue(item) }})</span>
+                  <span class="muted">(was {{ fromValue(item) }})</span>
                 }
               }
               @case ('rating.changed') {
@@ -110,23 +103,19 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
                   <strong>rated</strong>
                 }
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]" class="underline">{{
-                    item.book.title
-                  }}</a>
+                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
                 }
                 @if (toValue(item) !== null) {
                   <strong>{{ toValue(item) }}/10</strong>
                 }
                 @if (fromValue(item) !== null) {
-                  <span class="text-ink-muted">(was {{ fromValue(item) }})</span>
+                  <span class="muted">(was {{ fromValue(item) }})</span>
                 }
               }
               @case ('shelf.removed') {
                 <strong>{{ item.actor?.username }}</strong> <strong>removed</strong>
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]" class="underline">{{
-                    item.book.title
-                  }}</a>
+                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
                 }
                 from their shelf
               }
@@ -134,9 +123,7 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
                 📕
                 @if (item.book) {
                   <strong
-                    ><a [routerLink]="['/books', item.book.id]" class="underline">{{
-                      item.book.title
-                    }}</a></strong
+                    ><a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a></strong
                   >
                 }
                 <strong>is out today</strong>
@@ -148,17 +135,48 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.map((k) => ({
       </ul>
 
       @if (nextCursor() !== null) {
-        <div class="mt-6 text-center">
-          <button
-            type="button"
-            class="rounded-sm border border-border px-3 py-1.5 text-sm"
-            [disabled]="isLoading()"
-            (click)="loadMore()"
-          >
+        <div class="load-more">
+          <button mat-stroked-button type="button" [disabled]="isLoading()" (click)="loadMore()">
             Load more
           </button>
         </div>
       }
+    }
+  `,
+  styles: `
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .row {
+      padding: 0.75rem 0;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .row a {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+    }
+
+    .time,
+    .muted {
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .load-more {
+      margin-top: 1.5rem;
+      text-align: center;
     }
   `,
 })

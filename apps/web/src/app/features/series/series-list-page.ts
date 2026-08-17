@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import type { SeriesSummary } from '@books/domain';
 import { createListStore } from '../../core/list-store';
 import { EmptyState } from '../../shared/ui/empty-state';
@@ -22,12 +23,19 @@ const SORT_OPTIONS: readonly SortOption[] = [
 
 @Component({
   selector: 'app-series-list-page',
-  imports: [RouterLink, PageHeader, ListToolbar, ResultCount, Skeleton, EmptyState, Pagination],
+  imports: [
+    RouterLink,
+    PageHeader,
+    ListToolbar,
+    ResultCount,
+    Skeleton,
+    EmptyState,
+    Pagination,
+    MatButtonModule,
+  ],
   template: `
     <app-page-header title="Series">
-      <a routerLink="new" class="rounded-sm border border-border px-3 py-1.5 text-sm"
-        >Add a series</a
-      >
+      <a mat-stroked-button routerLink="new">Add a series</a>
     </app-page-header>
 
     <app-list-toolbar
@@ -46,11 +54,11 @@ const SORT_OPTIONS: readonly SortOption[] = [
     } @else if (store.items().length === 0) {
       <app-empty-state title="No series match your search" />
     } @else {
-      <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+      <ul class="results">
         @for (series of store.items(); track series.id) {
-          <li class="rounded-md border border-border p-4">
-            <a [routerLink]="[series.id]" class="font-medium underline">{{ series.name }}</a>
-            <p class="mt-1 text-sm text-ink-muted">
+          <li class="card">
+            <a [routerLink]="[series.id]" class="title">{{ series.name }}</a>
+            <p class="muted">
               {{ series.bookCount }} {{ series.bookCount === 1 ? 'book' : 'books' }}
               @if (series.nextRelease) {
                 · next release {{ series.nextRelease }}
@@ -67,6 +75,34 @@ const SORT_OPTIONS: readonly SortOption[] = [
       [total]="store.total()"
       (goToPage)="store.goToPage($event)"
     />
+  `,
+  styles: `
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .card {
+      border: 1px solid var(--mat-sys-outline-variant);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .title {
+      font-weight: 600;
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+    }
+
+    .muted {
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+      margin: 0.25rem 0 0;
+    }
   `,
 })
 export class SeriesListPage {

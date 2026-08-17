@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import type { TrashItem } from '@books/domain';
 import { BooksApi } from '../books/books-api';
 import { createListStore } from '../../core/list-store';
@@ -25,7 +26,16 @@ const SORT_OPTIONS: readonly SortOption[] = [
 
 @Component({
   selector: 'app-trash-page',
-  imports: [RouterLink, PageHeader, ListToolbar, ResultCount, Skeleton, EmptyState, Pagination],
+  imports: [
+    RouterLink,
+    PageHeader,
+    ListToolbar,
+    ResultCount,
+    Skeleton,
+    EmptyState,
+    Pagination,
+    MatButtonModule,
+  ],
   template: `
     <app-page-header title="Trash" />
 
@@ -45,25 +55,16 @@ const SORT_OPTIONS: readonly SortOption[] = [
     } @else if (store.items().length === 0) {
       <app-empty-state title="Nothing in the trash" />
     } @else {
-      <ul class="mt-4 divide-y divide-border">
+      <ul class="list">
         @for (item of store.items(); track item.type + item.id) {
-          <li class="flex items-center justify-between py-3">
+          <li class="row">
             <div>
-              <a
-                [routerLink]="[item.type === 'book' ? '/books' : '/series', item.id]"
-                class="underline"
-              >
+              <a [routerLink]="[item.type === 'book' ? '/books' : '/series', item.id]">
                 {{ item.title }}
               </a>
-              <p class="text-sm text-ink-muted">{{ item.type }} · deleted {{ item.deletedAt }}</p>
+              <p class="muted">{{ item.type }} · deleted {{ item.deletedAt }}</p>
             </div>
-            <button
-              type="button"
-              class="rounded-sm border border-border px-3 py-1.5 text-sm"
-              (click)="restore(item)"
-            >
-              Restore
-            </button>
+            <button mat-stroked-button type="button" (click)="restore(item)">Restore</button>
           </li>
         }
       </ul>
@@ -75,6 +76,32 @@ const SORT_OPTIONS: readonly SortOption[] = [
       [total]="store.total()"
       (goToPage)="store.goToPage($event)"
     />
+  `,
+  styles: `
+    .list {
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+    }
+
+    .muted {
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+      margin: 0;
+    }
   `,
 })
 export class TrashPage {

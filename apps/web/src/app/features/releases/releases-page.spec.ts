@@ -138,8 +138,7 @@ describe('ReleasesPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     const checkbox = el.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(checkbox.checked).toBe(false);
-    checkbox.checked = true;
-    checkbox.dispatchEvent(new Event('change'));
+    checkbox.click();
     fixture.detectChanges();
 
     const reqs = httpMock.match((r) => r.url === '/api/v1/releases');

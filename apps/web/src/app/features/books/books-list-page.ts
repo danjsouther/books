@@ -1,6 +1,7 @@
 import { httpResource } from '@angular/common/http';
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import {
   BOOK_STATUSES,
   formatReleaseDate,
@@ -45,10 +46,11 @@ const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: 
     Skeleton,
     EmptyState,
     Pagination,
+    MatButtonModule,
   ],
   template: `
     <app-page-header title="Books">
-      <a routerLink="new" class="rounded-sm border border-border px-3 py-1.5 text-sm">Add a book</a>
+      <a mat-stroked-button routerLink="new">Add a book</a>
     </app-page-header>
 
     <app-list-toolbar
@@ -86,14 +88,14 @@ const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: 
         hint="Try clearing a filter or search term."
       />
     } @else {
-      <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+      <ul class="results">
         @for (book of store.items(); track book.id) {
-          <li class="rounded-md border border-border p-4">
-            <a [routerLink]="[book.id]" class="font-medium underline">{{ book.title }}</a>
+          <li class="card">
+            <a [routerLink]="[book.id]" class="title">{{ book.title }}</a>
             @if (book.authors.length > 0) {
-              <p class="text-sm text-ink-muted">{{ authorNames(book) }}</p>
+              <p class="muted">{{ authorNames(book) }}</p>
             }
-            <p class="mt-2 text-sm text-ink-muted">
+            <p class="muted release-date">
               {{ formatReleaseDate(book.releaseDate, book.releasePrecision) }}
             </p>
           </li>
@@ -107,6 +109,38 @@ const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: 
       [total]="store.total()"
       (goToPage)="store.goToPage($event)"
     />
+  `,
+  styles: `
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .card {
+      border: 1px solid var(--mat-sys-outline-variant);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .title {
+      font-weight: 600;
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+    }
+
+    .muted {
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+      margin: 0.25rem 0 0;
+    }
+
+    .release-date {
+      margin-top: 0.5rem;
+    }
   `,
 })
 export class BooksListPage {

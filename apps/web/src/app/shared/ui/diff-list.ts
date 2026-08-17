@@ -9,17 +9,55 @@ import type { FieldDiff } from '@books/domain';
   imports: [],
   template: `
     @if (diffs().length === 0) {
-      <p class="text-sm text-ink-muted">No fields changed.</p>
+      <p class="empty">No fields changed.</p>
     } @else {
-      <dl class="divide-y divide-border">
+      <dl class="list">
         @for (diff of diffs(); track diff.field) {
-          <div class="grid grid-cols-[8rem_1fr_1fr] gap-4 py-2 text-sm">
-            <dt class="font-medium">{{ diff.field }}</dt>
-            <dd class="text-ink-muted line-through">{{ render(diff.before) }}</dd>
-            <dd>{{ render(diff.after) }}</dd>
+          <div class="row">
+            <dt class="field">{{ diff.field }}</dt>
+            <dd class="before">{{ render(diff.before) }}</dd>
+            <dd class="after">{{ render(diff.after) }}</dd>
           </div>
         }
       </dl>
+    }
+  `,
+  styles: `
+    .empty {
+      font: var(--mat-sys-body-medium);
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .list {
+      margin: 0;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 8rem 1fr 1fr;
+      gap: 1rem;
+      padding: 0.5rem 0;
+      font: var(--mat-sys-body-medium);
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .row:last-child {
+      border-bottom: none;
+    }
+
+    .field {
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .before {
+      color: var(--mat-sys-on-surface-variant);
+      text-decoration: line-through;
+      margin: 0;
+    }
+
+    .after {
+      margin: 0;
     }
   `,
 })

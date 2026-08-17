@@ -147,7 +147,7 @@ plan, not here — this file is for work that falls outside that plan.)_
   client ships its own auto-update channel or is installed manually.
   ```
 
-- [ ] **Verify the design token contrast ratios against real measurements**
+- [x] **Verify the design token contrast ratios against real measurements**
 
   ```
   `src/tailwind.css` defines the palette in an `@theme` block — `--color-ink`,
@@ -169,11 +169,25 @@ plan, not here — this file is for work that falls outside that plan.)_
   unit test over the token values, or leaving it to the axe pass on rendered
   chips); whether to commit to a dark theme now — doing so doubles the palette
   and is much cheaper to decide before the tokens are consumed than after.
+
+  Done: `tailwind.css` and its `@theme` token block no longer exist — the
+  Angular Material migration replaced them with M3 color roles defined in
+  `styles.scss` (`--status-plan-container`/`-on-container` etc., one pair per
+  reading status). The container/on-container text-contrast ratios were
+  computed by hand (OKLCH → sRGB → WCAG relative luminance) rather than eyeballed:
+  all five pairs clear 7:1, well past the 4.5:1 minimum. The container fill
+  itself can't also clear 3:1 against a white `--mat-sys-surface` at M3
+  container lightness without going dark enough to stop reading as an M3
+  container, so status chips (`chip.ts`) render a 1px border in the
+  on-container color for boundary perceivability instead. Not done: no
+  automated check keeps these measured going forward — a regression would
+  still only surface via manual recomputation or an axe pass. Dark theme
+  remains undecided.
   ```
 
 ## Low
 
-- [ ] **Re-verify the `@angular/aria` API on every version bump**
+- [x] **Re-verify the `@angular/aria` API on every version bump**
 
   ```
   `@angular/aria@22.1.2` is a dependency and the calendar depends on its Grid.
@@ -196,4 +210,13 @@ plan, not here — this file is for work that falls outside that plan.)_
   Open decisions: whether to pin the version exactly instead of using a caret
   range; whether the keyboard e2e spec is sufficient regression cover once it
   exists, or whether this needs its own upgrade checklist in the repo.
+
+  Done: moot rather than solved — the Angular Material migration removed
+  `@angular/aria` from the dependency tree entirely. `combobox.ts` and
+  `select.ts` (shared/ui) now sit on `MatAutocomplete`/`MatButtonToggleGroup`;
+  the calendar (`calendar-page.ts`) was rebuilt as a plain CSS Grid of day
+  cells with no keyboard-grid navigation, since arrow-key 2D nav across days
+  was explicitly dropped as a requirement for this migration. There is no
+  longer a Grid/Listbox/Combobox API surface in this repo to re-verify on
+  version bumps.
   ```

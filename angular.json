@@ -30,7 +30,10 @@
                 "input": "apps/web/public"
               }
             ],
-            "styles": ["apps/web/src/tailwind.css", "apps/web/src/styles.scss"],
+            "styles": [
+              "node_modules/@angular/cdk/a11y-prebuilt.css",
+              "apps/web/src/styles.scss"
+            ],
             "outputPath": {
               "base": "dist/web",
               "browser": ""

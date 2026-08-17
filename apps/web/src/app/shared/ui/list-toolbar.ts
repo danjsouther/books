@@ -1,53 +1,64 @@
 import { Component, input, model } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 
 export interface SortOption {
   readonly value: string;
   readonly label: string;
 }
 
-/** Search + a projected slot for resource-specific filters + sort. A `<select>`
- *  is the right tool for an enumerable sort order — the richer `@angular/aria`
- *  widgets earn their keep on the filters slot's contents, not here. */
+/** Search + a projected slot for resource-specific filters + sort. */
 @Component({
   selector: 'app-list-toolbar',
-  imports: [],
+  imports: [MatFormFieldModule, MatInputModule, MatSelectModule],
   template: `
-    <div class="flex flex-wrap items-center gap-3 border-b border-border pb-4">
-      <label class="sr-only" [for]="searchId">{{ searchLabel() }}</label>
-      <input
-        #searchInput
-        [id]="searchId"
-        type="search"
-        [placeholder]="searchLabel()"
-        class="min-w-48 rounded-sm border border-border px-3 py-1.5 text-sm"
-        [value]="query()"
-        (input)="query.set(searchInput.value)"
-      />
+    <div class="toolbar">
+      <mat-form-field subscriptSizing="dynamic" class="search-field">
+        <mat-label>{{ searchLabel() }}</mat-label>
+        <input
+          #searchInput
+          matInput
+          type="search"
+          [value]="query()"
+          (input)="query.set(searchInput.value)"
+        />
+      </mat-form-field>
 
       <ng-content />
 
       @if (sortOptions().length > 0) {
-        <label class="sr-only" [for]="sortId">Sort by</label>
-        <select
-          #sortSelect
-          [id]="sortId"
-          class="rounded-sm border border-border px-3 py-1.5 text-sm"
-          [value]="sortValue()"
-          (change)="sortValue.set(sortSelect.value)"
-        >
-          @for (option of sortOptions(); track option.value) {
-            <option [value]="option.value">{{ option.label }}</option>
-          }
-        </select>
+        <mat-form-field subscriptSizing="dynamic" class="sort-field">
+          <mat-label>Sort by</mat-label>
+          <mat-select [value]="sortValue()" (selectionChange)="sortValue.set($event.value)">
+            @for (option of sortOptions(); track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
       }
     </div>
   `,
+  styles: `
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .search-field {
+      min-width: 12rem;
+    }
+
+    .sort-field {
+      min-width: 10rem;
+    }
+  `,
 })
 export class ListToolbar {
-  private static nextId = 0;
-  protected readonly searchId = `list-toolbar-search-${String(ListToolbar.nextId++)}`;
-  protected readonly sortId = `list-toolbar-sort-${String(ListToolbar.nextId++)}`;
-
   readonly searchLabel = input('Search');
   readonly query = model('');
   readonly sortOptions = input<readonly SortOption[]>([]);

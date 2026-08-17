@@ -1,31 +1,29 @@
 import { Component, computed, input, output } from '@angular/core';
+import { MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
 
 @Component({
   selector: 'app-pagination',
-  imports: [],
+  imports: [MatPaginatorModule],
   template: `
     @if (pageCount() > 1) {
-      <nav aria-label="Pagination" class="mt-6 flex items-center justify-center gap-2">
-        <button
-          type="button"
-          class="rounded-sm border border-border px-3 py-1 text-sm disabled:opacity-40"
-          [disabled]="page() <= 1"
-          (click)="goToPage.emit(page() - 1)"
-        >
-          Previous
-        </button>
-        <span class="text-sm text-ink-muted" aria-current="page">
-          Page {{ page() }} of {{ pageCount() }}
-        </span>
-        <button
-          type="button"
-          class="rounded-sm border border-border px-3 py-1 text-sm disabled:opacity-40"
-          [disabled]="page() >= pageCount()"
-          (click)="goToPage.emit(page() + 1)"
-        >
-          Next
-        </button>
-      </nav>
+      <mat-paginator
+        class="paginator"
+        aria-label="Pagination"
+        [length]="total()"
+        [pageSize]="pageSize()"
+        [pageIndex]="page() - 1"
+        [hidePageSize]="true"
+        [showFirstLastButtons]="false"
+        (page)="onPage($event)"
+      />
+    }
+  `,
+  styles: `
+    .paginator {
+      display: flex;
+      justify-content: center;
+      margin-top: 1.5rem;
+      background: transparent;
     }
   `,
 })
@@ -38,4 +36,8 @@ export class Pagination {
   protected readonly pageCount = computed(() =>
     Math.max(1, Math.ceil(this.total() / this.pageSize())),
   );
+
+  protected onPage(event: PageEvent): void {
+    this.goToPage.emit(event.pageIndex + 1);
+  }
 }

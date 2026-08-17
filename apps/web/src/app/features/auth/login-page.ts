@@ -1,16 +1,32 @@
 import { Component, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { AuthStore } from '../../core/auth-store';
 
 @Component({
   selector: 'app-login-page',
-  imports: [],
+  imports: [MatButtonModule],
   template: `
-    <h1 class="text-2xl font-semibold">Sign in</h1>
-    <p class="mt-2 text-ink-muted">This app is private to one Discord server's members.</p>
-    <button type="button" class="mt-6 rounded-sm border border-border px-4 py-2" (click)="signIn()">
+    <h1>Sign in</h1>
+    <p class="hint">This app is private to one Discord server's members.</p>
+    <button mat-flat-button type="button" class="signin" (click)="signIn()">
       Sign in with Discord
     </button>
+  `,
+  styles: `
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .hint {
+      margin-top: 0.5rem;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .signin {
+      margin-top: 1.5rem;
+    }
   `,
 })
 export class LoginPage {
