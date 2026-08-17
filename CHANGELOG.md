@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Follow the OS color-scheme preference (2026-08-17)
+
+The app now renders using Material's light/dark tokens driven by the
+browser's `prefers-color-scheme`, instead of always rendering light. The
+custom reading-status container colors gained matching dark-mode variants
+so status chips keep their verified contrast in both themes.
+
 ## 0.1.0 - 2026-08-16
 
 Initial release: a private, Discord-gated reading tracker with a web app,

@@ -42,13 +42,31 @@ html {
   --status-completed-on-container: oklch(30% 0.12 150);
   --status-dropped-container: oklch(92% 0.06 25);
   --status-dropped-on-container: oklch(33% 0.14 25);
+
+  // Dark-mode status tokens: the same container/on-container pairs with
+  // lightness roles swapped (low-tone container, high-tone on-container),
+  // the standard M3 dark-scheme convention. Hue and chroma are unchanged
+  // from the light pair, so the verified contrast ratios noted above carry
+  // over symmetrically.
+  @media (prefers-color-scheme: dark) {
+    --status-plan-container: oklch(32% 0.14 300);
+    --status-plan-on-container: oklch(92% 0.06 300);
+    --status-backlog-container: oklch(35% 0.02 265);
+    --status-backlog-on-container: oklch(93% 0.015 265);
+    --status-reading-container: oklch(32% 0.13 235);
+    --status-reading-on-container: oklch(91% 0.07 235);
+    --status-completed-container: oklch(30% 0.12 150);
+    --status-completed-on-container: oklch(91% 0.08 150);
+    --status-dropped-container: oklch(33% 0.14 25);
+    --status-dropped-on-container: oklch(92% 0.06 25);
+  }
 }
 
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
+  // Defer to the user's OS/browser color-scheme preference; Angular
+  // Material's `mat.theme()` emits both light and dark variable sets and
+  // switches between them based on `prefers-color-scheme` automatically.
+  color-scheme: light dark;
 
   // Set a default background, font and text colors for the application using
   // Angular Material's system-level CSS variables. Learn more about these
