@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Redundant "plan" badge on the releases page (2026-08-17)
+
+A dated release row showed a "plan" chip next to the plan toggle when
+planned, on top of the toggle's own "✓ Planned" label — the same state said
+twice. Removed the chip.
+
 ### Changed — Shrink the calendar's plan button to an icon (2026-08-17)
 
 A day cell is narrow and can hold several releases, where the "+ Plan" /

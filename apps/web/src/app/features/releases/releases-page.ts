@@ -7,7 +7,6 @@ import { formatReleaseDate, type BookSummary, type ListResponse } from '@books/d
 import { createReleaseStore } from '../../core/release-store';
 import { BookCover } from '../../shared/ui/book-cover';
 import { AppCombobox, type ComboboxOption } from '../../shared/ui/combobox';
-import { Chip } from '../../shared/ui/chip';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { PageHeader } from '../../shared/ui/page-header';
 import { PlanToggle } from '../../shared/ui/plan-toggle';
@@ -63,7 +62,6 @@ function monthLabelFor(key: string): string {
     PageHeader,
     AppCombobox,
     BookCover,
-    Chip,
     PlanToggle,
     ResultCount,
     EmptyState,
@@ -126,9 +124,6 @@ function monthLabelFor(key: string): string {
                   </span>
                 </a>
                 <div class="row-actions">
-                  @if (store.plannedIds().has(book.id)) {
-                    <app-chip label="plan" tone="plan" />
-                  }
                   <app-plan-toggle
                     [title]="book.title"
                     [pressed]="store.plannedIds().has(book.id)"
