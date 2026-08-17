@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Shrink the calendar's plan button to an icon (2026-08-17)
+
+A day cell is narrow and can hold several releases, where the "+ Plan" /
+"✓ Planned" text button crowded the titles. The calendar now uses a 24px
+plus/check icon instead; the releases page keeps the text button. It is
+still a real button carrying its name and pressed state in ARIA, so what a
+screen reader announces has not changed.
+
+Material centres a 48px touch target on an icon button regardless of its
+visible size, which at 24px spilled out of the cell and overlapped the
+target of the release stacked beneath it — a tap near the boundary could
+have planned the wrong book. The target is now sized to the button, still
+meeting the 24px WCAG minimum.
+
 ### Changed — Cover art on the releases page (2026-08-17)
 
 Every release row now leads with the book's cover, matching the books
