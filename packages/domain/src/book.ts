@@ -70,7 +70,8 @@ export const BookListQuerySchema = ListQuerySchema.extend({
   releasedTo: z.string().optional(),
   hasDate: booleanQueryParam.optional(),
   includeDeleted: booleanQueryParam.default(false),
-  sort: z.enum(['title', 'release', 'created', 'updated', 'rating']).default('title'),
+  sort: z.enum(['title', 'release', 'created', 'updated', 'rating']).default('release'),
+  dir: z.enum(['asc', 'desc']).default('desc'),
 });
 export type BookListQuery = z.infer<typeof BookListQuerySchema>;
 

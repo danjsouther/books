@@ -32,7 +32,7 @@ interface BookListFilters extends Record<string, unknown> {
 
 const SORT_OPTIONS: readonly SortOption[] = [
   { value: 'title', label: 'Title', defaultDir: 'asc' },
-  { value: 'release', label: 'Release date', defaultDir: 'asc' },
+  { value: 'release', label: 'Release date', defaultDir: 'desc' },
   { value: 'updated', label: 'Recently updated', defaultDir: 'desc' },
   { value: 'rating', label: 'Rating', defaultDir: 'desc' },
 ];
@@ -334,8 +334,8 @@ export class BooksListPage {
     q: '',
     seriesId: '',
     status: '',
-    sort: 'title',
-    dir: 'asc',
+    sort: 'release',
+    dir: 'desc',
   });
 
   protected readonly sortOptions = SORT_OPTIONS;
