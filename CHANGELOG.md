@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — App icon and PWA manifest (2026-08-18)
+
+The app previously shipped with Angular's default favicon. It now has a
+proper icon — a stack of three book covers in the app's purple/blue/indigo
+palette — as a favicon (`.ico`, 16px and 32px PNG), an Apple touch icon, and
+Android/PWA icons (192px, 512px) declared through a new `manifest.webmanifest`.
+The toolbar's "Books" text brand link is now this same icon.
+
 ### Fixed — Sessions silently died 15 minutes after login (2026-08-18)
 
 The server has always supported a 30-day refresh token with rotation, but the
