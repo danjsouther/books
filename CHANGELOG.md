@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Sessions silently died 15 minutes after login (2026-08-18)
+
+The server has always supported a 30-day refresh token with rotation, but the
+Angular app never called `POST /auth/refresh` — so once the 15-minute access
+token expired, every API call started failing with 401 and the app behaved as
+if the member had been logged out, even though their session was still valid
+server-side. A new `authInterceptor` now catches a 401, refreshes silently
+(coalescing concurrent 401s into one refresh call so simultaneous requests
+don't each rotate the token and trip reuse-detection), and retries the
+original request; only a genuinely dead refresh token now sends someone back
+to `/login`.
+
 ## 0.2.3 - 2026-08-18
 
 ### Fixed — `/upcoming` unregistered in production (2026-08-18)
