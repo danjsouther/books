@@ -45,7 +45,7 @@
   <!-- background (transparent canvas, opaque rounded square) -->
   <rect x="20" y="20" width="984" height="984" rx="200" ry="200" fill="url(#bgGrad)" filter="url(#softShadow)"/>
 
-  <g transform="translate(512,512) scale(1.18) translate(-512,-588)">
+  <g transform="translate(512,512) scale(1.416) translate(-512,-588)">
   <!-- ===================== BOTTOM BOOK (indigo) — backY=471 — drawn first, furthest back ===================== -->
   <g>
     <!-- board-edge thickness under the cover -->
