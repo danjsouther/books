@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.2.1 - 2026-08-18
+
 ### Fixed — Server container's published port bound to all interfaces (2026-08-18)
 
 Docker Compose published the server's port as `${SERVER_PORT:-4000}:4000`,
