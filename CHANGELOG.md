@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.4.0 - 2026-08-18
+
 ### Changed — Remove the bullet glyph from status chips (2026-08-18)
 
 Every status chip rendered the same undifferentiated `●` ahead of its label,
