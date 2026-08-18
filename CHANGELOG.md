@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.2.2 - 2026-08-18
+
+### Fixed — Cover art blocked by the Content-Security-Policy (2026-08-18)
+
+`coverUrl` is a member-supplied link to wherever they found the cover — Amazon,
+Royal Road, Goodreads, anywhere — not something this app hosts itself.
+Helmet's default `img-src 'self' data:` only ever allowed a same-origin or
+inline image, so every real cover silently failed to load. `img-src` now also
+allows `https:`, matching how `style-src` and `font-src` already trust it.
+
 ## 0.2.1 - 2026-08-18
 
 ### Fixed — Server container's published port bound to all interfaces (2026-08-18)
