@@ -3,10 +3,14 @@ import { REST, Routes } from 'discord.js';
 import { upcomingCommand } from './commands/upcoming';
 
 /**
- * Run manually via `npm run bot:deploy-commands` — never on container start.
- * Re-registering on every boot is a rate-limit hazard and makes restarts slow
- * for no benefit, since command definitions change far less often than the
- * process restarts.
+ * Run manually — never on container start. Re-registering on every boot is a
+ * rate-limit hazard and makes restarts slow for no benefit, since command
+ * definitions change far less often than the process restarts.
+ *
+ * Locally: `npm run bot:deploy-commands`. Against a Compose deployment, this
+ * file is also bundled into the `bot` image (see `scripts/build-bot.mjs`) so
+ * it can run with that container's own env and no local `node_modules`:
+ * `docker compose run --rm bot node dist/bot/deploy-commands.js`.
  */
 async function main(): Promise<void> {
   const env = loadBotEnv();

@@ -95,6 +95,18 @@ it can `SELECT` but nothing else, at the database level, not just by
 convention in its own code. See
 [docs/architecture.md](docs/architecture.md) for why.
 
+Slash commands are **not** registered automatically — `docker compose up`
+brings the bot online but Discord has no record of its commands until you
+run, once per command-definition change:
+
+```bash
+docker compose run --rm bot node dist/bot/deploy-commands.js
+```
+
+This reuses the already-built `bot` image and its container's own env, so it
+needs no local `node_modules` or `.env` on the host — just the stack already
+brought up once with `--build`.
+
 ### Discord login and the bot
 
 Both the server and the bot validate their environment at boot and refuse to
@@ -122,8 +134,11 @@ yourself
 - **`DISCORD_GUILD_ID`** (optional) — set it for instant, guild-scoped slash
   command registration during development; leave it unset for global
   registration (up to an hour to propagate) once you're ready to deploy.
-  Register commands with `npm run bot:deploy-commands` — never automatic on
-  startup, since re-registering on every restart is a rate-limit hazard.
+  Registration is never automatic on startup, since re-registering on every
+  restart is a rate-limit hazard: run `npm run bot:deploy-commands` locally,
+  or `docker compose run --rm bot node dist/bot/deploy-commands.js` against a
+  Compose deployment (see above) — once after first bringing the stack up,
+  and again any time the command definitions change.
 
 `AUTH_JWT_SECRET` needs 32+ random characters —
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
@@ -140,26 +155,26 @@ always sets it.
 
 ## Scripts
 
-| Script                        | What it does                                                  |
-| ----------------------------- | ------------------------------------------------------------- |
-| `npm run dev`                 | Dev server, the API, and the bot, all watching                |
-| `npm run build`               | Browser bundle and server bundle into `dist/`                 |
-| `npm run build:bot`           | Bot bundle into `dist/bot`                                    |
-| `npm run build:migrate`       | Standalone migration-runner bundle into `dist/migrate`        |
-| `npm start`                   | Runs the built server — API plus the built web app            |
-| `npm run bot:deploy-commands` | Registers the bot's slash commands with Discord — run by hand |
-| `npm test`                    | Both test suites                                              |
-| `npm run test:web`            | Angular unit tests (Vitest, via the CLI builder)              |
-| `npm run test:node`           | Package and integration tests (needs Postgres)                |
-| `npm run db:generate`         | Generate a migration from the schema                          |
-| `npm run db:migrate`          | Apply pending migrations                                      |
-| `npm run db:seed`             | Wipe and reseed the development fixtures                      |
-| `npm run db:studio`           | Drizzle Studio against `DATABASE_URL`                         |
-| `npm run lint`                | ESLint over TypeScript and templates                          |
-| `npm run lint:fix`            | ESLint with autofix                                           |
-| `npm run typecheck`           | `tsc -b`, no emit beyond `out-tsc`                            |
-| `npm run format`              | Prettier, write                                               |
-| `npm run format:check`        | Prettier, check only — this is what CI runs                   |
+| Script                        | What it does                                                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                 | Dev server, the API, and the bot, all watching                                                                                                  |
+| `npm run build`               | Browser bundle and server bundle into `dist/`                                                                                                   |
+| `npm run build:bot`           | Bot bundle into `dist/bot`                                                                                                                      |
+| `npm run build:migrate`       | Standalone migration-runner bundle into `dist/migrate`                                                                                          |
+| `npm start`                   | Runs the built server — API plus the built web app                                                                                              |
+| `npm run bot:deploy-commands` | Registers the bot's slash commands with Discord — run by hand locally (Compose: `docker compose run --rm bot node dist/bot/deploy-commands.js`) |
+| `npm test`                    | Both test suites                                                                                                                                |
+| `npm run test:web`            | Angular unit tests (Vitest, via the CLI builder)                                                                                                |
+| `npm run test:node`           | Package and integration tests (needs Postgres)                                                                                                  |
+| `npm run db:generate`         | Generate a migration from the schema                                                                                                            |
+| `npm run db:migrate`          | Apply pending migrations                                                                                                                        |
+| `npm run db:seed`             | Wipe and reseed the development fixtures                                                                                                        |
+| `npm run db:studio`           | Drizzle Studio against `DATABASE_URL`                                                                                                           |
+| `npm run lint`                | ESLint over TypeScript and templates                                                                                                            |
+| `npm run lint:fix`            | ESLint with autofix                                                                                                                             |
+| `npm run typecheck`           | `tsc -b`, no emit beyond `out-tsc`                                                                                                              |
+| `npm run format`              | Prettier, write                                                                                                                                 |
+| `npm run format:check`        | Prettier, check only — this is what CI runs                                                                                                     |
 
 CI runs `format:check`, `lint`, `typecheck`, `build`, `build:bot`,
 `build:migrate`, and the Angular tests on every push and pull request to
