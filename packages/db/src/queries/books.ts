@@ -1,6 +1,8 @@
 import type {
   BookDetail,
+  BookListItem,
   BookListQuery,
+  BookStatus,
   BookSummary,
   RatingSummary,
   UserBookStatus,
@@ -85,6 +87,28 @@ export async function seriesNamesByIds(
   return map;
 }
 
+/**
+ * Batch-fetches one viewer's own status for a page of books — the `myStatus`
+ * half of a `BookListItem`. Scoped to `viewerUserId` alone, unlike
+ * `booksWithStatus` below (which matches *any* member's status for filtering);
+ * this is what lets the books page badge "your" shelf status on every row in
+ * one query rather than one `getShelfStatus` call per row.
+ */
+export async function myStatusesByBookIds(
+  db: Db,
+  bookIds: readonly string[],
+  viewerUserId: string,
+): Promise<Map<string, BookStatus>> {
+  const map = new Map<string, BookStatus>();
+  if (bookIds.length === 0) return map;
+  const rows = await db
+    .select({ bookId: bookUserStatus.bookId, status: bookUserStatus.status })
+    .from(bookUserStatus)
+    .where(and(eq(bookUserStatus.userId, viewerUserId), inArray(bookUserStatus.bookId, bookIds)));
+  for (const row of rows) map.set(row.bookId, row.status);
+  return map;
+}
+
 function booksByAuthorName(name: string) {
   return sql`${books.id} IN (
     SELECT ${authorBooks.bookId} FROM ${authorBooks}
@@ -143,7 +167,8 @@ const SORT_COLUMNS = {
 export async function listBooks(
   db: Db,
   filters: BookListQuery,
-): Promise<{ items: BookSummary[]; total: number }> {
+  viewerUserId: string,
+): Promise<{ items: BookListItem[]; total: number }> {
   const where = buildWhere(filters);
   const orderColumn = SORT_COLUMNS[filters.sort];
   // Postgres defaults unmatched-elsewhere NULLs to sort FIRST under DESC — for
@@ -169,7 +194,7 @@ export async function listBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const [authorsByBook, seriesNames] = await Promise.all([
+  const [authorsByBook, seriesNames, myStatuses] = await Promise.all([
     authorsByBookIds(
       db,
       bookRows.map((b) => b.id),
@@ -178,8 +203,19 @@ export async function listBooks(
       db,
       bookRows.map((b) => b.seriesId),
     ),
+    myStatusesByBookIds(
+      db,
+      bookRows.map((b) => b.id),
+      viewerUserId,
+    ),
   ]);
-  return { items: bookRows.map((row) => toBookSummary(row, authorsByBook, seriesNames)), total };
+  return {
+    items: bookRows.map((row) => ({
+      ...toBookSummary(row, authorsByBook, seriesNames),
+      myStatus: myStatuses.get(row.id) ?? null,
+    })),
+    total,
+  };
 }
 
 export async function getBookRow(db: Db, id: string): Promise<Book | undefined> {

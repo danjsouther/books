@@ -5,11 +5,12 @@ import { MatButtonModule } from '@angular/material/button';
 import {
   BOOK_STATUSES,
   formatReleaseDate,
-  type BookSummary,
+  type BookListItem,
   type ListResponse,
 } from '@books/domain';
 import { createListStore } from '../../core/list-store';
 import { BookCover } from '../../shared/ui/book-cover';
+import { Chip } from '../../shared/ui/chip';
 import { AppCombobox, type ComboboxOption } from '../../shared/ui/combobox';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ListToolbar, type SortOption } from '../../shared/ui/list-toolbar';
@@ -60,6 +61,7 @@ function readStoredView(): ListView {
     EmptyState,
     Pagination,
     BookCover,
+    Chip,
     ViewToggle,
     MatButtonModule,
   ],
@@ -122,6 +124,9 @@ function readStoredView(): ListView {
               />
               <span class="title">{{ book.title }}</span>
             </a>
+            @if (book.myStatus) {
+              <app-chip class="my-status" [label]="book.myStatus" [tone]="book.myStatus" />
+            }
             @if (book.seriesId) {
               <p class="muted">
                 <a [routerLink]="['/series', book.seriesId]" class="series-link">
@@ -148,6 +153,11 @@ function readStoredView(): ListView {
                 [height]="48"
               />
               <span class="cell title-cell title">{{ book.title }}</span>
+              @if (book.myStatus) {
+                <span class="cell status-cell">
+                  <app-chip [label]="book.myStatus" [tone]="book.myStatus" />
+                </span>
+              }
               @if (book.seriesId) {
                 <span class="cell series-cell muted">{{ book.seriesName ?? 'Series' }}</span>
               }
@@ -205,6 +215,11 @@ function readStoredView(): ListView {
       margin-bottom: 0.5rem;
     }
 
+    .my-status {
+      display: block;
+      margin-top: 0.25rem;
+    }
+
     .rows {
       display: flex;
       flex-direction: column;
@@ -214,16 +229,17 @@ function readStoredView(): ListView {
       border-top: 1px solid var(--mat-sys-outline-variant);
     }
 
-    /* One line per book, spread across the full width: cover, title, series,
-       authors, date. Fractional columns rather than fixed widths so the two
-       long free-text fields absorb the slack instead of leaving a gutter.
-       The date column is a fixed width on purpose — sized to its own content it
-       would vary per row, and since each row is its own grid, "Release date
-       unknown" and "4 June 2013" would hand their rows different free space and
-       knock every column out of alignment with the row above. */
+    /* One line per book, spread across the full width: cover, title, status,
+       series, authors, date. Fractional columns rather than fixed widths so
+       the long free-text fields absorb the slack instead of leaving a gutter.
+       The status and date columns are a fixed width on purpose — sized to
+       their own content they would vary per row, and since each row is its
+       own grid, that would hand rows different free space and knock every
+       column out of alignment with the row above (verified against
+       "completed", the longest status label, plus the chip's own padding). */
     .row-link {
       display: grid;
-      grid-template-columns: auto minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1.6fr) 10rem;
+      grid-template-columns: auto minmax(0, 2.2fr) 6.5rem minmax(0, 1.4fr) minmax(0, 1.6fr) 10rem;
       align-items: center;
       gap: 0.25rem 1rem;
       padding: 0.375rem 0.5rem;
@@ -250,16 +266,20 @@ function readStoredView(): ListView {
       grid-column: 2;
     }
 
-    .series-cell {
+    .status-cell {
       grid-column: 3;
     }
 
-    .authors-cell {
+    .series-cell {
       grid-column: 4;
     }
 
-    .date-cell {
+    .authors-cell {
       grid-column: 5;
+    }
+
+    .date-cell {
+      grid-column: 6;
       text-align: right;
     }
 
@@ -309,7 +329,7 @@ function readStoredView(): ListView {
   `,
 })
 export class BooksListPage {
-  protected readonly store = createListStore<BookSummary, BookListFilters>('/api/v1/books', {
+  protected readonly store = createListStore<BookListItem, BookListFilters>('/api/v1/books', {
     q: '',
     seriesId: '',
     status: '',
@@ -339,7 +359,7 @@ export class BooksListPage {
     })),
   );
 
-  protected authorNames(book: BookSummary): string {
+  protected authorNames(book: BookListItem): string {
     return book.authors.map((a) => a.name).join(', ');
   }
 }

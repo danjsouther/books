@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Badge each book on the books page with the viewer's own status (2026-08-17)
+
+Both the list and grid views now show a small "plan"/"backlog"/"reading"/
+"completed"/"dropped" chip on a book the viewer has on their shelf, and
+show nothing for a book they haven't touched.
+
+`GET /books` gained a `myStatus` field per item, resolved for the
+requesting member alone — deliberately not added to the shared
+`BookSummary` (which every other list endpoint — releases, a series'
+books, someone else's shelf — also returns): "my status" only means
+something for one viewer on this one endpoint. It lives on a new
+`BookListItem` type instead, and is batch-resolved in the same query as
+the existing author/series lookups rather than once per row.
+
 ### Fixed — Redundant "plan" badge on the releases page (2026-08-17)
 
 A dated release row showed a "plan" chip next to the plan toggle when

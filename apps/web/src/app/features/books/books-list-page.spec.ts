@@ -2,13 +2,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { BookSummary } from '@books/domain';
+import type { BookListItem } from '@books/domain';
 import { BooksListPage } from './books-list-page';
 
 const EMPTY_BOOKS = { items: [], page: 1, pageSize: 20, total: 0 };
 const EMPTY_SERIES = { items: [], page: 1, pageSize: 10, total: 0 };
 
-function book(overrides: Partial<BookSummary> = {}): BookSummary {
+function book(overrides: Partial<BookListItem> = {}): BookListItem {
   return {
     id: 'b1',
     title: 'Leviathan Wakes',
@@ -23,11 +23,12 @@ function book(overrides: Partial<BookSummary> = {}): BookSummary {
     coverUrl: 'https://example.test/cover.jpg',
     version: 1,
     deletedAt: null,
+    myStatus: null,
     ...overrides,
   };
 }
 
-function booksPage(items: BookSummary[]) {
+function booksPage(items: BookListItem[]) {
   return { items, page: 1, pageSize: 20, total: items.length };
 }
 
@@ -99,7 +100,7 @@ describe('BooksListPage', () => {
   });
 
   /** Renders the page with `items` already loaded and both resources settled. */
-  async function renderWith(items: BookSummary[]) {
+  async function renderWith(items: BookListItem[]) {
     const fixture = TestBed.createComponent(BooksListPage);
     fixture.detectChanges();
     TestBed.tick();
@@ -140,6 +141,30 @@ describe('BooksListPage', () => {
     expect(row?.querySelector('.series-cell')).toBeNull();
     expect(row?.querySelector('.authors-cell')).toBeNull();
     expect(row?.querySelector('.title-cell')).toBeTruthy();
+  });
+
+  it('badges a row with the viewer’s own status, and omits the badge entirely otherwise', async () => {
+    const fixture = await renderWith([
+      book({ id: 'b1', title: 'Reading', myStatus: 'reading' }),
+      book({ id: 'b2', title: 'Untouched', myStatus: null }),
+    ]);
+    const el = fixture.nativeElement as HTMLElement;
+    const rows = el.querySelectorAll('.row-link');
+
+    const statusCell = rows[0]?.querySelector('.status-cell');
+    expect(statusCell?.textContent).toContain('reading');
+    expect(rows[1]?.querySelector('.status-cell')).toBeNull();
+  });
+
+  it('badges a grid tile with the viewer’s own status too', async () => {
+    const fixture = await renderWith([book({ myStatus: 'completed' })]);
+    const el = fixture.nativeElement as HTMLElement;
+
+    el.querySelector<HTMLElement>('[aria-label="Grid view"]')?.click();
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(el.querySelector('.tile .my-status')?.textContent).toContain('completed');
   });
 
   it('switching to the grid view renders full-size covers with the series name', async () => {

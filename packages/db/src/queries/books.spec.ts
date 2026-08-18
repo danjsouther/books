@@ -36,13 +36,17 @@ describe.skipIf(!hasDatabase)('listBooks sort=rating', () => {
       { bookId: aBook.id, userId, rating: 2 },
     ]);
 
-    const { items } = await listBooks(db, {
-      page: 1,
-      pageSize: 20,
-      dir: 'desc',
-      includeDeleted: false,
-      sort: 'rating',
-    });
+    const { items } = await listBooks(
+      db,
+      {
+        page: 1,
+        pageSize: 20,
+        dir: 'desc',
+        includeDeleted: false,
+        sort: 'rating',
+      },
+      userId,
+    );
 
     expect(items.map((b) => b.title)).toEqual(['Z Book', 'A Book']);
   });
@@ -56,13 +60,17 @@ describe.skipIf(!hasDatabase)('listBooks sort=rating', () => {
 
     await db.insert(bookUserStatus).values({ bookId: rated.id, userId, rating: 5 });
 
-    const { items } = await listBooks(db, {
-      page: 1,
-      pageSize: 20,
-      dir: 'desc',
-      includeDeleted: false,
-      sort: 'rating',
-    });
+    const { items } = await listBooks(
+      db,
+      {
+        page: 1,
+        pageSize: 20,
+        dir: 'desc',
+        includeDeleted: false,
+        sort: 'rating',
+      },
+      userId,
+    );
 
     expect(items.map((b) => b.title)).toEqual(['Rated', 'Unrated']);
   });

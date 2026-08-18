@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BOOK_STATUSES } from './shelf';
 import { ListQuerySchema, booleanQueryParam } from './list';
-import type { UserBookStatus } from './shelf';
+import type { BookStatus, UserBookStatus } from './shelf';
 
 /** How much of a release date is actually known. See `docs/data-model.md`. */
 export const RELEASE_PRECISIONS = ['day', 'month', 'year', 'unknown'] as const;
@@ -93,6 +93,16 @@ export interface BookSummary {
   readonly coverUrl: string | null;
   readonly version: number;
   readonly deletedAt: string | null;
+}
+
+/** Response item of `GET /books` — `BookSummary` plus the viewer's own shelf
+ *  status, so the books page can badge each book without a second request.
+ *  Kept separate from `BookSummary` rather than adding an optional field there:
+ *  "my status" only resolves against *one* viewer on *this* endpoint, whereas
+ *  everywhere else `BookSummary` appears (a release, a series' books, someone
+ *  else's shelf) there is no single current-viewer status to put here. */
+export interface BookListItem extends BookSummary {
+  readonly myStatus: BookStatus | null;
 }
 
 export interface RatingSummary {
