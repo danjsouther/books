@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — `/upcoming` unregistered in production (2026-08-18)
+
+Slash-command registration (`deploy-commands.ts`) was a script meant to be
+run by hand after every deploy, but nothing in the Docker Compose deployment
+ever invoked it and it wasn't even bundled into the `bot` image — so
+production's Discord application had zero registered commands. It's now
+built into the image alongside `main.js`, runnable as a one-shot
+`docker compose run --rm bot node dist/bot/deploy-commands.js` with the
+container's own env, no local `node_modules` or copied secrets required.
+
 ## 0.2.2 - 2026-08-18
 
 ### Fixed — Cover art blocked by the Content-Security-Policy (2026-08-18)
