@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-17
+
 ### Added — Badge each book on the books page with the viewer's own status (2026-08-17)
 
 Both the list and grid views now show a small "plan"/"backlog"/"reading"/
