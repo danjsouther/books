@@ -3,19 +3,17 @@ import { MatChipsModule } from '@angular/material/chips';
 
 export type ChipTone = 'plan' | 'backlog' | 'reading' | 'completed' | 'dropped' | 'neutral';
 
-/** Icon + text + color — color is decoration on top, never the only signal
- *  (WCAG 1.4.1). Each tone maps to both a distinct container/on-container
- *  pair (see the M3 status roles in `styles.scss`) AND a distinct icon
- *  glyph, so removing color still leaves the chip legible. The container
- *  fill alone can't clear 3:1 against the page surface at M3 container
- *  lightness, so the chip's own on-container color doubles as its border
- *  for boundary perceivability. */
+/** Text + color — color is decoration on top, never the only signal
+ *  (WCAG 1.4.1): the label text itself names the status, so color loss
+ *  still leaves the chip legible. The container fill alone can't clear
+ *  3:1 against the page surface at M3 container lightness, so the chip's
+ *  own on-container color doubles as its border for boundary
+ *  perceivability. */
 @Component({
   selector: 'app-chip',
   imports: [MatChipsModule],
   template: `
     <mat-chip class="chip" [class]="'chip-' + tone()" [disableRipple]="true">
-      <span aria-hidden="true">{{ icon() }}</span>
       {{ label() }}
     </mat-chip>
   `,
@@ -59,5 +57,4 @@ export type ChipTone = 'plan' | 'backlog' | 'reading' | 'completed' | 'dropped' 
 export class Chip {
   readonly label = input.required<string>();
   readonly tone = input<ChipTone>('neutral');
-  readonly icon = input('●');
 }
