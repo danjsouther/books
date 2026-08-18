@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.2.3 - 2026-08-18
+
 ### Fixed — `/upcoming` unregistered in production (2026-08-18)
 
 Slash-command registration (`deploy-commands.ts`) was a script meant to be
