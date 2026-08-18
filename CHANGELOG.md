@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.2.2 - 2026-08-18
+
 ### Fixed — Cover art blocked by the Content-Security-Policy (2026-08-18)
 
 `coverUrl` is a member-supplied link to wherever they found the cover — Amazon,
