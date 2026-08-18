@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Remove the bullet glyph from status chips (2026-08-18)
+
+Every status chip rendered the same undifferentiated `●` ahead of its label,
+regardless of tone — no consumer ever set a distinct icon per status, so the
+glyph added visual noise without conveying anything the label text and color
+didn't already.
+
+### Changed — Default book list sort to release date, descending (2026-08-18)
+
+The books page and `GET /books` both defaulted to title, ascending. Newest
+releases first is a more useful default for a page whose whole point is
+tracking what's coming out; picking "Release date" from the sort menu now
+also lands on newest-first instead of oldest-first.
+
 ## 0.3.0 - 2026-08-18
 
 ### Added — App icon and PWA manifest (2026-08-18)
