@@ -143,7 +143,7 @@ describe('BooksListPage', () => {
     expect(row?.querySelector('.title-cell')).toBeTruthy();
   });
 
-  it('badges a row with the viewer’s own status, and omits the badge entirely otherwise', async () => {
+  it('badges a row with the viewer’s own status, defaulting to backlog when unset', async () => {
     const fixture = await renderWith([
       book({ id: 'b1', title: 'Reading', myStatus: 'reading' }),
       book({ id: 'b2', title: 'Untouched', myStatus: null }),
@@ -151,9 +151,8 @@ describe('BooksListPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     const rows = el.querySelectorAll('.row-link');
 
-    const statusCell = rows[0]?.querySelector('.status-cell');
-    expect(statusCell?.textContent).toContain('reading');
-    expect(rows[1]?.querySelector('.status-cell')).toBeNull();
+    expect(rows[0]?.querySelector('.status-cell')?.textContent).toContain('reading');
+    expect(rows[1]?.querySelector('.status-cell')?.textContent).toContain('backlog');
   });
 
   it('badges a grid tile with the viewer’s own status too', async () => {
