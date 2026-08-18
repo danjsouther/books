@@ -41,7 +41,19 @@ app.disable('x-powered-by');
 
 app.use(cookieParser());
 app.use(express.json());
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        // Cover art is a member-supplied URL (Amazon, Royal Road, Goodreads,
+        // ...), not something this app hosts — default helmet only allows
+        // 'self' and data:, which blocks every real cover.
+        'img-src': ["'self'", 'data:', 'https:'],
+      },
+    },
+  }),
+);
 
 app.use('/api/v1', createApiRouter(deps));
 
