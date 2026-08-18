@@ -8,7 +8,7 @@ import {
   RevisionListQuerySchema,
   ShelfUpdateSchema,
   type BookDetail,
-  type BookSummary,
+  type BookListItem,
   type ListResponse,
   type RevisionSummary,
 } from '@books/domain';
@@ -70,8 +70,8 @@ export function createBooksRouter(deps: ApiDeps): Router {
   router.get('/', (req, res, next) => {
     void (async () => {
       const query = BookListQuerySchema.parse(req.query);
-      const { items, total } = await listBooks(db, query);
-      const body: ListResponse<BookSummary> = {
+      const { items, total } = await listBooks(db, query, actorIdOf(req));
+      const body: ListResponse<BookListItem> = {
         items,
         page: query.page,
         pageSize: query.pageSize,

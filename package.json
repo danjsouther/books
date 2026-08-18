@@ -1,6 +1,6 @@
 {
   "name": "books",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
     "ng": "ng",
     "dev": "concurrently --names web,api,bot --prefix-colors cyan,magenta,yellow \"npm:dev:web\" \"npm:dev:api\" \"npm:dev:bot\"",
@@ -30,12 +30,12 @@
   "private": true,
   "packageManager": "npm@11.16.0",
   "dependencies": {
-    "@angular/aria": "^22.1.2",
     "@angular/cdk": "^22.1.2",
     "@angular/common": "^22.0.0",
     "@angular/compiler": "^22.0.0",
     "@angular/core": "^22.0.0",
     "@angular/forms": "^22.0.0",
+    "@angular/material": "^22.1.2",
     "@angular/platform-browser": "^22.0.0",
     "@angular/router": "^22.0.0",
     "cookie-parser": "^1.4.7",
@@ -58,7 +58,6 @@
     "@angular/cli": "^22.0.7",
     "@angular/compiler-cli": "^22.0.0",
     "@eslint/js": "^10.0.1",
-    "@tailwindcss/postcss": "^4.1.12",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/node": "^24.13.3",
@@ -75,7 +74,6 @@
     "postcss": "^8.5.3",
     "prettier": "^3.8.1",
     "supertest": "^7.2.2",
-    "tailwindcss": "^4.1.12",
     "tsx": "^4.23.12",
     "typescript": "~6.0.2",
     "typescript-eslint": "8.62.1",

@@ -98,6 +98,32 @@ describe.skipIf(!hasDatabase)('Series', () => {
     expect(res.items[0]?.title).toBe('Book One');
   });
 
+  // What the series combobox on the book form sends. A single `ILIKE '%q%'`
+  // over the whole query never matched here, because the words are not adjacent
+  // in the stored name — the search looked broken to anyone typing two words.
+  it('matches a multi-word query token by token, in any order', async () => {
+    await createSeries({ name: 'The Stormlight Archive' });
+    await createSeries({ name: 'The Expanse' });
+
+    async function search(q: string): Promise<string[]> {
+      const res = bodyAs<ListResponse<SeriesDetail>>(
+        await request(testApp.app)
+          .get(`/api/v1/series?q=${encodeURIComponent(q)}`)
+          .set(auth),
+      );
+      return res.items.map((s) => s.name);
+    }
+
+    expect(await search('stormlight archive')).toEqual(['The Stormlight Archive']);
+    expect(await search('archive stormlight')).toEqual(['The Stormlight Archive']);
+    expect(await search('storm arch')).toEqual(['The Stormlight Archive']);
+    // AND, not OR: "the" alone matches both, but paired it must narrow.
+    expect(await search('the')).toHaveLength(2);
+    expect(await search('the stormlight')).toEqual(['The Stormlight Archive']);
+    // A wildcard typed into a search box is a literal, not "match everything".
+    expect(await search('%')).toEqual([]);
+  });
+
   it('409s a patch carrying a stale version', async () => {
     const series = await createSeries();
     await request(testApp.app)

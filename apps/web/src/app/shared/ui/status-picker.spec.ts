@@ -2,33 +2,34 @@ import { TestBed } from '@angular/core/testing';
 import { StatusPicker } from './status-picker';
 
 describe('StatusPicker', () => {
-  it('renders one radio per status, distinctly labelled', () => {
+  it('renders one toggle per status, distinctly labelled', () => {
     const fixture = TestBed.createComponent(StatusPicker);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    const radios = el.querySelectorAll<HTMLInputElement>('input[type="radio"]');
-    expect(radios).toHaveLength(5);
-    const values = Array.from(radios).map((r) => r.value);
-    expect(values).toEqual(['plan', 'backlog', 'reading', 'completed', 'dropped']);
+    const toggles = el.querySelectorAll<HTMLElement>('[role="radio"]');
+    expect(toggles).toHaveLength(5);
+    const labels = Array.from(toggles).map((t) => t.textContent?.replace(/\s+/g, ' ').trim());
+    expect(labels).toEqual(['📌 Plan', '📚 Backlog', '👀 Reading', '✅ Completed', '✖ Dropped']);
   });
 
-  it('plan and backlog render visibly distinct chips, not just distinct values', () => {
+  it('plan and backlog toggles carry visibly distinct status classes, not just distinct labels', () => {
     const fixture = TestBed.createComponent(StatusPicker);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    const chips = Array.from(el.querySelectorAll('.chip'));
-    const planChip = chips.find((c) => c.textContent?.includes('Plan'));
-    const backlogChip = chips.find((c) => c.textContent?.includes('Backlog'));
-    expect(planChip?.className).not.toBe(backlogChip?.className);
+    const plan = el.querySelector('.status-plan');
+    const backlog = el.querySelector('.status-backlog');
+    expect(plan).toBeTruthy();
+    expect(backlog).toBeTruthy();
+    expect(plan?.className).not.toBe(backlog?.className);
   });
 
-  it('selecting a radio updates value()', () => {
+  it('selecting a toggle updates value()', () => {
     const fixture = TestBed.createComponent(StatusPicker);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    const reading = el.querySelector<HTMLInputElement>('input[value="reading"]');
-    reading!.checked = true;
-    reading!.dispatchEvent(new Event('change', { bubbles: true }));
+    const toggles = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]'));
+    const reading = toggles.find((t) => t.textContent?.includes('Reading'));
+    reading?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     fixture.detectChanges();
     expect(fixture.componentInstance.value()).toBe('reading');
   });

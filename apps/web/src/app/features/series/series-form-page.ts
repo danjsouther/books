@@ -2,6 +2,9 @@ import { HttpErrorResponse, httpResource } from '@angular/common/http';
 import { Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormField, form, required, submit } from '@angular/forms/signals';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { firstValueFrom } from 'rxjs';
 import type { SeriesDetail } from '@books/domain';
 import { readSaveConflict } from '../../core/save-conflict';
@@ -17,73 +20,115 @@ const BLANK_MODEL: SeriesFormModel = { name: '', sortName: '', description: '' }
 
 @Component({
   selector: 'app-series-form-page',
-  imports: [RouterLink, FormField],
+  imports: [RouterLink, FormField, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
-    <h1 class="text-2xl font-semibold">{{ id() ? 'Edit series' : 'Add a series' }}</h1>
+    <h1>{{ id() ? 'Edit series' : 'Add a series' }}</h1>
 
     @if (conflictMessage(); as message) {
-      <div class="mt-4 rounded-md border border-status-dropped-fg/40 bg-status-dropped-bg p-4">
-        <p class="text-status-dropped-fg">{{ message }}</p>
-        <div class="mt-2 flex gap-3 text-sm">
+      <div class="conflict-banner">
+        <p class="conflict-message">{{ message }}</p>
+        <div class="conflict-actions">
           @if (id(); as seriesId) {
-            <a [routerLink]="['/series', seriesId, 'history']" class="underline">
-              Review the changes
-            </a>
+            <a [routerLink]="['/series', seriesId, 'history']"> Review the changes </a>
           }
-          <button type="button" class="underline" (click)="reloadAndDiscardMyChanges()">
+          <button type="button" class="link-btn" (click)="reloadAndDiscardMyChanges()">
             Reload and discard my changes
           </button>
         </div>
       </div>
     }
 
-    <form (submit)="onSubmit($event)" class="mt-6 space-y-4">
-      <div>
-        <label for="name" class="block text-sm font-medium">Name</label>
-        <input
-          id="name"
-          type="text"
-          [formField]="seriesForm.name"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
-        />
-        @for (error of seriesForm.name().errors(); track error.kind) {
-          <p class="mt-1 text-sm text-status-dropped-fg">{{ error.message }}</p>
-        }
-      </div>
+    <form (submit)="onSubmit($event)" class="form">
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Name</mat-label>
+        <input matInput id="name" type="text" [formField]="seriesForm.name" />
+      </mat-form-field>
+      @for (error of seriesForm.name().errors(); track error.kind) {
+        <p class="field-error">{{ error.message }}</p>
+      }
 
-      <div>
-        <label for="sortName" class="block text-sm font-medium">Sort name</label>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Sort name</mat-label>
         <input
+          matInput
           id="sortName"
           type="text"
           [formField]="seriesForm.sortName"
           placeholder="e.g. Expanse, The"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
         />
-      </div>
+      </mat-form-field>
 
-      <div>
-        <label for="description" class="block text-sm font-medium">Description</label>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Description</mat-label>
         <textarea
+          matInput
           id="description"
           [formField]="seriesForm.description"
           rows="4"
-          class="mt-1 w-full rounded-sm border border-border px-3 py-1.5"
         ></textarea>
-      </div>
+      </mat-form-field>
 
       @if (formError(); as message) {
-        <p class="text-sm text-status-dropped-fg">{{ message }}</p>
+        <p class="field-error">{{ message }}</p>
       }
 
-      <button
-        type="submit"
-        [disabled]="seriesForm().submitting()"
-        class="rounded-sm border border-border px-4 py-2"
-      >
+      <button mat-flat-button type="submit" [disabled]="seriesForm().submitting()">
         {{ id() ? 'Save changes' : 'Add series' }}
       </button>
     </form>
+  `,
+  styles: `
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .conflict-banner {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--status-dropped-on-container);
+      border-radius: 8px;
+      background: var(--status-dropped-container);
+    }
+
+    .conflict-message {
+      color: var(--status-dropped-on-container);
+      margin: 0;
+    }
+
+    .conflict-actions {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+    }
+
+    .link-btn {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      max-width: 32rem;
+    }
+
+    .field-error {
+      color: var(--mat-sys-error);
+      font-size: 0.875rem;
+      margin: -0.25rem 0 0.5rem;
+    }
   `,
 })
 export class SeriesFormPage {

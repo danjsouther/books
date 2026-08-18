@@ -4,6 +4,12 @@ import { Component } from '@angular/core';
 @Component({
   selector: 'app-me-page',
   imports: [],
-  template: `<h1 class="text-2xl font-semibold">My shelf</h1>`,
+  template: `<h1>My shelf</h1>`,
+  styles: `
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+  `,
 })
 export class MePage {}

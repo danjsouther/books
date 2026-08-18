@@ -26,6 +26,7 @@ function book(
     subtitle: null,
     authors: [],
     seriesId: null,
+    seriesName: null,
     seriesPosition: null,
     releaseDate,
     releasePrecision: precision,
@@ -104,6 +105,49 @@ describe('ReleasesPage', () => {
     expect(el.textContent).toContain('Persepolis Rising');
   });
 
+  it('shows a cover on every release row, in all three sections', async () => {
+    const fixture = TestBed.createComponent(ReleasesPage);
+    fixture.detectChanges();
+    TestBed.tick();
+    const withCover = (b: BookSummary): BookSummary => ({
+      ...b,
+      coverUrl: 'https://example.test/c.jpg',
+    });
+    flushReleases({
+      dated: [withCover(book('b1', 'Leviathan Wakes', '2027-03-05', 'day'))],
+      monthly: [],
+      yearly: [withCover(book('b3', 'Nemesis Games', '2028-01-01', 'year'))],
+      undated: [withCover(book('b4', 'Persepolis Rising', null, 'unknown'))],
+      window: { from: '', to: '' },
+    });
+    await settle(fixture);
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('app-book-cover img')).toHaveLength(3);
+    // The plan control must stay outside the row's link — a button nested in an
+    // anchor is invalid, and its own press state has to remain reachable.
+    expect(el.querySelector('.row-main app-plan-toggle')).toBeNull();
+    expect(el.querySelectorAll('app-plan-toggle').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the cover placeholder when a release has no cover', async () => {
+    const fixture = TestBed.createComponent(ReleasesPage);
+    fixture.detectChanges();
+    TestBed.tick();
+    flushReleases({
+      dated: [book('b1', 'Leviathan Wakes', '2027-03-05', 'day')],
+      monthly: [],
+      yearly: [],
+      undated: [],
+      window: { from: '', to: '' },
+    });
+    await settle(fixture);
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-book-cover img')).toBeNull();
+    expect(el.querySelector('app-book-cover .no-cover')).toBeTruthy();
+  });
+
   it('"Show next 12 months" widens the request window', async () => {
     const fixture = TestBed.createComponent(ReleasesPage);
     fixture.detectChanges();
@@ -138,8 +182,7 @@ describe('ReleasesPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     const checkbox = el.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(checkbox.checked).toBe(false);
-    checkbox.checked = true;
-    checkbox.dispatchEvent(new Event('change'));
+    checkbox.click();
     fixture.detectChanges();
 
     const reqs = httpMock.match((r) => r.url === '/api/v1/releases');

@@ -1,55 +1,104 @@
 import { Component, input, model } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule, type MatSelectChange } from '@angular/material/select';
 
 export interface SortOption {
   readonly value: string;
   readonly label: string;
+  /** The direction this option makes sense in by default — e.g. a name sorts
+   *  ascending (A-Z), a "recently updated" sorts descending (newest first).
+   *  Picking a new sort field resets to this rather than carrying over
+   *  whatever direction the previous field was left on. */
+  readonly defaultDir: 'asc' | 'desc';
 }
 
-/** Search + a projected slot for resource-specific filters + sort. A `<select>`
- *  is the right tool for an enumerable sort order — the richer `@angular/aria`
- *  widgets earn their keep on the filters slot's contents, not here. */
+/** Search + a projected slot for resource-specific filters + sort. */
 @Component({
   selector: 'app-list-toolbar',
-  imports: [],
+  imports: [MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
-    <div class="flex flex-wrap items-center gap-3 border-b border-border pb-4">
-      <label class="sr-only" [for]="searchId">{{ searchLabel() }}</label>
-      <input
-        #searchInput
-        [id]="searchId"
-        type="search"
-        [placeholder]="searchLabel()"
-        class="min-w-48 rounded-sm border border-border px-3 py-1.5 text-sm"
-        [value]="query()"
-        (input)="query.set(searchInput.value)"
-      />
+    <div class="toolbar">
+      <mat-form-field subscriptSizing="dynamic" class="search-field">
+        <mat-label>{{ searchLabel() }}</mat-label>
+        <input
+          #searchInput
+          matInput
+          type="search"
+          [value]="query()"
+          (input)="query.set(searchInput.value)"
+        />
+        @if (query()) {
+          <button
+            matSuffix
+            mat-icon-button
+            type="button"
+            [attr.aria-label]="'Clear ' + searchLabel()"
+            (click)="query.set('')"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
 
       <ng-content />
 
       @if (sortOptions().length > 0) {
-        <label class="sr-only" [for]="sortId">Sort by</label>
-        <select
-          #sortSelect
-          [id]="sortId"
-          class="rounded-sm border border-border px-3 py-1.5 text-sm"
-          [value]="sortValue()"
-          (change)="sortValue.set(sortSelect.value)"
+        <mat-form-field subscriptSizing="dynamic" class="sort-field">
+          <mat-label>Sort by</mat-label>
+          <mat-select [value]="sortValue()" (selectionChange)="onSortValueChange($event)">
+            @for (option of sortOptions(); track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="sortDir() === 'asc' ? 'Sort descending' : 'Sort ascending'"
+          (click)="toggleSortDir()"
         >
-          @for (option of sortOptions(); track option.value) {
-            <option [value]="option.value">{{ option.label }}</option>
-          }
-        </select>
+          <mat-icon>{{ sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </button>
       }
     </div>
   `,
+  styles: `
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .search-field {
+      min-width: 12rem;
+    }
+
+    .sort-field {
+      min-width: 10rem;
+    }
+  `,
 })
 export class ListToolbar {
-  private static nextId = 0;
-  protected readonly searchId = `list-toolbar-search-${String(ListToolbar.nextId++)}`;
-  protected readonly sortId = `list-toolbar-sort-${String(ListToolbar.nextId++)}`;
-
   readonly searchLabel = input('Search');
   readonly query = model('');
   readonly sortOptions = input<readonly SortOption[]>([]);
   readonly sortValue = model('');
+  readonly sortDir = model<'asc' | 'desc'>('asc');
+
+  protected onSortValueChange(event: MatSelectChange): void {
+    const value = event.value as string;
+    this.sortValue.set(value);
+    const defaultDir = this.sortOptions().find((o) => o.value === value)?.defaultDir ?? 'asc';
+    this.sortDir.set(defaultDir);
+  }
+
+  protected toggleSortDir(): void {
+    this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+  }
 }

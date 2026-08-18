@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import type { SeriesSummary } from '@books/domain';
 import { createListStore } from '../../core/list-store';
 import { EmptyState } from '../../shared/ui/empty-state';
@@ -12,22 +13,30 @@ import { Skeleton } from '../../shared/ui/skeleton';
 interface SeriesListFilters extends Record<string, unknown> {
   readonly q: string;
   readonly sort: string;
+  readonly dir: 'asc' | 'desc';
 }
 
 const SORT_OPTIONS: readonly SortOption[] = [
-  { value: 'name', label: 'Name' },
-  { value: 'bookCount', label: 'Book count' },
-  { value: 'nextRelease', label: 'Next release' },
+  { value: 'name', label: 'Name', defaultDir: 'asc' },
+  { value: 'bookCount', label: 'Book count', defaultDir: 'desc' },
+  { value: 'nextRelease', label: 'Next release', defaultDir: 'asc' },
 ];
 
 @Component({
   selector: 'app-series-list-page',
-  imports: [RouterLink, PageHeader, ListToolbar, ResultCount, Skeleton, EmptyState, Pagination],
+  imports: [
+    RouterLink,
+    PageHeader,
+    ListToolbar,
+    ResultCount,
+    Skeleton,
+    EmptyState,
+    Pagination,
+    MatButtonModule,
+  ],
   template: `
     <app-page-header title="Series">
-      <a routerLink="new" class="rounded-sm border border-border px-3 py-1.5 text-sm"
-        >Add a series</a
-      >
+      <a mat-stroked-button routerLink="new">Add a series</a>
     </app-page-header>
 
     <app-list-toolbar
@@ -37,6 +46,8 @@ const SORT_OPTIONS: readonly SortOption[] = [
       [sortOptions]="sortOptions"
       [sortValue]="store.filters().sort"
       (sortValueChange)="store.setFilter('sort', $event)"
+      [sortDir]="store.filters().dir"
+      (sortDirChange)="store.setFilter('dir', $event)"
     />
 
     <app-result-count [total]="store.total()" noun="series" />
@@ -46,11 +57,11 @@ const SORT_OPTIONS: readonly SortOption[] = [
     } @else if (store.items().length === 0) {
       <app-empty-state title="No series match your search" />
     } @else {
-      <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+      <ul class="results">
         @for (series of store.items(); track series.id) {
-          <li class="rounded-md border border-border p-4">
-            <a [routerLink]="[series.id]" class="font-medium underline">{{ series.name }}</a>
-            <p class="mt-1 text-sm text-ink-muted">
+          <li class="card">
+            <a [routerLink]="[series.id]" class="title">{{ series.name }}</a>
+            <p class="muted">
               {{ series.bookCount }} {{ series.bookCount === 1 ? 'book' : 'books' }}
               @if (series.nextRelease) {
                 · next release {{ series.nextRelease }}
@@ -68,11 +79,40 @@ const SORT_OPTIONS: readonly SortOption[] = [
       (goToPage)="store.goToPage($event)"
     />
   `,
+  styles: `
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .card {
+      border: 1px solid var(--mat-sys-outline-variant);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .title {
+      font-weight: 600;
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+    }
+
+    .muted {
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+      margin: 0.25rem 0 0;
+    }
+  `,
 })
 export class SeriesListPage {
   protected readonly store = createListStore<SeriesSummary, SeriesListFilters>('/api/v1/series', {
     q: '',
     sort: 'name',
+    dir: 'asc',
   });
 
   protected readonly sortOptions = SORT_OPTIONS;

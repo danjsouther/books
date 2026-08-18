@@ -1,7 +1,8 @@
-import { Grid, GridCell, GridCellWidget, GridRow } from '@angular/aria/grid';
 import { httpResource } from '@angular/common/http';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
   buildMonthGrid,
   formatReleaseDate,
@@ -28,10 +29,6 @@ function todayIsoLocal(): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
 function monthLabelFor(year: number, month: number): string {
   return new Intl.DateTimeFormat('en-GB', {
     month: 'long',
@@ -42,7 +39,7 @@ function monthLabelFor(year: number, month: number): string {
 
 @Component({
   selector: 'app-calendar-page',
-  imports: [RouterLink, Grid, GridRow, GridCell, GridCellWidget, AppCombobox, PlanToggle],
+  imports: [RouterLink, AppCombobox, PlanToggle, MatButtonModule, MatCheckboxModule],
   host: {
     '(keydown.pageup)': 'navigateMonths(-1)',
     '(keydown.pagedown)': 'navigateMonths(1)',
@@ -51,22 +48,16 @@ function monthLabelFor(year: number, month: number): string {
     '(keydown.control.home)': 'goToToday()',
   },
   template: `
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold">{{ monthLabel() }}</h1>
-      <nav aria-label="Month navigation" class="flex items-center gap-2 text-sm">
-        <a [routerLink]="prevMonthLink()" class="rounded-sm border border-border px-3 py-1.5">
-          Previous
-        </a>
-        <a [routerLink]="todayLink()" class="rounded-sm border border-border px-3 py-1.5">
-          Today
-        </a>
-        <a [routerLink]="nextMonthLink()" class="rounded-sm border border-border px-3 py-1.5">
-          Next
-        </a>
+    <div class="header">
+      <h1>{{ monthLabel() }}</h1>
+      <nav aria-label="Month navigation" class="month-nav">
+        <a mat-stroked-button [routerLink]="prevMonthLink()">Previous</a>
+        <a mat-stroked-button [routerLink]="todayLink()">Today</a>
+        <a mat-stroked-button [routerLink]="nextMonthLink()">Next</a>
       </nav>
     </div>
 
-    <div class="mb-4 flex flex-wrap items-center gap-3">
+    <div class="filters">
       <app-combobox
         placeholder="Filter by series"
         ariaLabel="Filter by series"
@@ -76,63 +67,36 @@ function monthLabelFor(year: number, month: number): string {
         [value]="store.seriesId() || null"
         (valueChange)="store.seriesId.set($event ?? '')"
       />
-      <label class="flex items-center gap-2 text-sm">
-        <input
-          #mineOnlyInput
-          type="checkbox"
-          [checked]="store.mineOnly()"
-          (change)="setMineOnly(mineOnlyInput.checked)"
-        />
+      <mat-checkbox [checked]="store.mineOnly()" (change)="setMineOnly($event.checked)">
         Only my planned releases
-      </label>
+      </mat-checkbox>
     </div>
 
-    <table
-      ngGrid
-      focusMode="roving"
-      rowWrap="nowrap"
-      colWrap="nowrap"
-      class="w-full border-collapse text-sm"
-    >
-      <caption class="sr-only">
-        Book releases,
-        {{
-          monthLabel()
-        }}. Use arrow keys to move between days.
-      </caption>
-      <tr ngGridRow>
+    <div class="calendar" role="table" [attr.aria-label]="'Book releases, ' + monthLabel()">
+      <div class="weekday-row" role="row">
         @for (label of weekdayLabels; track label) {
-          <th
-            ngGridCell
-            role="columnheader"
-            scope="col"
-            class="border border-border p-2 text-left font-medium"
-          >
-            {{ label }}
-          </th>
+          <div class="weekday" role="columnheader">{{ label }}</div>
         }
-      </tr>
+      </div>
       @for (week of monthGrid(); track $index) {
-        <tr ngGridRow>
+        <div class="week-row" role="row">
           @for (cell of week; track cell.iso) {
-            <td
-              ngGridCell
+            <div
+              class="day-cell"
+              role="cell"
               [id]="'cell-' + cell.iso"
+              [class.out-of-month]="!cell.inMonth"
               [attr.aria-current]="cell.isToday ? 'date' : null"
               [attr.aria-label]="cellLabel(cell)"
-              (focus)="focusedDay.set(cell.day)"
-              class="h-24 min-w-28 border border-border p-1 align-top"
-              [class.bg-surface-sunken]="!cell.inMonth"
             >
-              <span aria-hidden="true" class="text-xs" [class.text-ink-muted]="!cell.inMonth">
-                {{ cell.day }}
-              </span>
+              <span class="day-number" aria-hidden="true">{{ cell.day }}</span>
               @if (releasesByDate()[cell.iso]?.length) {
-                <div ngGridCellWidget widgetType="complex" class="mt-1 space-y-1">
+                <div class="releases">
                   @for (r of releasesByDate()[cell.iso]; track r.id) {
-                    <div class="text-xs">
-                      <a [routerLink]="['/books', r.id]" class="underline">{{ r.title }}</a>
+                    <div class="release">
+                      <a [routerLink]="['/books', r.id]">{{ r.title }}</a>
                       <app-plan-toggle
+                        compact
                         [title]="r.title"
                         [pressed]="store.plannedIds().has(r.id)"
                         (planToggled)="store.togglePlan(r)"
@@ -141,20 +105,21 @@ function monthLabelFor(year: number, month: number): string {
                   }
                 </div>
               }
-            </td>
+            </div>
           }
-        </tr>
+        </div>
       }
-    </table>
+    </div>
 
     @if (monthlyReleases().length > 0) {
-      <section class="mt-6 border-t border-border pt-4">
-        <h3 class="font-medium">Also in {{ monthLabel() }} (exact day unknown)</h3>
-        <ul class="mt-2 space-y-1 text-sm">
+      <section class="monthly-section">
+        <h3>Also in {{ monthLabel() }} (exact day unknown)</h3>
+        <ul class="monthly-list">
           @for (r of monthlyReleases(); track r.id) {
             <li>
-              <a [routerLink]="['/books', r.id]" class="underline">{{ r.title }}</a>
+              <a [routerLink]="['/books', r.id]">{{ r.title }}</a>
               <app-plan-toggle
+                compact
                 [title]="r.title"
                 [pressed]="store.plannedIds().has(r.id)"
                 (planToggled)="store.togglePlan(r)"
@@ -165,7 +130,126 @@ function monthLabelFor(year: number, month: number): string {
       </section>
     }
 
-    <p aria-live="polite" aria-atomic="true" class="sr-only">{{ liveRegionText() }}</p>
+    <p aria-live="polite" aria-atomic="true" class="cdk-visually-hidden">{{ liveRegionText() }}</p>
+  `,
+  styles: `
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .month-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .calendar {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--mat-sys-outline-variant);
+      font: var(--mat-sys-body-small);
+    }
+
+    .weekday-row,
+    .week-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .weekday {
+      padding: 0.5rem;
+      font-weight: 600;
+      border: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .day-cell {
+      min-height: 6rem;
+      min-width: 7rem;
+      padding: 0.25rem;
+      border: 1px solid var(--mat-sys-outline-variant);
+      vertical-align: top;
+    }
+
+    .day-cell.out-of-month {
+      background: var(--mat-sys-surface-container-low);
+    }
+
+    .day-cell.out-of-month .day-number {
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .day-number {
+      font-size: 0.75rem;
+    }
+
+    .releases {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Title takes the slack, the compact toggle stays pinned at the end — a day
+       cell is narrow and may stack several of these. */
+    .release {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+    }
+
+    /* Without both of these the row overflows its cell: a flex item refuses to
+       shrink past min-content, and a long title's longest word sets that floor.
+       The toggle keeps its full 24px instead of being squeezed. */
+    .release > a {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .release app-plan-toggle {
+      flex: none;
+    }
+
+    .monthly-section {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .monthly-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-top: 0.5rem;
+      padding: 0;
+      list-style: none;
+      font-size: 0.875rem;
+    }
+
+    .monthly-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
   `,
 })
 export class CalendarPage {
@@ -230,34 +314,13 @@ export class CalendarPage {
     return ['/calendar', y, String(Number(m))];
   });
 
-  protected readonly focusedDay = signal(1);
   protected readonly liveRegionText = signal('');
-
-  private hasMounted = false;
 
   constructor() {
     this.mineOnlyFromQueryParams();
 
     effect(() => {
-      // Tracks only the grid/month — never `store.releases()`, which resolves
-      // asynchronously well after mount and must not be mistaken for a month
-      // change that steals focus once the data happens to arrive.
-      const grid = this.monthGrid();
       const label = this.monthLabel();
-      const focusedDay = this.focusedDay();
-
-      if (!this.hasMounted) {
-        this.hasMounted = true;
-        return;
-      }
-
-      const targetDay = Math.min(focusedDay, daysInMonth(this.numericYear(), this.numericMonth()));
-      const targetIso = grid.flat().find((c) => c.inMonth && c.day === targetDay)?.iso;
-      if (targetIso) {
-        queueMicrotask(() => {
-          document.getElementById(`cell-${targetIso}`)?.focus();
-        });
-      }
       const releaseCount = untracked(
         () => this.store.releases().dated.length + this.store.releases().monthly.length,
       );

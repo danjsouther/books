@@ -1,23 +1,28 @@
 import type {
   BookDetail,
+  BookListItem,
   BookListQuery,
+  BookStatus,
   BookSummary,
   RatingSummary,
   UserBookStatus,
 } from '@books/domain';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../client';
 import { authorBooks } from '../schema/author-books';
 import { authors } from '../schema/authors';
 import { books } from '../schema/books';
+import { series } from '../schema/series';
 import { bookUserStatus } from '../schema/shelf';
 import { authorsOfBook } from '../mutations/authors';
 import type { Book } from '../mutations/books';
 import { paginate } from '../lib/paginate';
+import { tokenizedMatch } from '../lib/text-search';
 
 export function toBookSummary(
   row: Book,
   authorsByBook: Map<string, { id: string; name: string }[]>,
+  seriesNames: ReadonlyMap<string, string>,
 ): BookSummary {
   return {
     id: row.id,
@@ -25,6 +30,7 @@ export function toBookSummary(
     subtitle: row.subtitle,
     authors: authorsByBook.get(row.id) ?? [],
     seriesId: row.seriesId,
+    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,
@@ -58,6 +64,51 @@ export async function authorsByBookIds(
   return map;
 }
 
+/**
+ * Batch-fetches series names for a page of books, the `seriesName` half of
+ * `toBookSummary`. Lives here rather than in `queries/series.ts` because that
+ * module already imports from this one — defining it there would close an
+ * import cycle. Takes the raw (nullable, duplicate-heavy) `seriesId` column
+ * straight off a page of rows and does the filtering itself, since every caller
+ * would otherwise write the same filter.
+ */
+export async function seriesNamesByIds(
+  db: Db,
+  seriesIds: readonly (string | null)[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const ids = [...new Set(seriesIds.filter((id) => id !== null))];
+  if (ids.length === 0) return map;
+  const rows = await db
+    .select({ id: series.id, name: series.name })
+    .from(series)
+    .where(inArray(series.id, ids));
+  for (const row of rows) map.set(row.id, row.name);
+  return map;
+}
+
+/**
+ * Batch-fetches one viewer's own status for a page of books — the `myStatus`
+ * half of a `BookListItem`. Scoped to `viewerUserId` alone, unlike
+ * `booksWithStatus` below (which matches *any* member's status for filtering);
+ * this is what lets the books page badge "your" shelf status on every row in
+ * one query rather than one `getShelfStatus` call per row.
+ */
+export async function myStatusesByBookIds(
+  db: Db,
+  bookIds: readonly string[],
+  viewerUserId: string,
+): Promise<Map<string, BookStatus>> {
+  const map = new Map<string, BookStatus>();
+  if (bookIds.length === 0) return map;
+  const rows = await db
+    .select({ bookId: bookUserStatus.bookId, status: bookUserStatus.status })
+    .from(bookUserStatus)
+    .where(and(eq(bookUserStatus.userId, viewerUserId), inArray(bookUserStatus.bookId, bookIds)));
+  for (const row of rows) map.set(row.bookId, row.status);
+  return map;
+}
+
 function booksByAuthorName(name: string) {
   return sql`${books.id} IN (
     SELECT ${authorBooks.bookId} FROM ${authorBooks}
@@ -82,9 +133,7 @@ function booksRatedBy(userId: string) {
 function buildWhere(filters: BookListQuery): SQL | undefined {
   const clauses: (SQL | undefined)[] = [];
   if (!filters.includeDeleted) clauses.push(isNull(books.deletedAt));
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${books.title} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(books.title, filters.q));
   if (filters.seriesId !== undefined) clauses.push(eq(books.seriesId, filters.seriesId));
   if (filters.author !== undefined) clauses.push(booksByAuthorName(filters.author));
   if (filters.status !== undefined) clauses.push(booksWithStatus(filters.status));
@@ -97,24 +146,39 @@ function buildWhere(filters: BookListQuery): SQL | undefined {
   return and(...clauses);
 }
 
+/** No per-book rating column exists — this is the per-book average across
+ *  `bookUserStatus`, correlated against the outer `books` row. Unlike
+ *  `series.ts`'s equivalent subqueries, `bookUserStatus` has no `id` column of
+ *  its own to collide with `books.id`, so no explicit outer-table
+ *  qualification is needed for the correlation to bind correctly. */
+const AVG_RATING = sql<number | null>`(
+  SELECT avg(${bookUserStatus.rating})::float8 FROM ${bookUserStatus}
+  WHERE ${bookUserStatus.bookId} = ${books.id} AND ${bookUserStatus.rating} IS NOT NULL
+)`;
+
 const SORT_COLUMNS = {
   title: books.title,
   release: books.releaseDate,
   created: books.createdAt,
   updated: books.updatedAt,
-  // No per-book rating column exists; sorting by rating without an aggregate join
-  // is not supported yet, so it falls back to title. Revisit if the book list ever
-  // needs to sort by average rating.
-  rating: books.title,
+  rating: AVG_RATING,
 } as const;
 
 export async function listBooks(
   db: Db,
   filters: BookListQuery,
-): Promise<{ items: BookSummary[]; total: number }> {
+  viewerUserId: string,
+): Promise<{ items: BookListItem[]; total: number }> {
   const where = buildWhere(filters);
   const orderColumn = SORT_COLUMNS[filters.sort];
-  const order = filters.dir === 'desc' ? desc(orderColumn) : asc(orderColumn);
+  // Postgres defaults unmatched-elsewhere NULLs to sort FIRST under DESC — for
+  // `rating` that would put every unrated book ahead of the best-rated one, the
+  // opposite of "highest first". `NULLS LAST` keeps "no opinion" at the bottom
+  // regardless of direction, which is what a member picking "Rating" wants.
+  const order =
+    filters.dir === 'desc'
+      ? sql`${orderColumn} DESC NULLS LAST`
+      : sql`${orderColumn} ASC NULLS LAST`;
 
   const rows = db
     .select()
@@ -130,11 +194,28 @@ export async function listBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const authorsByBook = await authorsByBookIds(
-    db,
-    bookRows.map((b) => b.id),
-  );
-  return { items: bookRows.map((row) => toBookSummary(row, authorsByBook)), total };
+  const [authorsByBook, seriesNames, myStatuses] = await Promise.all([
+    authorsByBookIds(
+      db,
+      bookRows.map((b) => b.id),
+    ),
+    seriesNamesByIds(
+      db,
+      bookRows.map((b) => b.seriesId),
+    ),
+    myStatusesByBookIds(
+      db,
+      bookRows.map((b) => b.id),
+      viewerUserId,
+    ),
+  ]);
+  return {
+    items: bookRows.map((row) => ({
+      ...toBookSummary(row, authorsByBook, seriesNames),
+      myStatus: myStatuses.get(row.id) ?? null,
+    })),
+    total,
+  };
 }
 
 export async function getBookRow(db: Db, id: string): Promise<Book | undefined> {
@@ -186,10 +267,11 @@ export async function bookDetailFromRow(
   row: Book,
   viewerUserId: string | null,
 ): Promise<BookDetail> {
-  const [bookAuthors, statusRows, ratingSummary] = await Promise.all([
+  const [bookAuthors, statusRows, ratingSummary, seriesNames] = await Promise.all([
     authorsOfBook(db, row.id),
     db.select().from(bookUserStatus).where(eq(bookUserStatus.bookId, row.id)),
     ratingSummaryOf(db, row.id),
+    seriesNamesByIds(db, [row.seriesId]),
   ]);
   const statuses = statusRows.map(toUserBookStatus);
   const myStatus =
@@ -202,6 +284,7 @@ export async function bookDetailFromRow(
     description: row.description,
     authors: bookAuthors,
     seriesId: row.seriesId,
+    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,

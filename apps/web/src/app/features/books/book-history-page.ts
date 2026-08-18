@@ -13,40 +13,40 @@ const PAGE_SIZE = 20;
   selector: 'app-book-history-page',
   imports: [RouterLink, DiffList, Pagination],
   template: `
-    <h1 class="text-2xl font-semibold">History</h1>
-    <p class="mt-1 text-sm">
-      <a [routerLink]="['/books', id()]" class="underline">Back to book</a>
+    <h1>History</h1>
+    <p class="back-link">
+      <a [routerLink]="['/books', id()]">Back to book</a>
     </p>
 
     @if (revisions.hasValue()) {
-      <ul class="mt-4 divide-y divide-border">
+      <ul class="list">
         @for (revision of revisions.value().items; track revision.version) {
-          <li class="py-3">
-            <div class="flex items-center justify-between">
+          <li class="row">
+            <div class="row-header">
               <div>
-                <span class="font-medium">Version {{ revision.version }}</span>
+                <span class="version">Version {{ revision.version }}</span>
                 — {{ revision.changeKind }}
                 @if (revision.changedAt) {
-                  <span class="text-sm text-ink-muted">{{ revision.changedAt }}</span>
+                  <span class="muted">{{ revision.changedAt }}</span>
                 }
               </div>
-              <div class="flex gap-3 text-sm">
-                <button type="button" class="underline" (click)="toggle(revision.version)">
+              <div class="row-actions">
+                <button type="button" class="link-btn" (click)="toggle(revision.version)">
                   {{ expandedVersion() === revision.version ? 'Hide diff' : 'Show diff' }}
                 </button>
                 @if (revision.version > 1) {
-                  <button type="button" class="underline" (click)="restore(revision.version)">
+                  <button type="button" class="link-btn" (click)="restore(revision.version)">
                     Restore this version
                   </button>
                 }
               </div>
             </div>
             @if (expandedVersion() === revision.version) {
-              <div class="mt-3">
+              <div class="diff">
                 @if (diff.hasValue()) {
                   <app-diff-list [diffs]="diff.value()" />
                 } @else {
-                  <p class="text-sm text-ink-muted">Loading diff…</p>
+                  <p class="muted">Loading diff…</p>
                 }
               </div>
             }
@@ -59,6 +59,66 @@ const PAGE_SIZE = 20;
         [total]="revisions.value().total"
         (goToPage)="page.set($event)"
       />
+    }
+  `,
+  styles: `
+    h1 {
+      font: var(--mat-sys-headline-medium);
+      margin: 0;
+    }
+
+    .back-link {
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+    }
+
+    a {
+      color: var(--mat-sys-primary);
+    }
+
+    .list {
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .row {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .row-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .version {
+      font-weight: 600;
+    }
+
+    .muted {
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .link-btn {
+      color: var(--mat-sys-primary);
+      text-decoration: underline;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .diff {
+      margin-top: 0.75rem;
     }
   `,
 })

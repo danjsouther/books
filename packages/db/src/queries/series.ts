@@ -11,8 +11,9 @@ import { books } from '../schema/books';
 import { series } from '../schema/series';
 import type { Book } from '../mutations/books';
 import type { Series } from '../mutations/series';
-import { authorsByBookIds, toBookSummary } from './books';
+import { authorsByBookIds, seriesNamesByIds, toBookSummary } from './books';
 import { paginate } from '../lib/paginate';
+import { tokenizedMatch } from '../lib/text-search';
 
 // `${series.id}` inside a `sql` template renders as a bare `"id"`, not
 // `"series"."id"` — fine at the top level, where `series` is the only table in
@@ -50,9 +51,7 @@ function toSeriesSummary(
 function buildWhere(filters: SeriesListQuery): SQL | undefined {
   const clauses: (SQL | undefined)[] = [];
   if (!filters.includeDeleted) clauses.push(isNull(series.deletedAt));
-  if (filters.q !== undefined && filters.q !== '') {
-    clauses.push(sql`${series.name} ILIKE ${`%${filters.q}%`}`);
-  }
+  if (filters.q !== undefined) clauses.push(tokenizedMatch(series.name, filters.q));
   if (filters.hasUpcoming === true) {
     clauses.push(sql`${series.id} IN (
       SELECT ${books.seriesId} FROM ${books}
@@ -152,12 +151,18 @@ export async function listSeriesBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const authorsByBook = await authorsByBookIds(
-    db,
-    bookRows.map((b: Book) => b.id),
-  );
+  const [authorsByBook, seriesNames] = await Promise.all([
+    authorsByBookIds(
+      db,
+      bookRows.map((b: Book) => b.id),
+    ),
+    // Every row here belongs to `seriesId` by construction, but the name still has
+    // to be fetched — routing it through the shared helper keeps one lookup path
+    // rather than a special case that could drift from `toBookSummary`.
+    seriesNamesByIds(db, [seriesId]),
+  ]);
   return {
-    items: bookRows.map((row: Book) => toBookSummary(row, authorsByBook)),
+    items: bookRows.map((row: Book) => toBookSummary(row, authorsByBook, seriesNames)),
     total,
   };
 }

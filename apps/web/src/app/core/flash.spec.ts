@@ -1,43 +1,46 @@
 import { TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Flash } from './flash';
 
 describe('Flash', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('shows a message', () => {
+  it('shows a message via the snack bar', () => {
     const flash = TestBed.inject(Flash);
+    const snackBar = TestBed.inject(MatSnackBar);
+    const openSpy = vi.spyOn(snackBar, 'open').mockReturnValue({
+      onAction: () => ({ subscribe: () => undefined }),
+    } as never);
+
     flash.show('Saved.');
-    expect(flash.message()).toEqual({ message: 'Saved.', undo: undefined });
+
+    expect(openSpy).toHaveBeenCalledWith('Saved.', undefined, { duration: 8000 });
   });
 
-  it('auto-clears after the timeout', () => {
+  it('runs undo when the action is triggered', () => {
     const flash = TestBed.inject(Flash);
-    flash.show('Saved.');
-    vi.advanceTimersByTime(8000);
-    expect(flash.message()).toBeNull();
-  });
-
-  it('clears immediately when undo() runs', () => {
-    const flash = TestBed.inject(Flash);
+    const snackBar = TestBed.inject(MatSnackBar);
     const undo = vi.fn();
+    let actionCallback: (() => void) | undefined;
+    vi.spyOn(snackBar, 'open').mockReturnValue({
+      onAction: () => ({
+        subscribe: (cb: () => void) => {
+          actionCallback = cb;
+        },
+      }),
+    } as never);
+
     flash.show('Deleted.', undo);
-    flash.message()?.undo?.();
-    flash.clear();
-    expect(flash.message()).toBeNull();
+    actionCallback?.();
+
     expect(undo).toHaveBeenCalled();
   });
 
-  it('a new message replaces and resets the timer for the old one', () => {
+  it('clear() dismisses the snack bar', () => {
     const flash = TestBed.inject(Flash);
-    flash.show('First.');
-    vi.advanceTimersByTime(7000);
-    flash.show('Second.');
-    vi.advanceTimersByTime(7000);
-    expect(flash.message()?.message).toBe('Second.');
+    const snackBar = TestBed.inject(MatSnackBar);
+    const dismissSpy = vi.spyOn(snackBar, 'dismiss');
+
+    flash.clear();
+
+    expect(dismissSpy).toHaveBeenCalled();
   });
 });

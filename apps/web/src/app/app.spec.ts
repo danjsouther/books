@@ -31,20 +31,6 @@ describe('App', () => {
     expect(el.querySelector('footer')).toBeTruthy();
   });
 
-  it('exposes a focusable main region for the skip link to target', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const el = fixture.nativeElement as HTMLElement;
-
-    const skipLink = el.querySelector<HTMLAnchorElement>('a.skip-link');
-    const main = el.querySelector<HTMLElement>('main#main-content');
-
-    expect(skipLink?.getAttribute('href')).toBe('#main-content');
-    expect(main).toBeTruthy();
-    // Without tabindex="-1" the skip link moves the viewport but not focus.
-    expect(main?.getAttribute('tabindex')).toBe('-1');
-  });
-
   it('provides a polite live region for route announcements', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();

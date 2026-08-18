@@ -4,12 +4,30 @@ import { Component, input } from '@angular/core';
   selector: 'app-empty-state',
   imports: [],
   template: `
-    <div class="rounded-md border border-dashed border-border px-6 py-10 text-center">
-      <p class="font-medium">{{ title() }}</p>
+    <div class="empty">
+      <p class="title">{{ title() }}</p>
       @if (hint()) {
-        <p class="mt-1 text-sm text-ink-muted">{{ hint() }}</p>
+        <p class="hint">{{ hint() }}</p>
       }
     </div>
+  `,
+  styles: `
+    .empty {
+      border: 1px dashed var(--mat-sys-outline-variant);
+      border-radius: 8px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+    }
+
+    .title {
+      font: var(--mat-sys-title-medium);
+    }
+
+    .hint {
+      margin-top: 0.25rem;
+      font: var(--mat-sys-body-medium);
+      color: var(--mat-sys-on-surface-variant);
+    }
   `,
 })
 export class EmptyState {

@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
-import { FlashBanner } from './shared/ui/flash-banner';
+import { MatToolbarModule } from '@angular/material/toolbar';
 
 interface NavItem {
   readonly path: string;
@@ -11,7 +11,7 @@ interface NavItem {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, FlashBanner],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatToolbarModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -20,9 +20,12 @@ export class App {
 
   protected readonly title = signal('Books');
 
+  // 'Changes' (version history / revert tracking) is deliberately not linked
+  // here — overkill for a small group of friends. The route and its backing
+  // revisions system stay intact (book/series History pages and Restore
+  // still depend on them), just not surfaced as a primary destination.
   protected readonly navItems: readonly NavItem[] = [
     { path: '/activity', label: 'Activity' },
-    { path: '/changes', label: 'Changes' },
     { path: '/books', label: 'Books' },
     { path: '/series', label: 'Series' },
     { path: '/calendar', label: 'Calendar' },

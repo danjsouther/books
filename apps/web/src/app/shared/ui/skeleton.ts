@@ -7,11 +7,41 @@ import { Component, input } from '@angular/core';
   selector: 'app-skeleton',
   imports: [],
   template: `
-    <div class="space-y-3" aria-hidden="true">
+    <div class="stack" aria-hidden="true">
       @for (row of rows(); track $index) {
-        <div class="h-16 animate-pulse rounded-md bg-border/40"></div>
+        <div class="row"></div>
       }
     </div>
+  `,
+  styles: `
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .row {
+      height: 4rem;
+      border-radius: 8px;
+      background: var(--mat-sys-surface-container-highest);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .row {
+        animation: none;
+      }
+    }
   `,
 })
 export class Skeleton {

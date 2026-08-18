@@ -57,11 +57,11 @@ describe('CalendarPage', () => {
     await settle(fixture);
 
     const el = fixture.nativeElement as HTMLElement;
-    const cells = el.querySelectorAll('td[ngGridCell], td[role="gridcell"], td');
+    const cells = el.querySelectorAll('.day-cell');
     expect(cells.length).toBe(42);
   });
 
-  it('renders a release inside a single ngGridCellWidget for its day', async () => {
+  it('renders a release inside a single day cell', async () => {
     const fixture = create('2027', '3');
     flushReleases({
       dated: [
@@ -71,6 +71,7 @@ describe('CalendarPage', () => {
           subtitle: null,
           authors: [],
           seriesId: null,
+          seriesName: null,
           seriesPosition: null,
           releaseDate: '2027-03-05',
           releasePrecision: 'day',
@@ -90,7 +91,7 @@ describe('CalendarPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     const cell = el.querySelector('#cell-2027-03-05')!;
     expect(cell).toBeTruthy();
-    const widgets = cell.querySelectorAll('[ngGridCellWidget]');
+    const widgets = cell.querySelectorAll('.releases');
     expect(widgets.length).toBe(1);
     expect(cell.textContent).toContain('Leviathan Wakes');
   });
@@ -105,6 +106,7 @@ describe('CalendarPage', () => {
           subtitle: null,
           authors: [],
           seriesId: null,
+          seriesName: null,
           seriesPosition: null,
           releaseDate: '2027-03-05',
           releasePrecision: 'day',
@@ -132,6 +134,45 @@ describe('CalendarPage', () => {
     const req = httpMock.expectOne((r) => r.url === '/api/v1/books/b1/me');
     expect(req.request.body).toEqual({ status: 'plan' });
     req.flush({});
+  });
+
+  it('renders the plan toggle as an icon that still names itself and reports state', async () => {
+    const fixture = create('2027', '3');
+    flushReleases({
+      dated: [
+        {
+          id: 'b1',
+          title: 'Leviathan Wakes',
+          subtitle: null,
+          authors: [],
+          seriesId: null,
+          seriesName: null,
+          seriesPosition: null,
+          releaseDate: '2027-03-05',
+          releasePrecision: 'day',
+          asin: null,
+          coverUrl: null,
+          version: 1,
+          deletedAt: null,
+        },
+      ],
+      monthly: [],
+      yearly: [],
+      undated: [],
+      window: { from: '2027-02-22', to: '2027-04-11' },
+    });
+    await settle(fixture);
+
+    const el = fixture.nativeElement as HTMLElement;
+    const button = el.querySelector<HTMLButtonElement>(
+      'button[aria-label="Plan Leviathan Wakes"]',
+    )!;
+    // The glyph replaces the text label, so the name and the pressed state must
+    // both still come from ARIA rather than from what is drawn.
+    expect(button.classList).toContain('compact');
+    expect(button.textContent?.trim()).toBe('add');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.querySelector('mat-icon')?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('PageDown navigates to the next month', async () => {
