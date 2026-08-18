@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.3.0 - 2026-08-18
+
 ### Added — App icon and PWA manifest (2026-08-18)
 
 The app previously shipped with Angular's default favicon. It now has a
