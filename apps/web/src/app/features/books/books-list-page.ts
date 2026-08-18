@@ -6,6 +6,7 @@ import {
   BOOK_STATUSES,
   formatReleaseDate,
   type BookListItem,
+  type BookStatus,
   type ListResponse,
 } from '@books/domain';
 import { createListStore } from '../../core/list-store';
@@ -31,7 +32,7 @@ interface BookListFilters extends Record<string, unknown> {
 
 const SORT_OPTIONS: readonly SortOption[] = [
   { value: 'title', label: 'Title', defaultDir: 'asc' },
-  { value: 'release', label: 'Release date', defaultDir: 'asc' },
+  { value: 'release', label: 'Release date', defaultDir: 'desc' },
   { value: 'updated', label: 'Recently updated', defaultDir: 'desc' },
   { value: 'rating', label: 'Rating', defaultDir: 'desc' },
 ];
@@ -124,9 +125,11 @@ function readStoredView(): ListView {
               />
               <span class="title">{{ book.title }}</span>
             </a>
-            @if (book.myStatus) {
-              <app-chip class="my-status" [label]="book.myStatus" [tone]="book.myStatus" />
-            }
+            <app-chip
+              class="my-status"
+              [label]="displayStatus(book)"
+              [tone]="displayStatus(book)"
+            />
             @if (book.seriesId) {
               <p class="muted">
                 <a [routerLink]="['/series', book.seriesId]" class="series-link">
@@ -153,11 +156,9 @@ function readStoredView(): ListView {
                 [height]="48"
               />
               <span class="cell title-cell title">{{ book.title }}</span>
-              @if (book.myStatus) {
-                <span class="cell status-cell">
-                  <app-chip [label]="book.myStatus" [tone]="book.myStatus" />
-                </span>
-              }
+              <span class="cell status-cell">
+                <app-chip [label]="displayStatus(book)" [tone]="displayStatus(book)" />
+              </span>
               @if (book.seriesId) {
                 <span class="cell series-cell muted">{{ book.seriesName ?? 'Series' }}</span>
               }
@@ -333,8 +334,8 @@ export class BooksListPage {
     q: '',
     seriesId: '',
     status: '',
-    sort: 'title',
-    dir: 'asc',
+    sort: 'release',
+    dir: 'desc',
   });
 
   protected readonly sortOptions = SORT_OPTIONS;
@@ -361,5 +362,13 @@ export class BooksListPage {
 
   protected authorNames(book: BookListItem): string {
     return book.authors.map((a) => a.name).join(', ');
+  }
+
+  /** A book with no shelf entry has `myStatus: null` — the detail page's status
+   *  picker defaults that same case to 'backlog', so the badge here follows suit
+   *  rather than showing nothing for a book the list page's own status filter
+   *  would otherwise call "backlog". */
+  protected displayStatus(book: BookListItem): BookStatus {
+    return book.myStatus ?? 'backlog';
   }
 }

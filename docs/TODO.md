@@ -16,30 +16,6 @@ plan, not here — this file is for work that falls outside that plan.)_
 
 ## Medium
 
-- [ ] **Build and publish Docker images from CI**
-
-  ```
-  `Dockerfile` builds three targets (`server`, `bot`, `migrate` — see
-  `docs/architecture.md`'s "Deployment" section) and all three are confirmed
-  working: built locally and run end to end via `docker-compose.yml`
-  (Postgres → migrate → server + bot, `books_bot`'s read-only grant verified
-  by hand). `.github/workflows/ci.yml` only compiles the app
-  (`build`/`build:bot`/`build:migrate`) — it never runs `docker build`, and
-  nothing pushes an image anywhere.
-
-  Wanted: CI builds all three targets on merge to `main` (or on a tag) and
-  pushes them to a registry, so a deployment pulls a known-good image
-  instead of building on the host.
-
-  Open decisions: which registry (GHCR is the obvious default for a
-  GitHub-hosted repo, needs no separate account); tagging scheme (git SHA,
-  semver tag, `latest`, or some combination); whether this needs
-  multi-platform builds (`linux/amd64` vs `linux/arm64`, depending on what
-  the homelab host actually runs) or a single target platform is fine;
-  whether image builds should block merging (a CI job) or only run
-  after (a separate release workflow).
-  ```
-
 - [ ] **Add a `/book <title>` Discord command**
 
   ```
@@ -113,6 +89,72 @@ plan, not here — this file is for work that falls outside that plan.)_
   book).
   ```
 
+- [ ] **Support selecting multiple statuses on the books status filter (OR'd)**
+
+  ```
+  The books page's status filter is single-select end to end: `AppSelect`
+  (`apps/web/src/app/shared/ui/select.ts`) wraps a non-`multiple`
+  `MatButtonToggleGroup`, whose `value` model is `string | null`
+  (`select.ts:46`) — picking a new status replaces the old one rather than
+  adding to it. `BooksListPage` (`books-list-page.ts:96-101`) binds that
+  straight to `store.filters().status`, a single `string` on
+  `BookListFilters` (`books-list-page.ts:28`). Server-side, `status` is a
+  single `z.enum(BOOK_STATUSES).optional()` on `BookListQuerySchema`
+  (`packages/domain/src/book.ts:67`), and `booksWithStatus(status: string)`
+  (`packages/db/src/queries/books.ts:120-124`) builds an `= ${status}` subquery
+  — there is no array-valued query param anywhere else in the app to follow
+  as precedent (checked `ListQuerySchema`/`booleanQueryParam` in
+  `packages/domain/src/list.ts`).
+
+  Wanted: the status filter accepts multiple statuses at once and matches
+  books in ANY of them (e.g. "reading" OR "backlog"), not just one.
+
+  Open decisions: `AppSelect` needs a multi-select mode (or a second
+  component) since today's click-to-toggle-single behavior
+  (`onToggleChange`, `select.ts:48-50`) is deliberately single-select with
+  click-to-deselect — turning `MatButtonToggleGroup`'s `multiple` on changes
+  that semantics; wire format for the multi-value query param (repeated
+  `status=reading&status=backlog` vs. one comma-separated `status` value —
+  `createListStore`'s `params` computed, `list-store.ts:56-63`, currently
+  assumes one scalar per filter key and would need to handle an array
+  value); `booksWithStatus` becomes an `IN (...)` rather than `= ...`; whether
+  `ratedBy`/`author`-style single-value filters elsewhere should get the same
+  treatment or this stays status-only.
+  ```
+
+- [ ] **Add a personal note and percentage-read to shelf entries**
+
+  ```
+  `book_user_status` (`packages/db/src/schema/shelf.ts`) is the one row per
+  `(user, book)` that already carries `status`, `rating`, `startedAt`, and
+  `finishedAt` — but nothing free-text and nothing progress-shaped. The wire
+  mirror is `UserBookStatus`/`ShelfUpdateSchema` in `packages/domain/src/shelf.ts`,
+  and both the read (`GET /books/:id/me`) and write (`PATCH /books/:id/me`)
+  sides go through `getShelfStatus`/`upsertShelfStatus`
+  (`packages/db/src/mutations/shelf.ts`), which already does the upsert +
+  `status.changed`/`rating.changed` activity-row pattern a new field would
+  follow. On the web side, `BookDetailPage`
+  (`apps/web/src/app/features/books/book-detail-page.ts`) renders `StatusPicker`
+  and `RatingWidget` for `myStatus()`/`myRating()` with the same
+  debounce-then-PATCH flow (`statusChanges`/`ratingChanges` subjects,
+  `book-detail-page.ts:338-358`) — a note field and a progress control would
+  slot in next to those, not replace them.
+
+  Wanted: a per-shelf-entry free-text note (private to the member, not shown
+  in the "everyone's take" community panel) and a percentage-read value to
+  track progress while `status = 'reading'`.
+
+  Open decisions: whether percentage is stored directly (a plain 0-100 column)
+  or derived from a stored current-page against `books.pageCount`
+  (`packages/db/src/schema/books.ts:45`, already nullable — so a derived
+  approach needs a fallback for books with no page count); whether progress
+  changes get their own activity kind the way status/rating do, or are too
+  noisy for the feed; note length limit and whether it's markdown or plain
+  text; whether percentage/note surface anywhere in `listUserShelf`
+  (`packages/db/src/queries/users.ts:174`) and the profile shelf view, or stay
+  book-detail-only.
+  ```
+
 - [ ] **Ship an Electron desktop client**
 
   ```
@@ -124,10 +166,12 @@ plan, not here — this file is for work that falls outside that plan.)_
 
   What is missing is everything around it: there is no `main`/`preload` process,
   no packaging step, no custom-protocol or loopback registration, and no way for
-  the renderer to reach an API on a different origin. `src/app/app.config.ts`
-  registers `provideHttpClient(withFetch())` with no interceptors at all, so every
-  request will resolve relative to the page origin — fine for the web app, useless
-  for a packaged client that must talk to the homelab host.
+  the renderer to reach an API on a different origin. `apps/web/src/app/app.config.ts`
+  now registers `withInterceptors([authInterceptor])` (added for silent token
+  refresh — `apps/web/src/app/core/auth-interceptor.ts`), but that interceptor
+  and every request it wraps still resolve relative to the page origin; nothing
+  sets an absolute base URL, so this is still fine for the web app and still
+  useless for a packaged client that must talk to the homelab host.
 
   Wanted: a packaged desktop client that signs in with Discord and talks to the
   same `/api/v1` as the web app.
@@ -147,76 +191,87 @@ plan, not here — this file is for work that falls outside that plan.)_
   client ships its own auto-update channel or is installed manually.
   ```
 
-- [x] **Verify the design token contrast ratios against real measurements**
-
-  ```
-  `src/tailwind.css` defines the palette in an `@theme` block — `--color-ink`,
-  `--color-ink-muted`, `--color-focus`, `--color-border`, and five
-  `--color-status-*-bg` / `--color-status-*-fg` pairs for the reading statuses.
-  The file's own header comment states the contract these values must meet: 4.5:1
-  for each `-fg` against its `-bg`, 3:1 for each `-bg` against `--color-surface`,
-  and 3:1 for `--color-focus` against every background it can land on.
-
-  Those values were authored by eye against the oklch lightness axis and have not
-  been measured. Nothing currently renders a status chip, so the gap is not yet
-  visible, but every chip built later inherits whatever is wrong here — and axe
-  checks rendered contrast, so this surfaces as a wall of failures in the e2e
-  accessibility pass rather than as one fixable finding.
-
-  Wanted: measured values, and something that keeps them measured.
-
-  Open decisions: whether to verify once by hand or add an automated check (a
-  unit test over the token values, or leaving it to the axe pass on rendered
-  chips); whether to commit to a dark theme now — doing so doubles the palette
-  and is much cheaper to decide before the tokens are consumed than after.
-
-  Done: `tailwind.css` and its `@theme` token block no longer exist — the
-  Angular Material migration replaced them with M3 color roles defined in
-  `styles.scss` (`--status-plan-container`/`-on-container` etc., one pair per
-  reading status). The container/on-container text-contrast ratios were
-  computed by hand (OKLCH → sRGB → WCAG relative luminance) rather than eyeballed:
-  all five pairs clear 7:1, well past the 4.5:1 minimum. The container fill
-  itself can't also clear 3:1 against a white `--mat-sys-surface` at M3
-  container lightness without going dark enough to stop reading as an M3
-  container, so status chips (`chip.ts`) render a 1px border in the
-  on-container color for boundary perceivability instead. Not done: no
-  automated check keeps these measured going forward — a regression would
-  still only surface via manual recomputation or an axe pass. Dark theme
-  remains undecided.
-  ```
-
 ## Low
 
-- [x] **Re-verify the `@angular/aria` API on every version bump**
+- [ ] **Support pasting Amazon product details to fill out book fields**
 
   ```
-  `@angular/aria@22.1.2` is a dependency and the calendar depends on its Grid.
-  Reading `node_modules/@angular/aria/types/grid.d.ts` during setup turned up a
-  constraint that is not obvious from the guide: `GridCell._widget` is a
-  `contentChild` with `first: true`, so a cell hosts exactly ONE
-  `ngGridCellWidget`. Markup that puts the directive on each link inside a day
-  cell binds only the first and silently strands the rest outside the grid's
-  keyboard model. The workaround — a single `widgetType="complex"` wrapper per
-  cell — is recorded in the implementation plan.
+  `BookFormPage` (`apps/web/src/app/features/books/book-form-page.ts`) is
+  entirely hand-typed today: title, subtitle, authors (`AuthorsInput`),
+  series, series position, release date/precision, page count, ASIN, cover
+  URL, and description are ten separate fields with no bulk-fill path. The
+  catalog is Amazon-sourced by convention (`docs/data-model.md`'s "A book is
+  identified by its ASIN" section, `books.ts:46`'s "The catalog is
+  Amazon-sourced" comment), but that's just a naming/format decision for the
+  `asin` column — nothing in the codebase fetches or parses Amazon data.
+  There is no scraping, import, or autofill code anywhere in the repo today
+  (checked; the only "Amazon" references are the ASIN column/docs above).
 
-  The package is pre-1.0 and its directives are still moving. A minor bump could
-  change the widget query, the `focusMode`/`rowWrap` inputs, or the cell `role`
-  union, and the failure mode is a calendar that looks fine but is unusable by
-  keyboard — which no build or unit test catches.
+  Wanted: a way to paste something Amazon-sourced — either raw copied text
+  from a product page, or an Amazon product URL — into `BookFormPage` and
+  have it fill in as many of the existing fields as it can parse (title,
+  authors, description, page count, ASIN, cover URL at minimum), leaving the
+  member to review and correct before submit rather than retyping everything.
 
-  Wanted: a deliberate re-read of the Grid, Listbox, and Combobox type
-  definitions whenever the package version changes, rather than trusting semver.
+  Open decisions: paste-text parsing (regex/heuristics over whatever a member
+  copies out of the page — fragile but needs no network access from the
+  server) vs. URL-based fetch-and-parse (needs the server or a job to fetch
+  the Amazon page, which is heavier and more fragile against markup changes
+  and potential blocking); where parsing runs (client-side on paste vs. a new
+  API endpoint); how confidently-wrong parses are surfaced (e.g. a diff-style
+  preview the member confirms field-by-field, rather than silently
+  overwriting `model`); this only ever seeds the form model — it still goes
+  through the normal create/update path (`BooksApi`, `books.ts`
+  `BookCreateSchema`/`BookUpdateSchema`) untouched.
+  ```
 
-  Open decisions: whether to pin the version exactly instead of using a caret
-  range; whether the keyboard e2e spec is sufficient regression cover once it
-  exists, or whether this needs its own upgrade checklist in the repo.
+- [ ] **Add a URL field for books**
 
-  Done: moot rather than solved — the Angular Material migration removed
-  `@angular/aria` from the dependency tree entirely. `combobox.ts` and
-  `select.ts` (shared/ui) now sit on `MatAutocomplete`/`MatButtonToggleGroup`;
-  the calendar (`calendar-page.ts`) was rebuilt as a plain CSS Grid of day
-  cells with no keyboard-grid navigation, since arrow-key 2D nav across days
-  was explicitly dropped as a requirement for this migration. There is no
-  longer a Grid/Listbox/Combobox API surface in this repo to re-verify on
-  version bumps.
+  ```
+  `books` (`packages/db/src/schema/books.ts`) has two URL-shaped columns
+  today — `asin` (an Amazon product code, not a URL, validated to exactly
+  10 characters by `books_asin_format`) and `coverUrl` (cover *image* src
+  only, rendered via `app-book-cover` — `book-detail-page.ts:62`). Neither is
+  a link to the book's own page: there's no free-form "buy it here" /
+  "source page" URL a hand-added book (one with no ASIN, per the schema's own
+  "so a book with no Amazon page can still be added by hand" comment) could
+  carry. `BookCreateSchema`/`BookUpdateSchema` (`packages/domain/src/book.ts`)
+  mirror the same two fields, and `book-form-page.ts` (`asin`/`coverUrl`
+  inputs at lines 199-208) has no third field for it.
+
+  Wanted: a nullable `url` column on `books`, exposed on create/update/detail,
+  with an input on `BookFormPage` and a link rendered on `BookDetailPage`
+  (near the cover, e.g. "View book" alongside the existing ASIN-derived
+  Amazon link if one exists, or replacing the need for one on hand-added
+  books).
+
+  Open decisions: field name (`url` vs. something more specific like
+  `sourceUrl`, given `coverUrl` already claims the generic name); validation
+  (well-formed URL only, or also scheme-restricted to `http(s)`); whether
+  this supersedes `asin` for books added by hand or coexists with it
+  permanently.
+  ```
+
+- [ ] **Book descriptions should keep line breaks**
+
+  ```
+  `books.description` (`packages/db/src/schema/books.ts:24`) is a plain `text`
+  column with no storage-side normalization, so whatever line breaks the
+  source data has (Google Books/Open Library descriptions are often
+  multi-paragraph) are preserved in the database. `BookDetailPage` renders it
+  as `<p class="description">{{ book.description }}</p>`
+  (`apps/web/src/app/features/books/book-detail-page.ts:83-84`), and
+  `.description` (`book-detail-page.ts:204-206`) sets no `white-space`, so it
+  stays at CSS's default `normal` — every `\n` collapses and multi-paragraph
+  descriptions render as one run-on block.
+
+  Wanted: paragraph breaks in a book's description are visually preserved on
+  the detail page.
+
+  Open decisions: CSS-only fix (`white-space: pre-line` on `.description`,
+  no template/schema change) vs. splitting on blank lines and rendering
+  actual `<p>` tags per paragraph; `series.description` renders through the
+  identical pattern (`apps/web/src/app/features/series/series-detail-page.ts:26-27,99`)
+  and has the same bug — worth fixing alongside rather than leaving it
+  inconsistent.
   ```
