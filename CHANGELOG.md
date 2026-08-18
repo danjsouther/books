@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Server container's published port bound to all interfaces (2026-08-18)
+
+Docker Compose published the server's port as `${SERVER_PORT:-4000}:4000`,
+which binds to every interface on the host, not just loopback. Behind a
+reverse proxy that means the app is also reachable directly, bypassing TLS
+and nginx entirely. It's now bound to `127.0.0.1` explicitly, matching how
+this app is actually deployed. `postgres`, `server`, and `bot` also gained
+`restart: unless-stopped`, so a crash or host reboot doesn't require someone
+to notice and run `docker compose up` by hand; `migrate` stays one-shot.
+
 ## 0.2.0 - 2026-08-17
 
 ### Added — Badge each book on the books page with the viewer's own status (2026-08-17)
