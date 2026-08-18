@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-books}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -32,6 +33,7 @@ services:
     build:
       context: .
       target: server
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       # Deliberately not driven by a host-side env var: the app always
@@ -57,7 +59,9 @@ services:
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:?DISCORD_REDIRECT_URI is required}
       DISCORD_ALLOWED_GUILD_ID: ${DISCORD_ALLOWED_GUILD_ID:?DISCORD_ALLOWED_GUILD_ID is required}
     ports:
-      - '${SERVER_PORT:-4000}:4000'
+      # Bound to loopback only — nginx is the only thing that should ever
+      # reach this; the container is never exposed to the network directly.
+      - '127.0.0.1:${SERVER_PORT:-4000}:4000'
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -66,6 +70,7 @@ services:
     build:
       context: .
       target: bot
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       TZ: ${TZ:-UTC}
