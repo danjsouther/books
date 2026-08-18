@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
@@ -11,14 +12,12 @@ interface NavItem {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatToolbarModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatToolbarModule, NgOptimizedImage],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App {
   private readonly router = inject(Router);
-
-  protected readonly title = signal('Books');
 
   // 'Changes' (version history / revert tracking) is deliberately not linked
   // here — overkill for a small group of friends. The route and its backing
