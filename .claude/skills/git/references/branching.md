@@ -69,23 +69,38 @@ branch.
 
 ## Release flow
 
-Prepare the release *on `dev`*, then merge into `main`.
+`main` and `dev` both require a pull request for every change, with no bypass
+— including the release commit itself. Nothing in this flow is pushed
+directly.
+
+Prepare the release commit on its own branch, PR it into `dev`, then PR `dev`
+into `main`:
 
 ```bash
 git switch dev && git pull
+git switch -c chore/release-0.5.0
 
 # 1. Roll the CHANGELOG: move everything under ## Unreleased beneath a new
 #    ## x.y.z heading, above the previous version.
 # 2. Bump `version` in every package manifest in the repo.
 # 3. Commit both together — "Release 0.5.0."
-git push
+git push -u origin chore/release-0.5.0
+# open a PR into dev, wait for status checks, merge --no-ff, delete the branch
 
-# 4. Merge into main and tag.
+git switch dev && git pull
+
+# open a PR from dev into main ("Release 0.5.0."), wait for status checks,
+# merge --no-ff
+
 git switch main && git pull
-git merge --no-ff dev -m "Release 0.5.0."
 git tag v0.5.0
-git push origin main --follow-tags
-git switch dev && git merge --ff-only main   # keep dev level with main
+git push origin v0.5.0
+
+# 4. Sync dev with the merge commit main just gained (main and dev have
+#    diverged by exactly that one commit). Open a PR from main into dev
+#    ("Sync dev with main after the v0.5.0 release."), wait for status
+#    checks, merge --no-ff.
+git switch dev && git pull
 ```
 
 Version numbers follow [semver](https://semver.org/spec/v2.0.0.html); once the
@@ -102,7 +117,10 @@ git switch -c hotfix/thing
 # ... fix, changelog entry, patch version bump ...
 # PR into main, merge --no-ff, tag v0.5.1
 
-git switch dev && git merge main    # or rebase dev onto main if dev is unpushed
+# dev also requires a PR, so sync it the same way as after a release:
+# open a PR from main into dev ("Sync dev with main after the v0.5.1
+# hotfix."), wait for status checks, merge --no-ff.
+git switch dev && git pull
 ```
 
 **Do not skip the last step.** A hotfix on `main` but not `dev` comes back as a
