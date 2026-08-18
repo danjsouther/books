@@ -96,6 +96,7 @@ function monthLabelFor(year: number, month: number): string {
                     <div class="release">
                       <a [routerLink]="['/books', r.id]">{{ r.title }}</a>
                       <app-plan-toggle
+                        compact
                         [title]="r.title"
                         [pressed]="store.plannedIds().has(r.id)"
                         (planToggled)="store.togglePlan(r)"
@@ -118,6 +119,7 @@ function monthLabelFor(year: number, month: number): string {
             <li>
               <a [routerLink]="['/books', r.id]">{{ r.title }}</a>
               <app-plan-toggle
+                compact
                 [title]="r.title"
                 [pressed]="store.plannedIds().has(r.id)"
                 (planToggled)="store.togglePlan(r)"
@@ -205,8 +207,26 @@ function monthLabelFor(year: number, month: number): string {
       margin-top: 0.25rem;
     }
 
+    /* Title takes the slack, the compact toggle stays pinned at the end — a day
+       cell is narrow and may stack several of these. */
     .release {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.25rem;
       font-size: 0.75rem;
+    }
+
+    /* Without both of these the row overflows its cell: a flex item refuses to
+       shrink past min-content, and a long title's longest word sets that floor.
+       The toggle keeps its full 24px instead of being squeezed. */
+    .release > a {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .release app-plan-toggle {
+      flex: none;
     }
 
     .monthly-section {
@@ -223,6 +243,12 @@ function monthLabelFor(year: number, month: number): string {
       padding: 0;
       list-style: none;
       font-size: 0.875rem;
+    }
+
+    .monthly-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
   `,
 })

@@ -5,8 +5,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { formatReleaseDate, type BookSummary, type ListResponse } from '@books/domain';
 import { createReleaseStore } from '../../core/release-store';
+import { BookCover } from '../../shared/ui/book-cover';
 import { AppCombobox, type ComboboxOption } from '../../shared/ui/combobox';
-import { Chip } from '../../shared/ui/chip';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { PageHeader } from '../../shared/ui/page-header';
 import { PlanToggle } from '../../shared/ui/plan-toggle';
@@ -61,7 +61,7 @@ function monthLabelFor(key: string): string {
     RouterLink,
     PageHeader,
     AppCombobox,
-    Chip,
+    BookCover,
     PlanToggle,
     ResultCount,
     EmptyState,
@@ -100,24 +100,30 @@ function monthLabelFor(key: string): string {
           <ul class="list">
             @for (book of group.books; track book.id) {
               <li class="row">
-                <div>
-                  <a [routerLink]="['/books', book.id]" class="title">{{ book.title }}</a>
-                  @if (book.seriesId) {
-                    <p class="muted">
-                      {{ seriesNames().get(book.seriesId) ?? 'Series' }}
-                      @if (book.seriesPosition) {
-                        — #{{ book.seriesPosition }}
-                      }
-                    </p>
-                  }
-                  <p class="muted">
-                    {{ formatReleaseDate(book.releaseDate, book.releasePrecision) }}
-                  </p>
-                </div>
+                <a [routerLink]="['/books', book.id]" class="row-main">
+                  <app-book-cover
+                    decorative
+                    [src]="book.coverUrl"
+                    [title]="book.title"
+                    [width]="32"
+                    [height]="48"
+                  />
+                  <span class="row-text">
+                    <span class="title">{{ book.title }}</span>
+                    @if (book.seriesId) {
+                      <span class="muted">
+                        {{ book.seriesName ?? 'Series' }}
+                        @if (book.seriesPosition) {
+                          — #{{ book.seriesPosition }}
+                        }
+                      </span>
+                    }
+                    <span class="muted">
+                      {{ formatReleaseDate(book.releaseDate, book.releasePrecision) }}
+                    </span>
+                  </span>
+                </a>
                 <div class="row-actions">
-                  @if (store.plannedIds().has(book.id)) {
-                    <app-chip label="plan" tone="plan" />
-                  }
                   <app-plan-toggle
                     [title]="book.title"
                     [pressed]="store.plannedIds().has(book.id)"
@@ -138,7 +144,21 @@ function monthLabelFor(key: string): string {
             <ul class="list">
               @for (book of group.books; track book.id) {
                 <li class="row">
-                  <a [routerLink]="['/books', book.id]" class="title">{{ book.title }}</a>
+                  <a [routerLink]="['/books', book.id]" class="row-main">
+                    <app-book-cover
+                      decorative
+                      [src]="book.coverUrl"
+                      [title]="book.title"
+                      [width]="32"
+                      [height]="48"
+                    />
+                    <span class="row-text">
+                      <span class="title">{{ book.title }}</span>
+                      @if (book.seriesId) {
+                        <span class="muted">{{ book.seriesName ?? 'Series' }}</span>
+                      }
+                    </span>
+                  </a>
                   <app-plan-toggle
                     [title]="book.title"
                     [pressed]="store.plannedIds().has(book.id)"
@@ -157,7 +177,21 @@ function monthLabelFor(key: string): string {
           <ul class="list">
             @for (book of store.releases().undated; track book.id) {
               <li class="row">
-                <a [routerLink]="['/books', book.id]" class="title">{{ book.title }}</a>
+                <a [routerLink]="['/books', book.id]" class="row-main">
+                  <app-book-cover
+                    decorative
+                    [src]="book.coverUrl"
+                    [title]="book.title"
+                    [width]="32"
+                    [height]="48"
+                  />
+                  <span class="row-text">
+                    <span class="title">{{ book.title }}</span>
+                    @if (book.seriesId) {
+                      <span class="muted">{{ book.seriesName ?? 'Series' }}</span>
+                    }
+                  </span>
+                </a>
                 <app-plan-toggle
                   [title]="book.title"
                   [pressed]="store.plannedIds().has(book.id)"
@@ -212,6 +246,23 @@ function monthLabelFor(key: string): string {
       border-bottom: 1px solid var(--mat-sys-outline-variant);
     }
 
+    /* Cover and text are one link, with the plan controls left outside it —
+       nesting a button inside an anchor is invalid, and the toggle needs its
+       own name and press state regardless. */
+    .row-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+      text-decoration: none;
+    }
+
+    .row-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
     .title {
       font-weight: 600;
       color: var(--mat-sys-primary);
@@ -222,6 +273,10 @@ function monthLabelFor(key: string): string {
       font-size: 0.875rem;
       color: var(--mat-sys-on-surface-variant);
       margin: 0;
+    }
+
+    .row-text .muted {
+      margin-top: 0.125rem;
     }
 
     .row-actions {
@@ -259,20 +314,6 @@ export class ReleasesPage {
       id: s.id,
       label: s.name,
     })),
-  );
-
-  private readonly allSeriesResource = httpResource<ListResponse<{ id: string; name: string }>>(
-    () => ({ url: '/api/v1/series', params: { pageSize: 100 } }),
-    { defaultValue: { items: [], page: 1, pageSize: 100, total: 0 } },
-  );
-  protected readonly seriesNames = computed<ReadonlyMap<string, string>>(
-    () =>
-      new Map(
-        (this.allSeriesResource.hasValue() ? this.allSeriesResource.value().items : []).map((s) => [
-          s.id,
-          s.name,
-        ]),
-      ),
   );
 
   protected readonly monthGroups = computed<MonthGroup[]>(() => {

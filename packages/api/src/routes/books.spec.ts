@@ -1,6 +1,13 @@
-import type { BookDetail, FieldDiff, ListResponse, Revision, RevisionSummary } from '@books/domain';
-import type { Db } from '@books/db';
-import { connectForTests, hasDatabase, truncateAll } from '@books/db/test-support';
+import type {
+  BookDetail,
+  BookListItem,
+  FieldDiff,
+  ListResponse,
+  Revision,
+  RevisionSummary,
+} from '@books/domain';
+import { schema, type Db } from '@books/db';
+import { connectForTests, createTestUser, hasDatabase, truncateAll } from '@books/db/test-support';
 import type { Pool } from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -58,6 +65,46 @@ describe.skipIf(!hasDatabase)('Books', () => {
         await request(testApp.app).get('/api/v1/books?author=nobody').set(auth),
       );
       expect(miss.total).toBe(0);
+    });
+
+    it('names each listed book’s series, so a list needs no second lookup', async () => {
+      const series = bodyAs<{ id: string }>(
+        await request(testApp.app).post('/api/v1/series').set(auth).send({ name: 'The Expanse' }),
+      );
+      await createBook({ seriesId: series.id, seriesPosition: '1' });
+      await createBook({ title: 'Standalone' });
+
+      const body = bodyAs<ListResponse<BookListItem>>(
+        await request(testApp.app).get('/api/v1/books?sort=title').set(auth),
+      );
+      const inSeries = body.items.find((b) => b.title === 'Leviathan Wakes');
+      const standalone = body.items.find((b) => b.title === 'Standalone');
+      expect(inSeries?.seriesName).toBe('The Expanse');
+      expect(standalone?.seriesName).toBeNull();
+    });
+
+    it('reports the viewer’s own shelf status on each book, never another member’s', async () => {
+      const mine = await createBook({ title: 'Mine' });
+      const untouched = await createBook({ title: 'Untouched' });
+
+      await request(testApp.app)
+        .patch(`/api/v1/books/${mine.id}/me`)
+        .set(auth)
+        .send({ status: 'reading' });
+
+      // Someone else marks `untouched` too — this must never surface as *my*
+      // status, which is exactly the bug a query keyed on the wrong user id
+      // (or no user id at all) would produce.
+      const otherUserId = await createTestUser(db, 'other-reader');
+      await db
+        .insert(schema.bookUserStatus)
+        .values({ bookId: untouched.id, userId: otherUserId, status: 'completed' });
+
+      const body = bodyAs<ListResponse<BookListItem>>(
+        await request(testApp.app).get('/api/v1/books?sort=title').set(auth),
+      );
+      expect(body.items.find((b) => b.id === mine.id)?.myStatus).toBe('reading');
+      expect(body.items.find((b) => b.id === untouched.id)?.myStatus).toBeNull();
     });
 
     it('excludes deleted books by default and includes them with includeDeleted', async () => {

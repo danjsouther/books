@@ -1,6 +1,8 @@
 import type {
   BookDetail,
+  BookListItem,
   BookListQuery,
+  BookStatus,
   BookSummary,
   RatingSummary,
   UserBookStatus,
@@ -10,6 +12,7 @@ import type { Db } from '../client';
 import { authorBooks } from '../schema/author-books';
 import { authors } from '../schema/authors';
 import { books } from '../schema/books';
+import { series } from '../schema/series';
 import { bookUserStatus } from '../schema/shelf';
 import { authorsOfBook } from '../mutations/authors';
 import type { Book } from '../mutations/books';
@@ -19,6 +22,7 @@ import { tokenizedMatch } from '../lib/text-search';
 export function toBookSummary(
   row: Book,
   authorsByBook: Map<string, { id: string; name: string }[]>,
+  seriesNames: ReadonlyMap<string, string>,
 ): BookSummary {
   return {
     id: row.id,
@@ -26,6 +30,7 @@ export function toBookSummary(
     subtitle: row.subtitle,
     authors: authorsByBook.get(row.id) ?? [],
     seriesId: row.seriesId,
+    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,
@@ -56,6 +61,51 @@ export async function authorsByBookIds(
     list.push({ id: row.id, name: row.name });
     map.set(row.bookId, list);
   }
+  return map;
+}
+
+/**
+ * Batch-fetches series names for a page of books, the `seriesName` half of
+ * `toBookSummary`. Lives here rather than in `queries/series.ts` because that
+ * module already imports from this one — defining it there would close an
+ * import cycle. Takes the raw (nullable, duplicate-heavy) `seriesId` column
+ * straight off a page of rows and does the filtering itself, since every caller
+ * would otherwise write the same filter.
+ */
+export async function seriesNamesByIds(
+  db: Db,
+  seriesIds: readonly (string | null)[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const ids = [...new Set(seriesIds.filter((id) => id !== null))];
+  if (ids.length === 0) return map;
+  const rows = await db
+    .select({ id: series.id, name: series.name })
+    .from(series)
+    .where(inArray(series.id, ids));
+  for (const row of rows) map.set(row.id, row.name);
+  return map;
+}
+
+/**
+ * Batch-fetches one viewer's own status for a page of books — the `myStatus`
+ * half of a `BookListItem`. Scoped to `viewerUserId` alone, unlike
+ * `booksWithStatus` below (which matches *any* member's status for filtering);
+ * this is what lets the books page badge "your" shelf status on every row in
+ * one query rather than one `getShelfStatus` call per row.
+ */
+export async function myStatusesByBookIds(
+  db: Db,
+  bookIds: readonly string[],
+  viewerUserId: string,
+): Promise<Map<string, BookStatus>> {
+  const map = new Map<string, BookStatus>();
+  if (bookIds.length === 0) return map;
+  const rows = await db
+    .select({ bookId: bookUserStatus.bookId, status: bookUserStatus.status })
+    .from(bookUserStatus)
+    .where(and(eq(bookUserStatus.userId, viewerUserId), inArray(bookUserStatus.bookId, bookIds)));
+  for (const row of rows) map.set(row.bookId, row.status);
   return map;
 }
 
@@ -117,7 +167,8 @@ const SORT_COLUMNS = {
 export async function listBooks(
   db: Db,
   filters: BookListQuery,
-): Promise<{ items: BookSummary[]; total: number }> {
+  viewerUserId: string,
+): Promise<{ items: BookListItem[]; total: number }> {
   const where = buildWhere(filters);
   const orderColumn = SORT_COLUMNS[filters.sort];
   // Postgres defaults unmatched-elsewhere NULLs to sort FIRST under DESC — for
@@ -143,11 +194,28 @@ export async function listBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const authorsByBook = await authorsByBookIds(
-    db,
-    bookRows.map((b) => b.id),
-  );
-  return { items: bookRows.map((row) => toBookSummary(row, authorsByBook)), total };
+  const [authorsByBook, seriesNames, myStatuses] = await Promise.all([
+    authorsByBookIds(
+      db,
+      bookRows.map((b) => b.id),
+    ),
+    seriesNamesByIds(
+      db,
+      bookRows.map((b) => b.seriesId),
+    ),
+    myStatusesByBookIds(
+      db,
+      bookRows.map((b) => b.id),
+      viewerUserId,
+    ),
+  ]);
+  return {
+    items: bookRows.map((row) => ({
+      ...toBookSummary(row, authorsByBook, seriesNames),
+      myStatus: myStatuses.get(row.id) ?? null,
+    })),
+    total,
+  };
 }
 
 export async function getBookRow(db: Db, id: string): Promise<Book | undefined> {
@@ -199,10 +267,11 @@ export async function bookDetailFromRow(
   row: Book,
   viewerUserId: string | null,
 ): Promise<BookDetail> {
-  const [bookAuthors, statusRows, ratingSummary] = await Promise.all([
+  const [bookAuthors, statusRows, ratingSummary, seriesNames] = await Promise.all([
     authorsOfBook(db, row.id),
     db.select().from(bookUserStatus).where(eq(bookUserStatus.bookId, row.id)),
     ratingSummaryOf(db, row.id),
+    seriesNamesByIds(db, [row.seriesId]),
   ]);
   const statuses = statusRows.map(toUserBookStatus);
   const myStatus =
@@ -215,6 +284,7 @@ export async function bookDetailFromRow(
     description: row.description,
     authors: bookAuthors,
     seriesId: row.seriesId,
+    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,
