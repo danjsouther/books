@@ -24,8 +24,10 @@ import {
   type ReleasePrecision,
   type SeriesSummary,
 } from '@books/domain';
+import { Flash } from '../../core/flash';
 import { readSaveConflict } from '../../core/save-conflict';
 import { AppCombobox, type ComboboxOption } from '../../shared/ui/combobox';
+import { looksLikeAmazonProductPaste, parseAmazonPaste } from './amazon-paste-parser';
 import { AuthorsInput } from './authors-input';
 import { BooksApi } from './books-api';
 
@@ -40,7 +42,7 @@ import { BooksApi } from './books-api';
  * implement `FormValueControl` themselves, are the exceptions — those accept
  * `null` directly.)
  */
-interface BookFormModel {
+export interface BookFormModel {
   title: string;
   subtitle: string;
   description: string;
@@ -52,6 +54,7 @@ interface BookFormModel {
   pageCount: number | null;
   asin: string;
   coverUrl: string;
+  url: string;
 }
 
 const BLANK_MODEL: BookFormModel = {
@@ -66,9 +69,11 @@ const BLANK_MODEL: BookFormModel = {
   pageCount: null,
   asin: '',
   coverUrl: '',
+  url: '',
 };
 
 const ASIN_PATTERN = /^[A-Z0-9]{10}$/;
+const HTTP_URL_PATTERN = /^https?:\/\/.+/i;
 
 /** The bare enum values (`day`, `unknown`, ...) are storage names, not labels a
  *  member should have to interpret in a `<select>`. */
@@ -108,7 +113,7 @@ const PRECISION_LABELS: Record<ReleasePrecision, string> = {
       </div>
     }
 
-    <form (submit)="onSubmit($event)" class="form">
+    <form (submit)="onSubmit($event)" (paste)="onPaste($event)" class="form">
       <mat-form-field subscriptSizing="dynamic">
         <mat-label>Title</mat-label>
         <input matInput id="title" type="text" [formField]="bookForm.title" />
@@ -209,6 +214,15 @@ const PRECISION_LABELS: Record<ReleasePrecision, string> = {
       </mat-form-field>
 
       <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Book URL</mat-label>
+        <input matInput id="url" type="text" [formField]="bookForm.url" />
+        <mat-hint>Where to find or buy this book, if it has no ASIN.</mat-hint>
+      </mat-form-field>
+      @for (error of bookForm.url().errors(); track error.kind) {
+        <p class="field-error">{{ error.message }}</p>
+      }
+
+      <mat-form-field subscriptSizing="dynamic">
         <mat-label>Description</mat-label>
         <textarea matInput id="description" [formField]="bookForm.description" rows="4"></textarea>
       </mat-form-field>
@@ -293,6 +307,7 @@ export class BookFormPage {
 
   private readonly booksApi = inject(BooksApi);
   private readonly router = inject(Router);
+  private readonly flash = inject(Flash);
 
   protected readonly precisions = RELEASE_PRECISIONS.map((value) => ({
     value,
@@ -355,6 +370,13 @@ export class BookFormPage {
         ? undefined
         : { kind: 'pattern', message: 'Must be a 10-character ASIN.' };
     });
+    validate(p.url, ({ value }) => {
+      const url = value();
+      if (url === '') return undefined;
+      return HTTP_URL_PATTERN.test(url)
+        ? undefined
+        : { kind: 'pattern', message: 'Must be an http:// or https:// URL.' };
+    });
   });
 
   constructor() {
@@ -378,6 +400,7 @@ export class BookFormPage {
           pageCount: book.pageCount,
           asin: book.asin ?? '',
           coverUrl: book.coverUrl ?? '',
+          url: book.url ?? '',
         });
         this.loadedVersion.set(book.version);
       });
@@ -446,7 +469,28 @@ export class BookFormPage {
       pageCount: model.pageCount,
       asin: model.asin === '' ? null : model.asin,
       coverUrl: model.coverUrl === '' ? null : model.coverUrl,
+      url: model.url === '' ? null : model.url,
     };
+  }
+
+  /**
+   * A page-level listener rather than a dedicated paste box, so a member can
+   * paste a copied Amazon listing anywhere on the form. `looksLikeAmazonProductPaste`
+   * is what keeps this from hijacking an ordinary paste into a single field
+   * (a title, a URL, an ASIN) — only a payload that scores as a bulk product
+   * dump gets intercepted; everything else falls through to default paste
+   * behavior untouched.
+   */
+  protected onPaste(event: ClipboardEvent): void {
+    const html = event.clipboardData?.getData('text/html') ?? '';
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (!looksLikeAmazonProductPaste(html, text)) return;
+    event.preventDefault();
+
+    const result = parseAmazonPaste(html, text);
+    if (result.matchedFieldCount === 0) return;
+    this.model.update((m) => ({ ...m, ...result.fields }));
+    this.flash.show(`Auto-filled ${result.matchedFieldCount} field(s) from pasted content.`);
   }
 
   onSubmit(event: Event): void {

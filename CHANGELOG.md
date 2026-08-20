@@ -6,6 +6,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.5.0 - 2026-08-19
+
+### Added — A URL field for books (2026-08-19)
+
+`books` had no place for a plain link to the book's own page — `asin` is an
+Amazon product code, not a URL, and `coverUrl` only ever pointed at a cover
+image. Books added by hand, with no ASIN, had nowhere to point a reader who
+wanted to find or buy the book. The "Add a book" / "Edit book" form now has a
+"Book URL" field (`http(s)` only), and the detail page shows a "View book"
+link under the release date whenever one is set.
+
+### Added — Deselect a shelf status to remove a book from your shelf (2026-08-19)
+
+The status picker on a book's detail page acted as a plain radio group — once
+you'd set a status there was no way back to "no status" short of editing the
+URL to call the remove endpoint directly. Clicking the already-active status
+now deselects it, which removes the book from your shelf (status and rating
+both) the same way the "Clear rating" button already worked for ratings. The
+activity feed's same-day grouping now folds `status.changed` and
+`shelf.removed` into the same one-row-per-day story, so working through the
+picker's deselect toggle a few times in one sitting still reads as one line,
+not one per click.
+
+### Added — Paste Amazon product details to autofill the book form (2026-08-18)
+
+Adding a book meant hand-typing title, subtitle, authors, page count, series
+position, release date, and description even though most books are added
+straight off an Amazon listing. Pasting a copied Amazon product listing
+anywhere on the "Add a book" / "Edit book" form now auto-fills whichever of
+those fields it can find — including every co-author on a multi-author
+listing, splitting a `Title: Subtitle` listing title into the two separate
+fields, and reading the series position and release date from the listing's
+details — leaving the rest of the form for the member to fill in or correct
+as usual. An ordinary paste into a single field (a title, a URL, an ASIN) is
+left alone — only a paste that looks like a bulk product-page dump is
+intercepted.
+
 ## 0.4.0 - 2026-08-18
 
 ### Changed — Remove the bullet glyph from status chips (2026-08-18)

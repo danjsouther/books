@@ -13,6 +13,13 @@ export interface AuthorRef {
   readonly name: string;
 }
 
+/** `http(s)` only — rejects `javascript:`, `mailto:`, and other schemes a plain
+ *  `z.string().url()` would otherwise accept. */
+const httpUrlSchema = z
+  .string()
+  .url()
+  .refine((v) => /^https?:\/\//i.test(v), { message: 'Must be an http:// or https:// URL.' });
+
 /** Request body of `POST /books`. */
 export const BookCreateSchema = z.object({
   title: z.string().min(1),
@@ -29,6 +36,9 @@ export const BookCreateSchema = z.object({
   pageCount: z.number().int().positive().nullable().default(null),
   asin: z.string().nullable().default(null),
   coverUrl: z.string().nullable().default(null),
+  /** A link to the book's own page — "buy it here" / "source page" — distinct from
+   *  `coverUrl` (image src only) and `asin` (a product code, not a link). */
+  url: httpUrlSchema.nullable().default(null),
 });
 export type BookCreate = z.infer<typeof BookCreateSchema>;
 
@@ -56,6 +66,7 @@ export const BookUpdateSchema = z.object({
   pageCount: z.number().int().positive().nullable().optional(),
   asin: z.string().nullable().optional(),
   coverUrl: z.string().nullable().optional(),
+  url: httpUrlSchema.nullable().optional(),
   expectedVersion: z.number().int().positive(),
 });
 export type BookUpdate = z.infer<typeof BookUpdateSchema>;
@@ -119,6 +130,8 @@ export interface RatingSummary {
 export interface BookDetail extends BookSummary {
   readonly description: string | null;
   readonly pageCount: number | null;
+  /** A link to the book's own page. See the column comment on `books.url`. */
+  readonly url: string | null;
   readonly deletedBy: string | null;
   readonly myStatus: UserBookStatus | null;
   readonly statuses: UserBookStatus[];

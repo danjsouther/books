@@ -66,27 +66,49 @@ plan, not here — this file is for work that falls outside that plan.)_
   the template to reuse, not reinvent).
   ```
 
-- [ ] **Post `book.released` events to a Discord channel**
+- [ ] **Post activity events to a Discord channel**
 
   ```
-  `apps/server/src/jobs/releases.ts`'s `runReleaseAnnouncementJob` already
-  writes a `book.released` activity row (`packages/db/src/schema/activity.ts`)
-  the moment a day-precision book's release date arrives, idempotently. That
-  event only reaches the web app's activity feed
-  (`apps/web/src/app/features/activity/activity-page.ts`) today — nothing
-  posts it to Discord.
+  `activity` (`packages/db/src/schema/activity.ts`) is a single append-only
+  table backing every kind in `ACTIVITY_KINDS`
+  (`packages/domain/src/activity.ts`): `book.added`, `status.changed`,
+  `rating.changed`, `shelf.removed`, and `book.released`. Today that feed only
+  reaches the web app (`apps/web/src/app/features/activity/activity-page.ts`,
+  whose `KIND_LABELS`/per-kind `@switch` at lines 20-25 and ~84-133 render
+  each one) — nothing posts any of it to Discord. `apps/bot/src` has no
+  webhook or channel-send code anywhere yet (checked `client.ts`, `main.ts`,
+  `commands/upcoming.ts`) — this is greenfield on the bot side.
 
-  Wanted: the bot (or the server job itself, via a bot-owned webhook/channel
-  send) announces each new `book.released` row to a configured channel.
+  `book.released` is the one kind with a system writer already:
+  `apps/server/src/jobs/releases.ts`'s `runReleaseAnnouncementJob` inserts it
+  idempotently (guarded by both `books.released_announced_at` and the partial
+  unique index `activity_released_once_idx`) once daily, with no human actor.
+  Every other kind is written inline by a member action (`status.changed`/
+  `rating.changed`/`shelf.removed` from `packages/db/src/mutations/shelf.ts`,
+  `book.added` from `packages/db/src/mutations/books.ts`'s `onCreated`) —
+  there is no existing batch/poll path for those the way the release job
+  gives `book.released`.
 
-  Open decisions: this needs a `guild_settings` table (announcement channel
-  id per guild) that doesn't exist yet — no schema work has started; whether
-  the release job posts directly (coupling `apps/server` to Discord) or the
-  bot polls/subscribes to new `book.released` rows on some interval instead
+  Wanted: the bot (or the server, via a bot-owned webhook/channel send)
+  announces new activity rows to a configured channel — not just releases.
+
+  Open decisions: whether every kind announces or only a subset (a release or
+  a new addition is probably worth a ping; every single rating change to
+  every channel member is probably not — needs a per-kind or member-level
+  opt-in, distinct from the existing `mine:true`-style linked-member gate);
+  this needs a `guild_settings` table (announcement channel id per guild)
+  that doesn't exist yet — no schema work has started; whether the writer
+  posts directly (coupling `apps/server`/the mutation layer to Discord) or
+  the bot polls/subscribes to new `activity` rows on some interval instead
   (keeping the coupling one-directional, bot → DB, the way every other bot
-  query already works); message format (reuse `apps/bot/src/format/embeds.ts`
-  or a plain announcement string, since a full embed may be overkill for one
-  book).
+  query already works — this also means a poll needs its own "last seen
+  activity id" cursor, since `activity.id` is already a `bigserial` made for
+  exactly that kind of keyset read); message format (reuse
+  `apps/bot/src/format/embeds.ts` or a plain announcement string per kind,
+  since a full embed may be overkill for a rating change); how much this
+  overlaps with the still-open `/shelf @user` and `/book <title>` bot
+  commands above — a shared "resolve a Discord guild/member to app state"
+  layer would serve announcements too, not just slash commands.
   ```
 
 - [ ] **Support selecting multiple statuses on the books status filter (OR'd)**
@@ -193,7 +215,7 @@ plan, not here — this file is for work that falls outside that plan.)_
 
 ## Low
 
-- [ ] **Support pasting Amazon product details to fill out book fields**
+- [x] **Support pasting Amazon product details to fill out book fields**
 
   ```
   `BookFormPage` (`apps/web/src/app/features/books/book-form-page.ts`) is
@@ -223,9 +245,38 @@ plan, not here — this file is for work that falls outside that plan.)_
   overwriting `model`); this only ever seeds the form model — it still goes
   through the normal create/update path (`BooksApi`, `books.ts`
   `BookCreateSchema`/`BookUpdateSchema`) untouched.
+
+  Done: client-side paste-text parsing, no server fetch. A new pure module,
+  `apps/web/src/app/features/books/amazon-paste-parser.ts`, extracts title
+  (splitting off a subtitle at the first `:`, since Amazon's own listing
+  titles are frequently `Title: Subtitle`), authors (each author carries its
+  own `(Author)` tag on the byline — "Name1 (Author), Name2 (Author)" — rather
+  than one shared tag for the whole comma list, so every tagged name is pulled
+  out individually, not just the first), page count, series position (just the
+  plain `seriesPosition` text field, parsed from "Book 1 of 2" — independent
+  of `seriesId`, which stays out of scope, see below), release date (from the
+  "Publication date" / "May 14, 2024" label-value pair in the product-details
+  block, always resolving to `releasePrecision: 'day'` since that pair is only
+  ever a full date — never partially matched, and never set without its
+  precision, since the DB requires the two to agree), and description from
+  whatever plain text a member pastes — a real "select all and copy" of an
+  Amazon listing carries no HTML markup and no visible ASIN/cover image at
+  all, so those two fields are left unmatched by design rather than guessed;
+  `text/html` clipboard data is used only as a bonus source for
+  `asin`/`coverUrl` when present. `BookFormPage`'s `<form>` gained a
+  page-level `(paste)` listener (`onPaste`) gated by
+  `looksLikeAmazonProductPaste` (a length + signal-count heuristic) so an
+  ordinary paste into a single field is never hijacked. Matched fields are
+  applied straight onto `model` via `{ ...m, ...fields }` — result keys are
+  only ever present when found, so nothing already typed is clobbered — with
+  a `Flash` message reporting how many fields were filled, standing in for a
+  diff-preview UI. `seriesId` was left out of scope: resolving a parsed
+  series name to a UUID would need a full series list this page doesn't
+  load, and a wrong silent match risks corrupting data worse than leaving
+  the field blank.
   ```
 
-- [ ] **Add a URL field for books**
+- [x] **Add a URL field for books**
 
   ```
   `books` (`packages/db/src/schema/books.ts`) has two URL-shaped columns
@@ -250,6 +301,23 @@ plan, not here — this file is for work that falls outside that plan.)_
   (well-formed URL only, or also scheme-restricted to `http(s)`); whether
   this supersedes `asin` for books added by hand or coexists with it
   permanently.
+
+  Done: a nullable `url` text column on `books` (migration
+  `0001_add_book_url.sql`), scheme-restricted to `http(s)` by a
+  `books_url_scheme` CHECK constraint — same pattern as `books_asin_format`.
+  Named `url` per the first open decision above. Validated at the domain
+  layer too (`httpUrlSchema` in `packages/domain/src/book.ts`, a
+  `z.string().url()` refined to require an `http(s)` scheme), on
+  `BookCreateSchema`/`BookUpdateSchema`. Modeled like `description`/
+  `pageCount` rather than `asin`/`coverUrl`: it lives on `BookDetail` only,
+  not `BookSummary`/`BookListItem`, since nothing on a list view needed it.
+  `BookFormPage` gained a "Book URL" input next to Cover URL, with the same
+  `''`-in-the-model / `null`-over-the-wire boundary and an inline pattern
+  validator; `BookDetailPage` renders a "View book ↗" link under the release
+  date when `book.url` is set — there was no existing ASIN-derived link to
+  place it alongside, so it stands alone. Coexists with `asin` permanently
+  (third open decision): `asin` still drives dedup and the live-uniqueness
+  constraint, which `url` has no reason to take over.
   ```
 
 - [ ] **Book descriptions should keep line breaks**

@@ -48,6 +48,7 @@ describe.skipIf(!hasDatabase)('catalog integrity', () => {
         pageCount: 100,
         asin: 'B00CHURN01',
         coverUrl: null,
+        url: null,
         deletedAt: null,
         deletedBy: null,
       },
