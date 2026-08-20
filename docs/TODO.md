@@ -193,7 +193,7 @@ plan, not here — this file is for work that falls outside that plan.)_
 
 ## Low
 
-- [ ] **Support pasting Amazon product details to fill out book fields**
+- [x] **Support pasting Amazon product details to fill out book fields**
 
   ```
   `BookFormPage` (`apps/web/src/app/features/books/book-form-page.ts`) is
@@ -223,6 +223,35 @@ plan, not here — this file is for work that falls outside that plan.)_
   overwriting `model`); this only ever seeds the form model — it still goes
   through the normal create/update path (`BooksApi`, `books.ts`
   `BookCreateSchema`/`BookUpdateSchema`) untouched.
+
+  Done: client-side paste-text parsing, no server fetch. A new pure module,
+  `apps/web/src/app/features/books/amazon-paste-parser.ts`, extracts title
+  (splitting off a subtitle at the first `:`, since Amazon's own listing
+  titles are frequently `Title: Subtitle`), authors (each author carries its
+  own `(Author)` tag on the byline — "Name1 (Author), Name2 (Author)" — rather
+  than one shared tag for the whole comma list, so every tagged name is pulled
+  out individually, not just the first), page count, series position (just the
+  plain `seriesPosition` text field, parsed from "Book 1 of 2" — independent
+  of `seriesId`, which stays out of scope, see below), release date (from the
+  "Publication date" / "May 14, 2024" label-value pair in the product-details
+  block, always resolving to `releasePrecision: 'day'` since that pair is only
+  ever a full date — never partially matched, and never set without its
+  precision, since the DB requires the two to agree), and description from
+  whatever plain text a member pastes — a real "select all and copy" of an
+  Amazon listing carries no HTML markup and no visible ASIN/cover image at
+  all, so those two fields are left unmatched by design rather than guessed;
+  `text/html` clipboard data is used only as a bonus source for
+  `asin`/`coverUrl` when present. `BookFormPage`'s `<form>` gained a
+  page-level `(paste)` listener (`onPaste`) gated by
+  `looksLikeAmazonProductPaste` (a length + signal-count heuristic) so an
+  ordinary paste into a single field is never hijacked. Matched fields are
+  applied straight onto `model` via `{ ...m, ...fields }` — result keys are
+  only ever present when found, so nothing already typed is clobbered — with
+  a `Flash` message reporting how many fields were filled, standing in for a
+  diff-preview UI. `seriesId` was left out of scope: resolving a parsed
+  series name to a UUID would need a full series list this page doesn't
+  load, and a wrong silent match risks corrupting data worse than leaving
+  the field blank.
   ```
 
 - [ ] **Add a URL field for books**

@@ -4,7 +4,43 @@ import { TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { provideRouter } from '@angular/router';
+import { Flash } from '../../core/flash';
 import { BookFormPage } from './book-form-page';
+
+const REAL_LISTING_PASTE = `Hell Difficulty Tutorial: A LitRPG Adventure
+by Cerim (Author) Format: Kindle Edition
+4.5 4.5 out of 5 stars (7,156)
+4.1 on Goodreads
+5,559 ratings
+Book 1 of 9: Hell Difficulty Tutorial
+See all languages and editions
+Where others see doom, he sees opportunity. Hell Difficulty? More like a chance to thrive.
+
+Nathaniel's bus ride was supposed to be just another boring commute. Wrong.
+Read more
+
+    Book 1 of 9
+    Hell Difficulty Tutorial
+    Print length
+    618 pages
+    Publication date
+    May 14, 2024
+    Language
+    English
+
+Next slide of product details
+See all details`;
+
+/** `ClipboardEvent`'s constructor won't accept `clipboardData` in every test
+ *  environment, and the property is read-only on a real event — defining it
+ *  after construction sidesteps both. */
+function pasteEvent(text: string, html = ''): ClipboardEvent {
+  const event = new Event('paste', { bubbles: true, cancelable: true }) as ClipboardEvent;
+  Object.defineProperty(event, 'clipboardData', {
+    value: { getData: (type: string) => (type === 'text/html' ? html : text) },
+  });
+  return event;
+}
 
 const EMPTY_SERIES = { items: [], page: 1, pageSize: 10, total: 0 };
 
@@ -201,5 +237,58 @@ describe('BookFormPage', () => {
 
     expect(fixture.componentInstance.conflictMessage()).toContain('Someone else edited');
     expect(fixture.componentInstance.model().title).toBe('My Edit');
+  });
+
+  it('autofills fields from a pasted Amazon listing without clobbering fields already typed', () => {
+    const fixture = TestBed.createComponent(BookFormPage);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    // coverUrl is a field the parser targets but can't find in a plain-text
+    // paste (no HTML) — pre-setting it here proves fields it doesn't match
+    // are left alone, not just that matched fields get applied.
+    fixture.componentInstance.model.update((m) => ({
+      ...m,
+      coverUrl: 'https://example.com/cover.jpg',
+    }));
+
+    const form = (fixture.nativeElement as HTMLElement).querySelector('form')!;
+    const flash = TestBed.inject(Flash);
+    vi.spyOn(flash, 'show');
+
+    const event = pasteEvent(REAL_LISTING_PASTE);
+    vi.spyOn(event, 'preventDefault');
+    form.dispatchEvent(event);
+    TestBed.tick();
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(fixture.componentInstance.model().title).toBe('Hell Difficulty Tutorial');
+    expect(fixture.componentInstance.model().subtitle).toBe('A LitRPG Adventure');
+    expect(fixture.componentInstance.model().authors).toEqual(['Cerim']);
+    expect(fixture.componentInstance.model().pageCount).toBe(618);
+    expect(fixture.componentInstance.model().seriesPosition).toBe('1');
+    expect(fixture.componentInstance.model().releaseDate).toBe('2024-05-14');
+    expect(fixture.componentInstance.model().releasePrecision).toBe('day');
+    expect(fixture.componentInstance.model().coverUrl).toBe('https://example.com/cover.jpg');
+    expect(flash.show).toHaveBeenCalledWith(expect.stringMatching(/Auto-filled \d+ field/));
+  });
+
+  it('leaves an ordinary single-field paste untouched', () => {
+    const fixture = TestBed.createComponent(BookFormPage);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    const form = (fixture.nativeElement as HTMLElement).querySelector('form')!;
+    const flash = TestBed.inject(Flash);
+    vi.spyOn(flash, 'show');
+
+    const event = pasteEvent('Leviathan Wakes');
+    vi.spyOn(event, 'preventDefault');
+    form.dispatchEvent(event);
+    TestBed.tick();
+
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.model().title).toBe('');
+    expect(flash.show).not.toHaveBeenCalled();
   });
 });

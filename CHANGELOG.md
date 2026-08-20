@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Paste Amazon product details to autofill the book form (2026-08-18)
+
+Adding a book meant hand-typing title, subtitle, authors, page count, series
+position, release date, and description even though most books are added
+straight off an Amazon listing. Pasting a copied Amazon product listing
+anywhere on the "Add a book" / "Edit book" form now auto-fills whichever of
+those fields it can find — including every co-author on a multi-author
+listing, splitting a `Title: Subtitle` listing title into the two separate
+fields, and reading the series position and release date from the listing's
+details — leaving the rest of the form for the member to fill in or correct
+as usual. An ordinary paste into a single field (a title, a URL, an ASIN) is
+left alone — only a paste that looks like a bulk product-page dump is
+intercepted.
+
 ## 0.4.0 - 2026-08-18
 
 ### Changed — Remove the bullet glyph from status chips (2026-08-18)
