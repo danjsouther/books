@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Deselect a shelf status to remove a book from your shelf (2026-08-19)
+
+The status picker on a book's detail page acted as a plain radio group — once
+you'd set a status there was no way back to "no status" short of editing the
+URL to call the remove endpoint directly. Clicking the already-active status
+now deselects it, which removes the book from your shelf (status and rating
+both) the same way the "Clear rating" button already worked for ratings. The
+activity feed's same-day grouping now folds `status.changed` and
+`shelf.removed` into the same one-row-per-day story, so working through the
+picker's deselect toggle a few times in one sitting still reads as one line,
+not one per click.
+
 ### Added — Paste Amazon product details to autofill the book form (2026-08-18)
 
 Adding a book meant hand-typing title, subtitle, authors, page count, series

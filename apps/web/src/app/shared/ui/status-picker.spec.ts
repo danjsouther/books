@@ -33,4 +33,16 @@ describe('StatusPicker', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.value()).toBe('reading');
   });
+
+  it('re-clicking the active toggle deselects it', () => {
+    const fixture = TestBed.createComponent(StatusPicker);
+    fixture.componentRef.setInput('value', 'reading');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const toggles = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]'));
+    const reading = toggles.find((t) => t.textContent?.includes('Reading'));
+    reading?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.value()).toBeNull();
+  });
 });
