@@ -54,6 +54,7 @@ export interface BookFormModel {
   pageCount: number | null;
   asin: string;
   coverUrl: string;
+  url: string;
 }
 
 const BLANK_MODEL: BookFormModel = {
@@ -68,9 +69,11 @@ const BLANK_MODEL: BookFormModel = {
   pageCount: null,
   asin: '',
   coverUrl: '',
+  url: '',
 };
 
 const ASIN_PATTERN = /^[A-Z0-9]{10}$/;
+const HTTP_URL_PATTERN = /^https?:\/\/.+/i;
 
 /** The bare enum values (`day`, `unknown`, ...) are storage names, not labels a
  *  member should have to interpret in a `<select>`. */
@@ -209,6 +212,15 @@ const PRECISION_LABELS: Record<ReleasePrecision, string> = {
         <mat-label>Cover URL</mat-label>
         <input matInput id="coverUrl" type="text" [formField]="bookForm.coverUrl" />
       </mat-form-field>
+
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Book URL</mat-label>
+        <input matInput id="url" type="text" [formField]="bookForm.url" />
+        <mat-hint>Where to find or buy this book, if it has no ASIN.</mat-hint>
+      </mat-form-field>
+      @for (error of bookForm.url().errors(); track error.kind) {
+        <p class="field-error">{{ error.message }}</p>
+      }
 
       <mat-form-field subscriptSizing="dynamic">
         <mat-label>Description</mat-label>
@@ -358,6 +370,13 @@ export class BookFormPage {
         ? undefined
         : { kind: 'pattern', message: 'Must be a 10-character ASIN.' };
     });
+    validate(p.url, ({ value }) => {
+      const url = value();
+      if (url === '') return undefined;
+      return HTTP_URL_PATTERN.test(url)
+        ? undefined
+        : { kind: 'pattern', message: 'Must be an http:// or https:// URL.' };
+    });
   });
 
   constructor() {
@@ -381,6 +400,7 @@ export class BookFormPage {
           pageCount: book.pageCount,
           asin: book.asin ?? '',
           coverUrl: book.coverUrl ?? '',
+          url: book.url ?? '',
         });
         this.loadedVersion.set(book.version);
       });
@@ -449,6 +469,7 @@ export class BookFormPage {
       pageCount: model.pageCount,
       asin: model.asin === '' ? null : model.asin,
       coverUrl: model.coverUrl === '' ? null : model.coverUrl,
+      url: model.url === '' ? null : model.url,
     };
   }
 

@@ -254,7 +254,7 @@ plan, not here — this file is for work that falls outside that plan.)_
   the field blank.
   ```
 
-- [ ] **Add a URL field for books**
+- [x] **Add a URL field for books**
 
   ```
   `books` (`packages/db/src/schema/books.ts`) has two URL-shaped columns
@@ -279,6 +279,23 @@ plan, not here — this file is for work that falls outside that plan.)_
   (well-formed URL only, or also scheme-restricted to `http(s)`); whether
   this supersedes `asin` for books added by hand or coexists with it
   permanently.
+
+  Done: a nullable `url` text column on `books` (migration
+  `0001_add_book_url.sql`), scheme-restricted to `http(s)` by a
+  `books_url_scheme` CHECK constraint — same pattern as `books_asin_format`.
+  Named `url` per the first open decision above. Validated at the domain
+  layer too (`httpUrlSchema` in `packages/domain/src/book.ts`, a
+  `z.string().url()` refined to require an `http(s)` scheme), on
+  `BookCreateSchema`/`BookUpdateSchema`. Modeled like `description`/
+  `pageCount` rather than `asin`/`coverUrl`: it lives on `BookDetail` only,
+  not `BookSummary`/`BookListItem`, since nothing on a list view needed it.
+  `BookFormPage` gained a "Book URL" input next to Cover URL, with the same
+  `''`-in-the-model / `null`-over-the-wire boundary and an inline pattern
+  validator; `BookDetailPage` renders a "View book ↗" link under the release
+  date when `book.url` is set — there was no existing ASIN-derived link to
+  place it alongside, so it stands alone. Coexists with `asin` permanently
+  (third open decision): `asin` still drives dedup and the live-uniqueness
+  constraint, which `url` has no reason to take over.
   ```
 
 - [ ] **Book descriptions should keep line breaks**

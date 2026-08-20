@@ -23,6 +23,7 @@ function bookInput(title: string, authorNames: string[] = []): BookInput {
     pageCount: null,
     asin: null,
     coverUrl: null,
+    url: null,
     deletedAt: null,
     deletedBy: null,
   };

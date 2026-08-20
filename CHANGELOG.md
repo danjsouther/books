@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — A URL field for books (2026-08-19)
+
+`books` had no place for a plain link to the book's own page — `asin` is an
+Amazon product code, not a URL, and `coverUrl` only ever pointed at a cover
+image. Books added by hand, with no ASIN, had nowhere to point a reader who
+wanted to find or buy the book. The "Add a book" / "Edit book" form now has a
+"Book URL" field (`http(s)` only), and the detail page shows a "View book"
+link under the release date whenever one is set.
+
 ### Added — Deselect a shelf status to remove a book from your shelf (2026-08-19)
 
 The status picker on a book's detail page acted as a plain radio group — once

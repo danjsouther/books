@@ -57,6 +57,7 @@ const BOOK_DETAIL = {
   pageCount: null,
   asin: null,
   coverUrl: null,
+  url: 'https://example.com/book',
   version: 3,
   deletedAt: null,
   deletedBy: null,
@@ -185,6 +186,20 @@ describe('BookFormPage', () => {
     expect(fixture.componentInstance.bookForm.asin().valid()).toBe(true);
   });
 
+  it('rejects a book URL with no http(s) scheme', () => {
+    const fixture = TestBed.createComponent(BookFormPage);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    fixture.componentInstance.model.update((m) => ({ ...m, url: 'ftp://example.com/book' }));
+    TestBed.tick();
+    expect(fixture.componentInstance.bookForm.url().valid()).toBe(false);
+
+    fixture.componentInstance.model.update((m) => ({ ...m, url: 'https://example.com/book' }));
+    TestBed.tick();
+    expect(fixture.componentInstance.bookForm.url().valid()).toBe(true);
+  });
+
   it('seeds the model from the loaded book exactly once in edit mode', async () => {
     const fixture = TestBed.createComponent(BookFormPage);
     fixture.componentRef.setInput('id', 'book-1');
@@ -196,6 +211,7 @@ describe('BookFormPage', () => {
     httpMock.match((r) => r.url === '/api/v1/series').forEach((r) => r.flush(EMPTY_SERIES));
 
     expect(fixture.componentInstance.model().title).toBe('Leviathan Wakes');
+    expect(fixture.componentInstance.model().url).toBe('https://example.com/book');
     expect(fixture.componentInstance.loadedVersion()).toBe(3);
 
     // A member's in-progress edit must not be clobbered by a background re-fetch.
