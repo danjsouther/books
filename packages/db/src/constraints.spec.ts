@@ -113,6 +113,23 @@ describe.skipIf(!hasDatabase)('schema constraints', () => {
     });
   });
 
+  describe('book URL scheme', () => {
+    it('rejects a URL with no http(s) scheme', async () => {
+      const violation = await violatedConstraint(() =>
+        db.insert(books).values({ title: 'Ftp', url: 'ftp://example.com/book' }),
+      );
+      expect(violation).toBe('books_url_scheme');
+    });
+
+    it('accepts http and https', async () => {
+      await db.insert(books).values([
+        { title: 'Http', url: 'http://example.com/book' },
+        { title: 'Https', url: 'https://example.com/book' },
+      ]);
+      expect(await db.select().from(books)).toHaveLength(2);
+    });
+  });
+
   it('rejects a non-positive page count', async () => {
     const violation = await violatedConstraint(() =>
       db.insert(books).values({ title: 'Empty', pageCount: 0 }),

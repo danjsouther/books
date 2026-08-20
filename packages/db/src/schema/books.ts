@@ -50,6 +50,10 @@ export const books = pgTable(
     asin: text('asin'),
     /** An external URL. Uploads are a TODO. */
     coverUrl: text('cover_url'),
+    /** A link to the book's own page — "buy it here" / "source page" — distinct from
+     *  `coverUrl` (image src only) and `asin` (a product code, not a link). Lets a
+     *  hand-added book with no ASIN still carry a place to find it. */
+    url: text('url'),
 
     version: integer('version').notNull().default(1),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -76,6 +80,7 @@ export const books = pgTable(
     ),
     check('books_page_count_positive', sql`${t.pageCount} IS NULL OR ${t.pageCount} > 0`),
     check('books_asin_format', sql`${t.asin} IS NULL OR ${t.asin} ~ '^[A-Z0-9]{10}$'`),
+    check('books_url_scheme', sql`${t.url} IS NULL OR ${t.url} ~* '^https?://'`),
 
     index('books_series_id_idx').on(t.seriesId),
     index('books_release_date_idx').on(t.releaseDate),

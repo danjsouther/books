@@ -39,6 +39,7 @@ export interface BookInput {
   pageCount: number | null;
   asin: string | null;
   coverUrl: string | null;
+  url: string | null;
   deletedAt: Date | null;
   deletedBy: string | null;
 }
@@ -63,6 +64,7 @@ export function bookInputFrom(row: BookLike): BookInput {
     pageCount: row.pageCount,
     asin: row.asin,
     coverUrl: row.coverUrl,
+    url: row.url,
     deletedAt: row.deletedAt === null ? null : new Date(row.deletedAt),
     deletedBy: row.deletedBy,
   };

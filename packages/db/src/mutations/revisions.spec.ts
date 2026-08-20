@@ -35,6 +35,7 @@ function bookInput(title: string, asin: string | null = null) {
     pageCount: null,
     asin,
     coverUrl: null,
+    url: null,
     deletedAt: null,
     deletedBy: null,
   };

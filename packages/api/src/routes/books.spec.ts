@@ -135,6 +135,22 @@ describe.skipIf(!hasDatabase)('Books', () => {
     expect(bodyAs<ErrorBody>(res).error.code).toBe('validation_failed');
   });
 
+  it('rejects a create with a non-http(s) URL', async () => {
+    const res = await request(testApp.app)
+      .post('/api/v1/books')
+      .set(auth)
+      .send({ title: 'Bad URL', url: 'ftp://example.com/book' });
+    expect(res.status).toBe(400);
+    expect(bodyAs<ErrorBody>(res).error.code).toBe('validation_failed');
+  });
+
+  it('round-trips a book URL through create and detail', async () => {
+    const book = await createBook({ url: 'https://example.com/leviathan-wakes' });
+    expect(book.url).toBe('https://example.com/leviathan-wakes');
+    const res = await request(testApp.app).get(`/api/v1/books/${book.id}`).set(auth);
+    expect(bodyAs<BookDetail>(res).url).toBe('https://example.com/leviathan-wakes');
+  });
+
   it('resolves authors in credited order on the detail response', async () => {
     const book = await createBook({ authors: ['Terry Pratchett', 'Stephen Baxter'] });
     const res = await request(testApp.app).get(`/api/v1/books/${book.id}`).set(auth);

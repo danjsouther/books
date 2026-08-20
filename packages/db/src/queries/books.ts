@@ -291,6 +291,7 @@ export async function bookDetailFromRow(
     pageCount: row.pageCount,
     asin: row.asin,
     coverUrl: row.coverUrl,
+    url: row.url,
     version: row.version,
     deletedAt: row.deletedAt === null ? null : row.deletedAt.toISOString(),
     deletedBy: row.deletedBy,

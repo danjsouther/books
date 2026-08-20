@@ -36,6 +36,7 @@ function book(partial: Partial<BookInput> & { title: string }): BookInput {
     pageCount: null,
     asin: null,
     coverUrl: null,
+    url: null,
     deletedAt: null,
     deletedBy: null,
     ...partial,
