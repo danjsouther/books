@@ -66,27 +66,49 @@ plan, not here — this file is for work that falls outside that plan.)_
   the template to reuse, not reinvent).
   ```
 
-- [ ] **Post `book.released` events to a Discord channel**
+- [ ] **Post activity events to a Discord channel**
 
   ```
-  `apps/server/src/jobs/releases.ts`'s `runReleaseAnnouncementJob` already
-  writes a `book.released` activity row (`packages/db/src/schema/activity.ts`)
-  the moment a day-precision book's release date arrives, idempotently. That
-  event only reaches the web app's activity feed
-  (`apps/web/src/app/features/activity/activity-page.ts`) today — nothing
-  posts it to Discord.
+  `activity` (`packages/db/src/schema/activity.ts`) is a single append-only
+  table backing every kind in `ACTIVITY_KINDS`
+  (`packages/domain/src/activity.ts`): `book.added`, `status.changed`,
+  `rating.changed`, `shelf.removed`, and `book.released`. Today that feed only
+  reaches the web app (`apps/web/src/app/features/activity/activity-page.ts`,
+  whose `KIND_LABELS`/per-kind `@switch` at lines 20-25 and ~84-133 render
+  each one) — nothing posts any of it to Discord. `apps/bot/src` has no
+  webhook or channel-send code anywhere yet (checked `client.ts`, `main.ts`,
+  `commands/upcoming.ts`) — this is greenfield on the bot side.
 
-  Wanted: the bot (or the server job itself, via a bot-owned webhook/channel
-  send) announces each new `book.released` row to a configured channel.
+  `book.released` is the one kind with a system writer already:
+  `apps/server/src/jobs/releases.ts`'s `runReleaseAnnouncementJob` inserts it
+  idempotently (guarded by both `books.released_announced_at` and the partial
+  unique index `activity_released_once_idx`) once daily, with no human actor.
+  Every other kind is written inline by a member action (`status.changed`/
+  `rating.changed`/`shelf.removed` from `packages/db/src/mutations/shelf.ts`,
+  `book.added` from `packages/db/src/mutations/books.ts`'s `onCreated`) —
+  there is no existing batch/poll path for those the way the release job
+  gives `book.released`.
 
-  Open decisions: this needs a `guild_settings` table (announcement channel
-  id per guild) that doesn't exist yet — no schema work has started; whether
-  the release job posts directly (coupling `apps/server` to Discord) or the
-  bot polls/subscribes to new `book.released` rows on some interval instead
+  Wanted: the bot (or the server, via a bot-owned webhook/channel send)
+  announces new activity rows to a configured channel — not just releases.
+
+  Open decisions: whether every kind announces or only a subset (a release or
+  a new addition is probably worth a ping; every single rating change to
+  every channel member is probably not — needs a per-kind or member-level
+  opt-in, distinct from the existing `mine:true`-style linked-member gate);
+  this needs a `guild_settings` table (announcement channel id per guild)
+  that doesn't exist yet — no schema work has started; whether the writer
+  posts directly (coupling `apps/server`/the mutation layer to Discord) or
+  the bot polls/subscribes to new `activity` rows on some interval instead
   (keeping the coupling one-directional, bot → DB, the way every other bot
-  query already works); message format (reuse `apps/bot/src/format/embeds.ts`
-  or a plain announcement string, since a full embed may be overkill for one
-  book).
+  query already works — this also means a poll needs its own "last seen
+  activity id" cursor, since `activity.id` is already a `bigserial` made for
+  exactly that kind of keyset read); message format (reuse
+  `apps/bot/src/format/embeds.ts` or a plain announcement string per kind,
+  since a full embed may be overkill for a rating change); how much this
+  overlaps with the still-open `/shelf @user` and `/book <title>` bot
+  commands above — a shared "resolve a Discord guild/member to app state"
+  layer would serve announcements too, not just slash commands.
   ```
 
 - [ ] **Support selecting multiple statuses on the books status filter (OR'd)**
