@@ -1,6 +1,6 @@
 import { Component, input, model } from '@angular/core';
 import type { FormValueControl } from '@angular/forms/signals';
-import { MatButtonToggleModule, type MatButtonToggleChange } from '@angular/material/button-toggle';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { BOOK_STATUSES, type BookStatus } from '@books/domain';
 
 const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
@@ -12,21 +12,25 @@ const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
 };
 
 /** A `MatButtonToggleGroup` acting as a radiogroup — a
- *  `FormValueControl<BookStatus>` so it binds via `[formField]` wherever a
- *  status needs picking. `plan` and `backlog` are the pair most easily
- *  confused, so both carry a distinct icon and color, never color alone. */
+ *  `FormValueControl<BookStatus | null>` so it binds via `[formField]`
+ *  wherever a status needs picking. `null` means no shelf entry at all;
+ *  re-clicking the active status clears it, removing the book from the
+ *  shelf the same way `rating-widget.ts` clears a rating — listening to
+ *  each toggle's own `(change)` because a single-selector group's own
+ *  `(change)` never fires for a re-click of the already-pressed option (see
+ *  `select.ts`). `plan` and `backlog` are the pair most easily confused, so
+ *  both carry a distinct icon and color, never color alone. */
 @Component({
   selector: 'app-status-picker',
   imports: [MatButtonToggleModule],
   template: `
-    <mat-button-toggle-group
-      class="row"
-      [attr.aria-label]="label()"
-      [value]="value()"
-      (change)="onChange($event)"
-    >
+    <mat-button-toggle-group class="row" [attr.aria-label]="label()" [value]="value()">
       @for (status of statuses; track status) {
-        <mat-button-toggle [value]="status" [class]="'status-' + status">
+        <mat-button-toggle
+          [value]="status"
+          [class]="'status-' + status"
+          (change)="onToggleChange(status)"
+        >
           <span aria-hidden="true">{{ meta[status].icon }}</span>
           {{ meta[status].label }}
         </mat-button-toggle>
@@ -63,14 +67,14 @@ const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
     }
   `,
 })
-export class StatusPicker implements FormValueControl<BookStatus> {
-  readonly value = model<BookStatus>('backlog');
+export class StatusPicker implements FormValueControl<BookStatus | null> {
+  readonly value = model<BookStatus | null>(null);
   readonly label = input('Reading status');
 
   protected readonly statuses = BOOK_STATUSES;
   protected readonly meta = STATUS_META;
 
-  protected onChange(event: MatButtonToggleChange): void {
-    this.value.set(event.value as BookStatus);
+  protected onToggleChange(status: BookStatus): void {
+    this.value.set(this.value() === status ? null : status);
   }
 }

@@ -287,8 +287,8 @@ export class BookDetailPage {
 
   protected readonly formatReleaseDate = formatReleaseDate;
 
-  protected readonly myStatus = linkedSignal<BookStatus>(() =>
-    this.detail.hasValue() ? (this.detail.value().myStatus?.status ?? 'backlog') : 'backlog',
+  protected readonly myStatus = linkedSignal<BookStatus | null>(() =>
+    this.detail.hasValue() ? (this.detail.value().myStatus?.status ?? null) : null,
   );
   protected readonly myRating = linkedSignal<number | null>(() =>
     this.detail.hasValue() ? (this.detail.value().myStatus?.rating ?? null) : null,
@@ -302,11 +302,11 @@ export class BookDetailPage {
    * last value the server actually confirmed is the only value that's
    * still true after several optimistic updates in a row.
    */
-  private confirmedStatus: BookStatus = 'backlog';
+  private confirmedStatus: BookStatus | null = null;
   private confirmedRating: number | null = null;
   private hasSeededConfirmed = false;
 
-  private readonly statusChanges = new Subject<BookStatus>();
+  private readonly statusChanges = new Subject<BookStatus | null>();
   private readonly ratingChanges = new Subject<number | null>();
 
   protected readonly communityPageIndex = signal(1);
@@ -325,7 +325,7 @@ export class BookDetailPage {
       if (!this.detail.hasValue() || this.hasSeededConfirmed) return;
       const status = this.detail.value().myStatus;
       untracked(() => {
-        this.confirmedStatus = status?.status ?? 'backlog';
+        this.confirmedStatus = status?.status ?? null;
         this.confirmedRating = status?.rating ?? null;
         this.hasSeededConfirmed = true;
       });
@@ -334,17 +334,31 @@ export class BookDetailPage {
     // Debounced so that clicking through several statuses/ratings in a row
     // — the display updates instantly on every click — sends one request
     // and produces one activity-feed entry for the settled value, not one
-    // per click.
+    // per click. A `null` status means the status toggle was deselected —
+    // that removes the book from the shelf entirely, taking the rating
+    // with it, rather than patching the status field alone.
     this.statusChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((status) => {
-      this.shelfApi.update(this.id(), { status }).subscribe({
-        next: () => {
-          this.confirmedStatus = status;
-        },
-        error: () => {
-          this.myStatus.set(this.confirmedStatus);
-          this.flash.show('Could not update your status — please try again.');
-        },
-      });
+      const onError = () => {
+        this.myStatus.set(this.confirmedStatus);
+        this.flash.show('Could not update your status — please try again.');
+      };
+      if (status === null) {
+        this.shelfApi.remove(this.id()).subscribe({
+          next: () => {
+            this.confirmedStatus = null;
+            this.confirmedRating = null;
+            this.myRating.set(null);
+          },
+          error: onError,
+        });
+      } else {
+        this.shelfApi.update(this.id(), { status }).subscribe({
+          next: () => {
+            this.confirmedStatus = status;
+          },
+          error: onError,
+        });
+      }
     });
 
     this.ratingChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((rating) => {
@@ -364,7 +378,7 @@ export class BookDetailPage {
     return authors.map((a) => a.name).join(', ');
   }
 
-  protected setStatus(status: BookStatus): void {
+  protected setStatus(status: BookStatus | null): void {
     this.myStatus.set(status);
     this.statusChanges.next(status);
   }
