@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.6.0 - 2026-08-24
+
 ### Added — Shelf entries have a progress slider and two notes (2026-08-24)
 
 Your shelf entry for a book now tracks how far into it you are (0–100%), plus
