@@ -98,6 +98,7 @@ import { SeriesApi } from './series-api';
 
     .description {
       margin-top: 0.5rem;
+      white-space: pre-line;
     }
 
     .muted {

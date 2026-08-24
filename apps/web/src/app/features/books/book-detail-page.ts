@@ -214,6 +214,7 @@ const COMMUNITY_PAGE_SIZE = 10;
 
     .description {
       margin-top: 1rem;
+      white-space: pre-line;
     }
 
     .version {

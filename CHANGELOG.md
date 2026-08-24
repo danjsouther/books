@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Book and series descriptions keep their line breaks (2026-08-24)
+
+Descriptions were rendered as plain `<p>` text, so HTML collapsed every
+newline and multi-paragraph descriptions ran together as one block. The
+book and series detail pages now preserve line breaks from the stored
+text.
+
 ### Changed — Book and series URLs use readable slugs instead of UUIDs (2026-08-24)
 
 `/books/a1b2c3d4-...` is now `/books/mistborn-the-final-empire`, and the same
