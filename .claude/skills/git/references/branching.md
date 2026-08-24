@@ -22,16 +22,20 @@ git push -u origin dev
 
 Three rules hold everywhere below:
 
-1. Nothing is committed directly to `main` or `dev` — both are protected by a
-   GitHub ruleset that requires the "Build and test" status check before any
-   ref update, and that check only ever reports against a PR, so every
-   landing on either branch goes through one. There's no reviewer to wait on
-   for a solo repo, but the PR itself isn't optional.
-2. A short-lived branch (`feature/`, `fix/`, `chore/`) lands on `dev` via a
-   **squash**-merged PR. A release or hotfix lands on `main` via PR as a
+1. Nothing is committed directly to `main` — it's protected by a GitHub
+   ruleset that requires the "Build and test" status check before any ref
+   update, and that check only ever reports against a PR, so every landing
+   on `main` goes through one. There's no reviewer to wait on for a solo
+   repo, but the PR itself isn't optional. `dev` carries no such
+   requirement (the status-check rule was deliberately removed there) —
+   direct commits and direct pushes to `dev` are fine.
+2. A short-lived branch (`feature/`, `fix/`, `chore/`) can land on `dev`
+   either by a direct push/merge or via a squash-merged PR — both work now
+   that `dev` has no required status check; use whichever fits the size of
+   the change. A release or hotfix still lands on `main` via PR as a
    `--no-ff` merge. Syncing `main` back into `dev` afterward is also a
-   `--no-ff` merge, landed via PR the same way. Nothing ever merges *into* a
-   short-lived branch — rebase instead.
+   `--no-ff` merge. Nothing ever merges *into* a short-lived branch — rebase
+   instead.
 3. A short-lived branch is deleted once it's merged.
 
 ## The branches
@@ -39,7 +43,7 @@ Three rules hold everywhere below:
 | Branch | Lives | Holds | Written by |
 | --- | --- | --- | --- |
 | `main` | forever | production; every commit is a tagged release | release merges and hotfixes only |
-| `dev` | forever | the integration line — finished work awaiting a release | feature merges |
+| `dev` | forever | the integration line — finished work awaiting a release | direct commits and feature merges |
 | `<type>/<summary>` | days | one change | you |
 
 ### Naming
@@ -56,35 +60,52 @@ alone; don't rename in flight.
 
 ## Feature flow
 
-Branch from `dev`, rebase onto `dev`, push the branch, and open a PR into
-`dev`. `dev`'s ruleset blocks a direct push regardless of who's pushing, so
-this is the only way in — squash-merge the PR once the "Build and test" check
-passes; there's no review to wait on beyond that.
+`dev` has no required status check, so landing on it doesn't require a PR —
+a direct commit, or a direct push/merge from a short-lived branch, is fine.
+Reach for a branch when a change is large enough to want isolation while
+it's in progress; small changes can go straight to `dev`.
+
+Direct to `dev`:
+
+```bash
+git switch dev && git pull
+
+# ... work, committing per the rules in .claude/skills/git/SKILL.md,
+#     including a CHANGELOG.md entry under ## Unreleased ...
+
+git push
+```
+
+Via a short-lived branch, merged directly (no PR needed):
 
 ```bash
 git switch dev && git pull
 git switch -c feature/thing
 
-# ... work, committing per the rules in .claude/skills/git/SKILL.md,
-#     including a CHANGELOG.md entry under ## Unreleased ...
+# ... work ...
 
 git fetch origin
 git rebase origin/dev          # never `git merge dev`
-git push -u origin feature/thing
-gh pr create --base dev --title "..." --body "..."   # one line, sentence-case,
-                                                       # outcome-focused — see SKILL.md
-# wait for the "Build and test" check, then:
-gh pr merge --squash --delete-branch
-
 git switch dev && git pull
+git merge --ff-only feature/thing   # or --squash, for one commit on dev
+git push
+git branch -d feature/thing
 ```
+
+A PR into `dev` is still fine when you want CI to run before it lands, or
+want a record of the change as a PR — `gh pr create --base dev --title "..."`
+(one line, sentence-case, outcome-focused — see SKILL.md) then
+`gh pr merge --squash --delete-branch`. It's just optional now, not required.
 
 ## Release flow
 
-Both `main` and `dev` require a PR to land anything — see rule 1 above.
+`main` requires a PR to land anything (rule 1 above); `dev` doesn't, but
+routing the release commit through a PR into `dev` first still means CI
+verifies it before it's promoted to `main`.
 
 Prepare the release commit on its own branch, PR it into `dev` as a squash
-merge, then PR `dev` into `main`:
+merge (or merge it directly, per the Feature flow above), then PR `dev` into
+`main`:
 
 ```bash
 git switch dev && git pull
@@ -109,16 +130,13 @@ git tag v0.5.0
 git push origin v0.5.0
 
 # 4. Sync dev with the merge commit main just gained (main and dev have
-#    diverged by exactly that one commit) — via a PR, merged as --no-ff
-#    (not squashed, so dev's history still shows the real merge commit):
+#    diverged by exactly that one commit) — a --no-ff merge (not squashed,
+#    so dev's history still shows the real merge commit), pushed straight to
+#    dev since it has no required status check. Route it through a PR
+#    instead if you'd rather see it run CI first:
 git switch dev && git pull
-git switch -c chore/sync-main-into-dev
 git merge --no-ff main
-git push -u origin chore/sync-main-into-dev
-gh pr create --base dev --title "Sync dev with main after v0.5.0." --body "..."
-gh pr merge --merge --delete-branch
-
-git switch dev && git pull
+git push
 ```
 
 Version numbers follow [semver](https://semver.org/spec/v2.0.0.html); once the
@@ -135,14 +153,11 @@ git switch -c hotfix/thing
 # ... fix, changelog entry, patch version bump ...
 # PR into main, merge --no-ff, tag v0.5.1
 
-# sync it the same way as after a release — via a PR, merged as --no-ff:
+# sync it the same way as after a release — a --no-ff merge pushed
+# straight to dev:
 git switch dev && git pull
-git switch -c chore/sync-main-into-dev
 git merge --no-ff main
-git push -u origin chore/sync-main-into-dev
-gh pr create --base dev --title "Sync dev with main after v0.5.1." --body "..."
-gh pr merge --merge --delete-branch
-git switch dev && git pull
+git push
 ```
 
 **Do not skip the last step.** A hotfix on `main` but not `dev` comes back as a
@@ -165,13 +180,10 @@ For **`main`**:
 
 For **`dev`**:
 
-- **Require status checks to pass** → select the repo's CI job, same as
-  `main`. This is enforced on *every* ref update, direct push included —
-  there's no "bypass for repo admins" exception in practice, so the only way
-  a commit reaches `dev` is through a PR that lets the check run and pass.
-  Approvals can be 0; **do not** also turn on "Require a pull request before
-  merging" as a separate toggle unless you want that redundantly enforced —
-  the status-check requirement alone already forces a PR.
+- No required status check — this was deliberately removed, so direct
+  commits and direct pushes to `dev` are allowed. Re-add "Require status
+  checks to pass" (same CI job as `main`) if `dev` should go back to
+  PR-only landings.
 - **Block force pushes** and **restrict deletions.**
 
 Nothing merges into `main` except `dev` or a `hotfix/*` branch. That one is a
