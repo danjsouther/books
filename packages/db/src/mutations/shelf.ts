@@ -13,6 +13,11 @@ export type BookUserStatus = typeof bookUserStatus.$inferSelect;
  * This table has no revision history of its own; the activity feed is where that
  * trail lives, which is exactly why the write has to happen alongside the upsert
  * rather than after it.
+ *
+ * Marking a book `completed` forces `percentRead` to 100, overriding whatever the
+ * patch itself said — finishing a book means 100% by definition. No other status
+ * transition touches `percentRead`; it is otherwise an independent field the
+ * member controls directly.
  */
 export async function upsertShelfStatus(
   db: Db,
@@ -20,6 +25,7 @@ export async function upsertShelfStatus(
   userId: string,
   patch: ShelfUpdate,
 ): Promise<BookUserStatus> {
+  const resolvedPatch = patch.status === 'completed' ? { ...patch, percentRead: 100 } : patch;
   return db.transaction(async (tx) => {
     const [before] = await tx
       .select()
@@ -29,10 +35,10 @@ export async function upsertShelfStatus(
 
     const [row] = await tx
       .insert(bookUserStatus)
-      .values({ bookId, userId, ...patch, updatedAt: new Date() })
+      .values({ bookId, userId, ...resolvedPatch, updatedAt: new Date() })
       .onConflictDoUpdate({
         target: [bookUserStatus.bookId, bookUserStatus.userId],
-        set: { ...patch, updatedAt: new Date() },
+        set: { ...resolvedPatch, updatedAt: new Date() },
       })
       .returning();
     if (row === undefined) throw new AppError('internal_error', 'Upsert returned no row.');

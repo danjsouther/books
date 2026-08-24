@@ -1,5 +1,6 @@
 import { schema, type Db } from '@books/db';
 import { connectForTests, hasDatabase, truncateAll } from '@books/db/test-support';
+import { slugify } from '@books/domain';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -59,7 +60,12 @@ describe.skipIf(!hasDatabase)('upcomingCommand.execute', () => {
     const today = new Date().toISOString().slice(0, 10);
     const [book] = await db
       .insert(books)
-      .values({ title: 'Planned Book', releaseDate: today, releasePrecision: 'day' })
+      .values({
+        title: 'Planned Book',
+        slug: slugify('Planned Book'),
+        releaseDate: today,
+        releasePrecision: 'day',
+      })
       .returning({ id: books.id });
     if (book === undefined) throw new Error('no book row');
 

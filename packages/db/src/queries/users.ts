@@ -1,7 +1,6 @@
 import type {
   BookStatus,
   ShelfEntry,
-  UserBookStatus,
   UserListQuery,
   UserProfile,
   UserShelfQuery,
@@ -15,7 +14,7 @@ import { paginate } from '../lib/paginate';
 import { tokenizedMatch } from '../lib/text-search';
 import { bookUserStatus } from '../schema/shelf';
 import { users } from '../schema/users';
-import { authorsByBookIds, seriesNamesByIds, toBookSummary } from './books';
+import { authorsByBookIds, seriesInfoByIds, toBookSummary, toPublicBookStatus } from './books';
 
 export type User = typeof users.$inferSelect;
 
@@ -159,18 +158,6 @@ const SHELF_SORT_COLUMNS = {
   release: books.releaseDate,
 } as const;
 
-function toUserBookStatus(row: typeof bookUserStatus.$inferSelect): UserBookStatus {
-  return {
-    bookId: row.bookId,
-    userId: row.userId,
-    status: row.status,
-    rating: row.rating,
-    startedAt: row.startedAt,
-    finishedAt: row.finishedAt,
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
 export async function listUserShelf(
   db: Db,
   userId: string,
@@ -201,20 +188,20 @@ export async function listUserShelf(
     .where(where);
 
   const { items, total } = await paginate(rows, countQuery);
-  const [authorsByBook, seriesNames] = await Promise.all([
+  const [authorsByBook, seriesInfo] = await Promise.all([
     authorsByBookIds(
       db,
       items.map((r) => r.book.id),
     ),
-    seriesNamesByIds(
+    seriesInfoByIds(
       db,
       items.map((r) => r.book.seriesId),
     ),
   ]);
   return {
     items: items.map((row) => ({
-      book: toBookSummary(row.book, authorsByBook, seriesNames),
-      status: toUserBookStatus(row.status),
+      book: toBookSummary(row.book, authorsByBook, seriesInfo),
+      status: toPublicBookStatus(row.status),
     })),
     total,
   };

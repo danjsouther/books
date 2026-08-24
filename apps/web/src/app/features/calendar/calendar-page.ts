@@ -94,7 +94,7 @@ function monthLabelFor(year: number, month: number): string {
                 <div class="releases">
                   @for (r of releasesByDate()[cell.iso]; track r.id) {
                     <div class="release">
-                      <a [routerLink]="['/books', r.id]">{{ r.title }}</a>
+                      <a [routerLink]="['/books', r.slug]">{{ r.title }}</a>
                       <app-plan-toggle
                         compact
                         [title]="r.title"
@@ -117,7 +117,7 @@ function monthLabelFor(year: number, month: number): string {
         <ul class="monthly-list">
           @for (r of monthlyReleases(); track r.id) {
             <li>
-              <a [routerLink]="['/books', r.id]">{{ r.title }}</a>
+              <a [routerLink]="['/books', r.slug]">{{ r.title }}</a>
               <app-plan-toggle
                 compact
                 [title]="r.title"

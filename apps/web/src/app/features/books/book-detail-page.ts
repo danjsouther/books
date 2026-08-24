@@ -15,11 +15,19 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { debounceTime, Subject } from 'rxjs';
-import { formatReleaseDate, type AuthorRef, type BookDetail, type BookStatus } from '@books/domain';
+import {
+  formatReleaseDate,
+  type AuthorRef,
+  type BookCommunityStatus,
+  type BookDetail,
+  type BookStatus,
+} from '@books/domain';
+import { AuthStore } from '../../core/auth-store';
 import { Flash } from '../../core/flash';
 import { BookCover } from '../../shared/ui/book-cover';
 import { Chip } from '../../shared/ui/chip';
 import { Pagination } from '../../shared/ui/pagination';
+import { PercentSlider } from '../../shared/ui/percent-slider';
 import { RatingWidget } from '../../shared/ui/rating-widget';
 import { StatusPicker } from '../../shared/ui/status-picker';
 import { BooksApi } from './books-api';
@@ -40,6 +48,7 @@ const COMMUNITY_PAGE_SIZE = 10;
     BookCover,
     StatusPicker,
     RatingWidget,
+    PercentSlider,
     Chip,
     Pagination,
     DecimalPipe,
@@ -69,9 +78,9 @@ const COMMUNITY_PAGE_SIZE = 10;
           @if (book.authors.length > 0) {
             <p class="authors">{{ authorNames(book.authors) }}</p>
           }
-          @if (book.seriesId) {
+          @if (book.seriesSlug) {
             <p class="series">
-              <a [routerLink]="['/series', book.seriesId]">{{ book.seriesName ?? 'Series' }}</a>
+              <a [routerLink]="['/series', book.seriesSlug]">{{ book.seriesName ?? 'Series' }}</a>
               @if (book.seriesPosition) {
                 — #{{ book.seriesPosition }}
               }
@@ -91,11 +100,11 @@ const COMMUNITY_PAGE_SIZE = 10;
 
           <p class="muted version">
             Version {{ book.version }} ·
-            <a [routerLink]="['/books', book.id, 'history']">History</a>
+            <a [routerLink]="['/books', book.slug, 'history']">History</a>
           </p>
 
           <div class="actions">
-            <a mat-stroked-button [routerLink]="['/books', book.id, 'edit']">Edit</a>
+            <a mat-stroked-button [routerLink]="['/books', book.slug, 'edit']">Edit</a>
             @if (book.deletedAt === null) {
               <button mat-stroked-button type="button" (click)="deleteDialog.showModal()">
                 Delete
@@ -113,6 +122,27 @@ const COMMUNITY_PAGE_SIZE = 10;
         <div class="section-row">
           <app-rating-widget [value]="myRating()" (valueChange)="setRating($event)" />
         </div>
+        <div class="section-row">
+          <app-percent-slider [value]="myPercentRead()" (valueChange)="setPercentRead($event)" />
+        </div>
+        <div class="section-row note-field">
+          <label for="public-note">Public note</label>
+          <textarea
+            id="public-note"
+            class="note-input"
+            [value]="myPublicNote() ?? ''"
+            (input)="onPublicNoteInput($event)"
+          ></textarea>
+        </div>
+        <div class="section-row note-field">
+          <label for="private-note">Personal note (only you can see this)</label>
+          <textarea
+            id="private-note"
+            class="note-input"
+            [value]="myNote() ?? ''"
+            (input)="onNoteInput($event)"
+          ></textarea>
+        </div>
       </section>
 
       <section class="section">
@@ -128,9 +158,18 @@ const COMMUNITY_PAGE_SIZE = 10;
         <ul class="community-list">
           @for (entry of communityPage(); track entry.userId) {
             <li class="community-row">
-              <app-chip [label]="entry.status" [tone]="entry.status" />
-              @if (entry.rating !== null) {
-                <span>Rated {{ entry.rating }}/10</span>
+              <div class="community-row-summary">
+                <strong>{{ entry.username }}</strong>
+                <app-chip [label]="entry.status" [tone]="entry.status" />
+                @if (entry.rating !== null) {
+                  <span>Rated {{ entry.rating }}/10</span>
+                }
+                @if (entry.percentRead !== null) {
+                  <span>{{ entry.percentRead }}% read</span>
+                }
+              </div>
+              @if (entry.publicNote) {
+                <p class="public-note">{{ entry.publicNote }}</p>
               }
             </li>
           }
@@ -138,7 +177,7 @@ const COMMUNITY_PAGE_SIZE = 10;
         <app-pagination
           [page]="communityPageIndex()"
           [pageSize]="communityPageSize"
-          [total]="book.statuses.length"
+          [total]="mergedStatuses().length"
           (goToPage)="communityPageIndex.set($event)"
         />
       </section>
@@ -213,6 +252,7 @@ const COMMUNITY_PAGE_SIZE = 10;
 
     .description {
       margin-top: 1rem;
+      white-space: pre-line;
     }
 
     .version {
@@ -262,9 +302,38 @@ const COMMUNITY_PAGE_SIZE = 10;
 
     .community-row {
       display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.875rem;
+    }
+
+    .community-row-summary {
+      display: flex;
       align-items: center;
       gap: 0.75rem;
-      font-size: 0.875rem;
+    }
+
+    .public-note {
+      margin: 0;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .note-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      max-width: 480px;
+    }
+
+    .note-input {
+      font: inherit;
+      padding: 0.5rem;
+      border: 1px solid var(--mat-sys-outline-variant);
+      border-radius: 4px;
+      background: var(--mat-sys-surface);
+      color: var(--mat-sys-on-surface);
+      resize: vertical;
+      min-height: 3rem;
     }
 
     .confirm-dialog {
@@ -284,16 +353,17 @@ const COMMUNITY_PAGE_SIZE = 10;
   `,
 })
 export class BookDetailPage {
-  readonly id = input.required<string>();
+  readonly slug = input.required<string>();
 
   private readonly booksApi = inject(BooksApi);
   private readonly shelfApi = inject(ShelfApi);
   private readonly flash = inject(Flash);
   private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
 
   protected readonly deleteDialog = viewChild.required<HTMLDialogElement>('deleteDialog');
 
-  protected readonly detail = httpResource<BookDetail>(() => `/api/v1/books/${this.id()}`);
+  protected readonly detail = httpResource<BookDetail>(() => `/api/v1/books/${this.slug()}`);
 
   protected readonly formatReleaseDate = formatReleaseDate;
 
@@ -303,28 +373,81 @@ export class BookDetailPage {
   protected readonly myRating = linkedSignal<number | null>(() =>
     this.detail.hasValue() ? (this.detail.value().myStatus?.rating ?? null) : null,
   );
+  protected readonly myPercentRead = linkedSignal<number | null>(() =>
+    this.detail.hasValue() ? (this.detail.value().myStatus?.percentRead ?? null) : null,
+  );
+  protected readonly myNote = linkedSignal<string | null>(() =>
+    this.detail.hasValue() ? (this.detail.value().myStatus?.note ?? null) : null,
+  );
+  protected readonly myPublicNote = linkedSignal<string | null>(() =>
+    this.detail.hasValue() ? (this.detail.value().myStatus?.publicNote ?? null) : null,
+  );
 
   /**
-   * The server's last-acknowledged status/rating — separate from
-   * `myStatus`/`myRating`, which flip immediately on every click for instant
-   * feedback. Rolling a failed save back to "whatever was clicked just
-   * before this one" would still be wrong mid-burst; rolling back to the
-   * last value the server actually confirmed is the only value that's
-   * still true after several optimistic updates in a row.
+   * The server's last-acknowledged values — separate from `myStatus`/`myRating`/
+   * etc., which flip immediately on every edit for instant feedback. Rolling a
+   * failed save back to "whatever was set just before this one" would still be
+   * wrong mid-burst; rolling back to the last value the server actually confirmed
+   * is the only value that's still true after several optimistic updates in a row.
    */
   private confirmedStatus: BookStatus | null = null;
   private confirmedRating: number | null = null;
+  private confirmedPercentRead: number | null = null;
+  private confirmedNote: string | null = null;
+  private confirmedPublicNote: string | null = null;
   private hasSeededConfirmed = false;
 
   private readonly statusChanges = new Subject<BookStatus | null>();
   private readonly ratingChanges = new Subject<number | null>();
+  private readonly percentReadChanges = new Subject<number | null>();
+  private readonly noteChanges = new Subject<string | null>();
+  private readonly publicNoteChanges = new Subject<string | null>();
 
   protected readonly communityPageIndex = signal(1);
   protected readonly communityPageSize = COMMUNITY_PAGE_SIZE;
-  protected readonly communityPage = computed(() => {
+
+  /**
+   * What the viewer's own row in "Everyone's take" looks like right now, built
+   * from the same optimistic signals as "Your shelf" rather than from the
+   * server-fetched `statuses` — otherwise a shelf edit would only reach the
+   * community list on a full reload. `null` status means no shelf entry, so
+   * nothing to show there. Only public fields go in; `note` never does.
+   */
+  private readonly myCommunityEntry = computed<BookCommunityStatus | null>(() => {
+    const status = this.myStatus();
+    const me = this.authStore.user();
+    if (status === null || me === null || !this.detail.hasValue()) return null;
+    const book = this.detail.value();
+    const existing = book.statuses.find((s) => s.userId === me.id);
+    return {
+      bookId: book.id,
+      userId: me.id,
+      username: me.username,
+      status,
+      rating: this.myRating(),
+      percentRead: this.myPercentRead(),
+      publicNote: this.myPublicNote(),
+      startedAt: existing?.startedAt ?? null,
+      finishedAt: existing?.finishedAt ?? null,
+      updatedAt: existing?.updatedAt ?? new Date().toISOString(),
+    };
+  });
+
+  /** `detail.value().statuses` with the viewer's own row replaced (or added, or
+   *  removed) by `myCommunityEntry` — see its comment for why. */
+  protected readonly mergedStatuses = computed<BookCommunityStatus[]>(() => {
     if (!this.detail.hasValue()) return [];
+    const base = this.detail.value().statuses;
+    const me = this.authStore.user();
+    if (me === null) return base;
+    const mine = this.myCommunityEntry();
+    const withoutMine = base.filter((s) => s.userId !== me.id);
+    return mine === null ? withoutMine : [...withoutMine, mine];
+  });
+
+  protected readonly communityPage = computed(() => {
     const start = (this.communityPageIndex() - 1) * COMMUNITY_PAGE_SIZE;
-    return this.detail.value().statuses.slice(start, start + COMMUNITY_PAGE_SIZE);
+    return this.mergedStatuses().slice(start, start + COMMUNITY_PAGE_SIZE);
   });
 
   constructor() {
@@ -337,6 +460,9 @@ export class BookDetailPage {
       untracked(() => {
         this.confirmedStatus = status?.status ?? null;
         this.confirmedRating = status?.rating ?? null;
+        this.confirmedPercentRead = status?.percentRead ?? null;
+        this.confirmedNote = status?.note ?? null;
+        this.confirmedPublicNote = status?.publicNote ?? null;
         this.hasSeededConfirmed = true;
       });
     });
@@ -353,18 +479,29 @@ export class BookDetailPage {
         this.flash.show('Could not update your status — please try again.');
       };
       if (status === null) {
-        this.shelfApi.remove(this.id()).subscribe({
+        this.shelfApi.remove(this.slug()).subscribe({
           next: () => {
             this.confirmedStatus = null;
             this.confirmedRating = null;
             this.myRating.set(null);
+            this.confirmedPercentRead = null;
+            this.myPercentRead.set(null);
+            this.confirmedNote = null;
+            this.myNote.set(null);
+            this.confirmedPublicNote = null;
+            this.myPublicNote.set(null);
           },
           error: onError,
         });
       } else {
-        this.shelfApi.update(this.id(), { status }).subscribe({
-          next: () => {
+        this.shelfApi.update(this.slug(), { status }).subscribe({
+          next: (updated) => {
             this.confirmedStatus = status;
+            // Marking a book completed forces `percentRead` to 100 server-side —
+            // reflect that back without waiting for a reload. Every other status
+            // leaves `percentRead` untouched, so this is a no-op for those.
+            this.confirmedPercentRead = updated.percentRead;
+            this.myPercentRead.set(updated.percentRead);
           },
           error: onError,
         });
@@ -372,13 +509,51 @@ export class BookDetailPage {
     });
 
     this.ratingChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((rating) => {
-      this.shelfApi.update(this.id(), { rating }).subscribe({
+      this.shelfApi.update(this.slug(), { rating }).subscribe({
         next: () => {
           this.confirmedRating = rating;
         },
         error: () => {
           this.myRating.set(this.confirmedRating);
           this.flash.show('Could not update your rating — please try again.');
+        },
+      });
+    });
+
+    this.percentReadChanges
+      .pipe(debounceTime(600), takeUntilDestroyed())
+      .subscribe((percentRead) => {
+        this.shelfApi.update(this.slug(), { percentRead }).subscribe({
+          next: () => {
+            this.confirmedPercentRead = percentRead;
+          },
+          error: () => {
+            this.myPercentRead.set(this.confirmedPercentRead);
+            this.flash.show('Could not update your progress — please try again.');
+          },
+        });
+      });
+
+    this.noteChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((note) => {
+      this.shelfApi.update(this.slug(), { note }).subscribe({
+        next: () => {
+          this.confirmedNote = note;
+        },
+        error: () => {
+          this.myNote.set(this.confirmedNote);
+          this.flash.show('Could not save your note — please try again.');
+        },
+      });
+    });
+
+    this.publicNoteChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((publicNote) => {
+      this.shelfApi.update(this.slug(), { publicNote }).subscribe({
+        next: () => {
+          this.confirmedPublicNote = publicNote;
+        },
+        error: () => {
+          this.myPublicNote.set(this.confirmedPublicNote);
+          this.flash.show('Could not save your note — please try again.');
         },
       });
     });
@@ -398,14 +573,39 @@ export class BookDetailPage {
     this.ratingChanges.next(rating);
   }
 
+  protected setPercentRead(percentRead: number | null): void {
+    this.myPercentRead.set(percentRead);
+    this.percentReadChanges.next(percentRead);
+  }
+
+  protected setNote(note: string | null): void {
+    this.myNote.set(note);
+    this.noteChanges.next(note);
+  }
+
+  protected setPublicNote(publicNote: string | null): void {
+    this.myPublicNote.set(publicNote);
+    this.publicNoteChanges.next(publicNote);
+  }
+
+  protected onNoteInput(event: Event): void {
+    const value = (event.target as HTMLTextAreaElement).value;
+    this.setNote(value === '' ? null : value);
+  }
+
+  protected onPublicNoteInput(event: Event): void {
+    const value = (event.target as HTMLTextAreaElement).value;
+    this.setPublicNote(value === '' ? null : value);
+  }
+
   protected confirmDelete(): void {
     const title = this.detail.hasValue() ? this.detail.value().title : 'This book';
-    const id = this.id();
+    const slug = this.slug();
     this.deleteDialog().close();
-    this.booksApi.delete(id).subscribe({
+    this.booksApi.delete(slug).subscribe({
       next: () => {
         this.flash.show(`"${title}" moved to the trash.`, () => {
-          this.booksApi.restore(id).subscribe();
+          this.booksApi.restore(slug).subscribe();
         });
         void this.router.navigate(['/books']);
       },
@@ -416,7 +616,7 @@ export class BookDetailPage {
   }
 
   protected restore(): void {
-    this.booksApi.restore(this.id()).subscribe({
+    this.booksApi.restore(this.slug()).subscribe({
       next: () => this.detail.reload(),
       error: () => this.flash.show('Could not restore this book — please try again.'),
     });

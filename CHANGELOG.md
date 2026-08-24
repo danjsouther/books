@@ -6,6 +6,45 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.6.0 - 2026-08-24
+
+### Added — Shelf entries have a progress slider and two notes (2026-08-24)
+
+Your shelf entry for a book now tracks how far into it you are (0–100%), plus
+a public note anyone can read and a personal note only you can see. Progress
+and the public note also show up in "Everyone's take" alongside status and
+rating; the personal note never leaves your own view. Marking a book completed
+sets progress to 100% automatically; no other status change touches it.
+Editing your own shelf now updates your row in "Everyone's take" immediately,
+instead of waiting for a reload.
+
+### Fixed — Book and series descriptions keep their line breaks (2026-08-24)
+
+Descriptions were rendered as plain `<p>` text, so HTML collapsed every
+newline and multi-paragraph descriptions ran together as one block. The
+book and series detail pages now preserve line breaks from the stored
+text.
+
+### Changed — Book and series URLs use readable slugs instead of UUIDs (2026-08-24)
+
+`/books/a1b2c3d4-...` is now `/books/mistborn-the-final-empire`, and the same
+for series pages. Slugs are generated once, from the title/name, and never
+change afterward — even after an edit — so existing links keep working. Old
+UUID-based URLs still resolve too. Member profile URLs are unchanged.
+
+### Added — "Everyone's take" names whose status and rating each row is (2026-08-24)
+
+The book detail page's community list showed a status chip and rating per
+member with no indication of which member — every row was anonymous. Each
+row now leads with the member's username.
+
+### Fixed — Books list no longer badges books that aren't on your shelf (2026-08-24)
+
+The books list showed a "Backlog" chip on every book with no shelf entry,
+indistinguishable from a book you'd actually set to Backlog. The badge is
+now omitted entirely, in both the list and grid views, when `myStatus` is
+`null`.
+
 ## 0.5.0 - 2026-08-19
 
 ### Added — A URL field for books (2026-08-19)

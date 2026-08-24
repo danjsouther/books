@@ -97,14 +97,14 @@ const PRECISION_LABELS: Record<ReleasePrecision, string> = {
     MatSelectModule,
   ],
   template: `
-    <h1>{{ id() ? 'Edit book' : 'Add a book' }}</h1>
+    <h1>{{ slug() ? 'Edit book' : 'Add a book' }}</h1>
 
     @if (conflictMessage(); as message) {
       <div class="conflict-banner">
         <p class="conflict-message">{{ message }}</p>
         <div class="conflict-actions">
-          @if (id(); as bookId) {
-            <a [routerLink]="['/books', bookId, 'history']">Review the changes</a>
+          @if (slug(); as bookSlug) {
+            <a [routerLink]="['/books', bookSlug, 'history']">Review the changes</a>
           }
           <button type="button" class="link-btn" (click)="reloadAndDiscardMyChanges()">
             Reload and discard my changes
@@ -232,7 +232,7 @@ const PRECISION_LABELS: Record<ReleasePrecision, string> = {
       }
 
       <button mat-flat-button type="submit" [disabled]="bookForm().submitting()">
-        {{ id() ? 'Save changes' : 'Add book' }}
+        {{ slug() ? 'Save changes' : 'Add book' }}
       </button>
     </form>
   `,
@@ -303,7 +303,7 @@ const PRECISION_LABELS: Record<ReleasePrecision, string> = {
   `,
 })
 export class BookFormPage {
-  readonly id = input<string>();
+  readonly slug = input<string>();
 
   private readonly booksApi = inject(BooksApi);
   private readonly router = inject(Router);
@@ -354,7 +354,7 @@ export class BookFormPage {
   );
 
   readonly existing = httpResource<BookDetail>(() =>
-    this.id() ? `/api/v1/books/${this.id()}` : undefined,
+    this.slug() ? `/api/v1/books/${this.slug()}` : undefined,
   );
 
   readonly bookForm = form(this.model, (p) => {
@@ -500,17 +500,17 @@ export class BookFormPage {
       this.conflictMessage.set(null);
       try {
         const input = this.toApiInput(this.model());
-        const bookId = this.id();
-        if (bookId === undefined) {
+        const bookSlug = this.slug();
+        if (bookSlug === undefined) {
           const created = await firstValueFrom(this.booksApi.create(input));
-          await this.router.navigate(['/books', created.id]);
+          await this.router.navigate(['/books', created.slug]);
         } else {
           const version = this.loadedVersion();
           if (version === null) return undefined; // still loading — submit shouldn't be reachable yet
           const updated = await firstValueFrom(
-            this.booksApi.update(bookId, { ...input, expectedVersion: version }),
+            this.booksApi.update(bookSlug, { ...input, expectedVersion: version }),
           );
-          await this.router.navigate(['/books', updated.id]);
+          await this.router.navigate(['/books', updated.slug]);
         }
         return undefined;
       } catch (err) {

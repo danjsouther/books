@@ -19,6 +19,7 @@ import {
   diffSeriesRevisions,
   getSeriesRevision,
   getSeriesRow,
+  getSeriesRowBySlug,
   listSeriesBooks,
   listSeriesRevisions,
   listSeries,
@@ -32,6 +33,7 @@ import {
 } from '@books/db';
 import { Router, type Request } from 'express';
 import { omitUndefined } from '../lib/patch';
+import { resolveIdParam } from '../lib/resolve-id-param';
 import type { ApiDeps } from '../types';
 
 function actorOf(req: Request): Actor {
@@ -56,6 +58,8 @@ async function requireSeriesRow(db: Db, id: string) {
 export function createSeriesRouter(deps: ApiDeps): Router {
   const router = Router();
   const { db } = deps;
+
+  resolveIdParam(router, 'id', (slug) => getSeriesRowBySlug(db, slug));
 
   router.get('/', (req, res, next) => {
     void (async () => {

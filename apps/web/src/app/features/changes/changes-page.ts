@@ -201,13 +201,13 @@ export class ChangesPage {
   );
 
   protected entityLink(row: ChangeItem): string[] {
-    return row.entityType === 'book' ? ['/books', row.entityId] : ['/series', row.entityId];
+    return row.entityType === 'book' ? ['/books', row.entitySlug] : ['/series', row.entitySlug];
   }
 
   protected historyLink(row: ChangeItem): string[] {
     return row.entityType === 'book'
-      ? ['/books', row.entityId, 'history']
-      : ['/series', row.entityId, 'history'];
+      ? ['/books', row.entitySlug, 'history']
+      : ['/series', row.entitySlug, 'history'];
   }
 
   protected revert(row: CollapsedChange): void {

@@ -11,7 +11,7 @@ import { books } from '../schema/books';
 import { series } from '../schema/series';
 import type { Book } from '../mutations/books';
 import type { Series } from '../mutations/series';
-import { authorsByBookIds, seriesNamesByIds, toBookSummary } from './books';
+import { authorsByBookIds, seriesInfoByIds, toBookSummary } from './books';
 import { paginate } from '../lib/paginate';
 import { tokenizedMatch } from '../lib/text-search';
 
@@ -39,6 +39,7 @@ function toSeriesSummary(
 ): SeriesSummary {
   return {
     id: row.id,
+    slug: row.slug,
     name: row.name,
     sortName: row.sortName,
     bookCount,
@@ -100,6 +101,13 @@ export async function getSeriesRow(db: Db, id: string): Promise<Series | undefin
   return row;
 }
 
+/** Deliberately unfiltered by `deletedAt` — see the identical note on
+ *  `getBookRowBySlug` in `queries/books.ts`. */
+export async function getSeriesRowBySlug(db: Db, slug: string): Promise<Series | undefined> {
+  const [row] = await db.select().from(series).where(eq(series.slug, slug)).limit(1);
+  return row;
+}
+
 export async function seriesDetailFromRow(db: Db, row: Series): Promise<SeriesDetail> {
   const [agg] = await db
     .select({ bookCount: BOOK_COUNT, nextRelease: NEXT_RELEASE })
@@ -151,18 +159,18 @@ export async function listSeriesBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const [authorsByBook, seriesNames] = await Promise.all([
+  const [authorsByBook, seriesInfo] = await Promise.all([
     authorsByBookIds(
       db,
       bookRows.map((b: Book) => b.id),
     ),
-    // Every row here belongs to `seriesId` by construction, but the name still has
-    // to be fetched — routing it through the shared helper keeps one lookup path
-    // rather than a special case that could drift from `toBookSummary`.
-    seriesNamesByIds(db, [seriesId]),
+    // Every row here belongs to `seriesId` by construction, but the name/slug still
+    // have to be fetched — routing it through the shared helper keeps one lookup
+    // path rather than a special case that could drift from `toBookSummary`.
+    seriesInfoByIds(db, [seriesId]),
   ]);
   return {
-    items: bookRows.map((row: Book) => toBookSummary(row, authorsByBook, seriesNames)),
+    items: bookRows.map((row: Book) => toBookSummary(row, authorsByBook, seriesInfo)),
     total,
   };
 }

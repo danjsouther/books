@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 /**
@@ -11,6 +11,9 @@ export const series = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
+    /** Generated once at creation from `name` and never regenerated — a stable
+     *  permalink, same contract as `id`. See `docs/data-model.md`. */
+    slug: text('slug').notNull(),
     /** "The Expanse" → "Expanse, The", for sorting. Nullable; falls back to `name`. */
     sortName: text('sort_name'),
     description: text('description'),
@@ -36,5 +39,9 @@ export const series = pgTable(
      *  `authors`, where the name IS the identity and uniqueness earns its keep. */
     index('series_name_lower_idx').on(sql`lower(name)`),
     index('series_deleted_at_idx').on(t.deletedAt),
+    /** Global, unlike series names — a soft-deleted series still needs a
+     *  resolvable URL for `/trash` and for historical `/changes` entries. See
+     *  `docs/data-model.md`. */
+    uniqueIndex('series_slug_key').on(t.slug),
   ],
 );

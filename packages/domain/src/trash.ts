@@ -5,6 +5,7 @@ import { ListQuerySchema } from './list';
  *  normalised to one shape so the trash page renders both from a single list. */
 export interface TrashItem {
   readonly id: string;
+  readonly slug: string;
   readonly type: 'book' | 'series';
   readonly title: string;
   readonly deletedAt: string;

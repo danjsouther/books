@@ -60,9 +60,9 @@ GET    /books/:id/revisions/:v    → Revision (full snapshot)
 GET    /books/:id/revisions/:v/diff?against=  → FieldDiff[]
 POST   /books/:id/revert          { toVersion, note? } → BookDetail
 
-GET    /books/:id/statuses        → UserBookStatus[]        (every member's row)
+GET    /books/:id/statuses        → PublicBookStatus[]      (every member's row, no private `note`)
 GET    /books/:id/me              → UserBookStatus | null
-PATCH  /books/:id/me              { status?, rating?|null, startedAt?, finishedAt? } → UserBookStatus
+PATCH  /books/:id/me              { status?, rating?|null, percentRead?|null, note?|null, publicNote?|null, startedAt?, finishedAt? } → UserBookStatus
 DELETE /books/:id/me              204   (hard — removes the row entirely)
 ```
 
@@ -78,7 +78,10 @@ patch (see the comment on `BookUpdateSchema` for why this can't be
 
 `BookDetail` embeds `myStatus`, `statuses[]`, and `ratingSummary` so one request
 paints the whole page; a soft-deleted book still returns `200` with `deletedAt` set,
-rendering as a tombstone rather than a `404`.
+rendering as a tombstone rather than a `404`. `BookDetail.statuses` entries are
+`BookCommunityStatus` — `UserBookStatus` plus `username` — so the page can say
+whose take each row is, unlike the bare `UserBookStatus[]` from
+`GET /books/:id/statuses`.
 
 ## Series
 

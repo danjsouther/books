@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BOOK_STATUSES } from './shelf';
 import { ListQuerySchema, booleanQueryParam } from './list';
-import type { BookStatus, UserBookStatus } from './shelf';
+import type { BookStatus, PublicBookStatus, UserBookStatus } from './shelf';
 
 /** How much of a release date is actually known. See `docs/data-model.md`. */
 export const RELEASE_PRECISIONS = ['day', 'month', 'year', 'unknown'] as const;
@@ -90,6 +90,7 @@ export type BookListQuery = z.infer<typeof BookListQuerySchema>;
  *  (releases, a series' books, a member's shelf). */
 export interface BookSummary {
   readonly id: string;
+  readonly slug: string;
   readonly title: string;
   readonly subtitle: string | null;
   readonly authors: AuthorRef[];
@@ -98,6 +99,8 @@ export interface BookSummary {
    *  a second request per page — null whenever `seriesId` is, and also if the
    *  series row itself is gone. */
   readonly seriesName: string | null;
+  /** Null under the exact same conditions as `seriesName` — see its comment. */
+  readonly seriesSlug: string | null;
   readonly seriesPosition: string | null;
   readonly releaseDate: string | null;
   readonly releasePrecision: ReleasePrecision;
@@ -124,6 +127,15 @@ export interface RatingSummary {
   readonly distribution: number[];
 }
 
+/** One community member's status entry as embedded in `BookDetail.statuses` —
+ *  `PublicBookStatus` plus the username, since this list is the one place a
+ *  status needs to say whose take it is rather than the viewer's own. Extends
+ *  `PublicBookStatus`, not `UserBookStatus` — this list is sent to every viewer of
+ *  the book, so it must never be able to carry another member's private `note`. */
+export interface BookCommunityStatus extends PublicBookStatus {
+  readonly username: string;
+}
+
 /** Response body of `GET /books/:id`. Embeds everything the detail page needs so it
  *  paints from one request, including a deleted book — which renders as a tombstone
  *  with a Restore button rather than a 404. */
@@ -134,6 +146,6 @@ export interface BookDetail extends BookSummary {
   readonly url: string | null;
   readonly deletedBy: string | null;
   readonly myStatus: UserBookStatus | null;
-  readonly statuses: UserBookStatus[];
+  readonly statuses: BookCommunityStatus[];
   readonly ratingSummary: RatingSummary;
 }

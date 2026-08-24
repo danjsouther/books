@@ -62,7 +62,7 @@ const SORT_OPTIONS: readonly SortOption[] = [
         @for (item of store.items(); track item.type + item.id) {
           <li class="row">
             <div>
-              <a [routerLink]="[item.type === 'book' ? '/books' : '/series', item.id]">
+              <a [routerLink]="[item.type === 'book' ? '/books' : '/series', item.slug]">
                 {{ item.title }}
               </a>
               <p class="muted">{{ item.type }} · deleted {{ item.deletedAt }}</p>

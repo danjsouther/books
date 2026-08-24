@@ -15,7 +15,7 @@ const PAGE_SIZE = 20;
   template: `
     <h1>History</h1>
     <p class="back-link">
-      <a [routerLink]="['/books', id()]">Back to book</a>
+      <a [routerLink]="['/books', slug()]">Back to book</a>
     </p>
 
     @if (revisions.hasValue()) {
@@ -123,7 +123,7 @@ const PAGE_SIZE = 20;
   `,
 })
 export class BookHistoryPage {
-  readonly id = input.required<string>();
+  readonly slug = input.required<string>();
 
   private readonly booksApi = inject(BooksApi);
   private readonly router = inject(Router);
@@ -133,7 +133,7 @@ export class BookHistoryPage {
   protected readonly pageSize = PAGE_SIZE;
 
   protected readonly revisions = httpResource<ListResponse<RevisionSummary>>(() => ({
-    url: `/api/v1/books/${this.id()}/revisions`,
+    url: `/api/v1/books/${this.slug()}/revisions`,
     params: { page: this.page(), pageSize: PAGE_SIZE, dir: 'desc' },
   }));
 
@@ -143,7 +143,7 @@ export class BookHistoryPage {
   protected readonly diff = httpResource<FieldDiff[]>(() => {
     const version = this.expandedVersion();
     if (version === null || version <= 1) return undefined;
-    return `/api/v1/books/${this.id()}/revisions/${version}/diff?against=${version - 1}`;
+    return `/api/v1/books/${this.slug()}/revisions/${version}/diff?against=${version - 1}`;
   });
 
   protected toggle(version: number): void {
@@ -151,10 +151,10 @@ export class BookHistoryPage {
   }
 
   protected restore(toVersion: number): void {
-    this.booksApi.revert(this.id(), toVersion).subscribe({
+    this.booksApi.revert(this.slug(), toVersion).subscribe({
       next: () => {
         this.flash.show(`Restored version ${toVersion}.`);
-        void this.router.navigate(['/books', this.id()]);
+        void this.router.navigate(['/books', this.slug()]);
       },
       error: () => this.flash.show('Could not restore this version — please try again.'),
     });

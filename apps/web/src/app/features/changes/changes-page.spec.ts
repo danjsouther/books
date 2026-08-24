@@ -11,6 +11,7 @@ function change(overrides: Partial<ChangeItem> = {}): ChangeItem {
   return {
     entityType: 'book',
     entityId: 'b1',
+    entitySlug: 'a-book',
     version: 1,
     changeKind: 'edited',
     actorId: 'u1',

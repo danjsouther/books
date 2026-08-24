@@ -67,11 +67,13 @@ describe('CalendarPage', () => {
       dated: [
         {
           id: 'b1',
+          slug: 'leviathan-wakes',
           title: 'Leviathan Wakes',
           subtitle: null,
           authors: [],
           seriesId: null,
           seriesName: null,
+          seriesSlug: null,
           seriesPosition: null,
           releaseDate: '2027-03-05',
           releasePrecision: 'day',
@@ -102,11 +104,13 @@ describe('CalendarPage', () => {
       dated: [
         {
           id: 'b1',
+          slug: 'leviathan-wakes',
           title: 'Leviathan Wakes',
           subtitle: null,
           authors: [],
           seriesId: null,
           seriesName: null,
+          seriesSlug: null,
           seriesPosition: null,
           releaseDate: '2027-03-05',
           releasePrecision: 'day',
@@ -142,11 +146,13 @@ describe('CalendarPage', () => {
       dated: [
         {
           id: 'b1',
+          slug: 'leviathan-wakes',
           title: 'Leviathan Wakes',
           subtitle: null,
           authors: [],
           seriesId: null,
           seriesName: null,
+          seriesSlug: null,
           seriesPosition: null,
           releaseDate: '2027-03-05',
           releasePrecision: 'day',

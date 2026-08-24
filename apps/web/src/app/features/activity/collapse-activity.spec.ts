@@ -12,7 +12,7 @@ function item(
     id: Math.floor(Math.random() * 1_000_000),
     kind,
     actor: { id: 'u1', username: 'dan' },
-    book: { id: 'b1', title: 'A Book' },
+    book: { id: 'b1', slug: 'a-book', title: 'A Book' },
     payload: { from, to },
     createdAt,
     ...overrides,
@@ -25,7 +25,7 @@ describe('collapseActivity', () => {
       item('rating.changed', '2027-03-05T20:00:00Z', 7, 9),
       item('book.added', '2027-03-05T15:00:00Z', undefined, undefined, {
         actor: { id: 'u2', username: 'sam' },
-        book: { id: 'b2', title: 'Other Book' },
+        book: { id: 'b2', slug: 'other-book', title: 'Other Book' },
       }),
       item('rating.changed', '2027-03-05T09:00:00Z', 5, 7),
     ];
@@ -162,7 +162,7 @@ describe('collapseActivity', () => {
       }),
       item('rating.changed', '2027-03-05T09:00:00Z', 5, 7),
       item('rating.changed', '2027-03-05T08:00:00Z', 3, 6, {
-        book: { id: 'b2', title: 'Other Book' },
+        book: { id: 'b2', slug: 'other-book', title: 'Other Book' },
       }),
     ];
 

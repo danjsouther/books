@@ -30,6 +30,7 @@ export type SeriesListQuery = z.infer<typeof SeriesListQuerySchema>;
 
 export interface SeriesSummary {
   readonly id: string;
+  readonly slug: string;
   readonly name: string;
   readonly sortName: string | null;
   readonly bookCount: number;

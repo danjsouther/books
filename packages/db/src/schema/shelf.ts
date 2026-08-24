@@ -6,6 +6,7 @@ import {
   primaryKey,
   smallint,
   pgTable,
+  text,
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -19,6 +20,11 @@ import { users } from './users';
  * `(user, book)` — which makes the detail page's "everyone's take" panel a single
  * indexed scan with no join, and `PATCH /books/:id/me` a single upsert. Rating
  * history is not lost either: `rating.changed` activity rows carry `from`/`to`.
+ *
+ * `percentRead` and `publicNote` are visible to any member, same as `rating` —
+ * they ride along in the "everyone's take" panel. `note` is private to its owner
+ * and must never be selected into a query result that isn't scoped to the caller's
+ * own row (see `PublicBookStatus` vs `UserBookStatus` in `@books/domain`).
  *
  * **This is the one table with a hard delete.** Removing a book from your shelf
  * really removes the row — soft-deleting would collide with the composite primary
@@ -39,6 +45,14 @@ export const bookUserStatus = pgTable(
      *  opinion", which is exactly why this is a nullable integer and not a
      *  sentinel value. */
     rating: smallint('rating'),
+    /** How far into the book this member has gotten, 0–100. Nullable meaning no
+     *  progress has been recorded — public, like `rating`. */
+    percentRead: smallint('percent_read'),
+    /** Private to its owner. Never select this column into a query result unless
+     *  it is scoped to the requesting viewer's own row. */
+    note: text('note'),
+    /** Same visibility as `rating`/`percentRead` — shown to any member. */
+    publicNote: text('public_note'),
     startedAt: date('started_at'),
     finishedAt: date('finished_at'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -49,6 +63,10 @@ export const bookUserStatus = pgTable(
     check(
       'book_user_status_rating_range',
       sql`${t.rating} IS NULL OR ${t.rating} BETWEEN 0 AND 10`,
+    ),
+    check(
+      'book_user_status_percent_read_range',
+      sql`${t.percentRead} IS NULL OR ${t.percentRead} BETWEEN 0 AND 100`,
     ),
     check(
       'book_user_status_dates_ordered',

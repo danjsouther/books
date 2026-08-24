@@ -12,6 +12,7 @@ export type EntityType = 'book' | 'series';
 export interface ChangeItem {
   readonly entityType: EntityType;
   readonly entityId: string;
+  readonly entitySlug: string;
   readonly version: number;
   readonly changeKind: ChangeKind;
   readonly actorId: string | null;

@@ -36,7 +36,7 @@ describe('BookHistoryPage', () => {
 
   it('expanding a row fetches and renders its diff against the previous version', async () => {
     const fixture = TestBed.createComponent(BookHistoryPage);
-    fixture.componentRef.setInput('id', 'book-1');
+    fixture.componentRef.setInput('slug', 'book-1');
     fixture.detectChanges();
     TestBed.tick();
     httpMock.expectOne((r) => r.url === '/api/v1/books/book-1/revisions').flush(REVISIONS);
@@ -63,7 +63,7 @@ describe('BookHistoryPage', () => {
 
   it('does not fetch a diff for version 1 — there is no predecessor', async () => {
     const fixture = TestBed.createComponent(BookHistoryPage);
-    fixture.componentRef.setInput('id', 'book-1');
+    fixture.componentRef.setInput('slug', 'book-1');
     fixture.detectChanges();
     TestBed.tick();
     httpMock.expectOne((r) => r.url === '/api/v1/books/book-1/revisions').flush(REVISIONS);

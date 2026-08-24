@@ -19,6 +19,7 @@ import {
   diffBookRevisions,
   getBookRevision,
   getBookRow,
+  getBookRowBySlug,
   getShelfStatus,
   listBookRevisions,
   listBooks,
@@ -34,6 +35,7 @@ import {
 } from '@books/db';
 import { Router, type Request } from 'express';
 import { omitUndefined } from '../lib/patch';
+import { resolveIdParam } from '../lib/resolve-id-param';
 import type { ApiDeps } from '../types';
 
 /** Every request past `requireAuth` has a non-null `req.user` — returns its id
@@ -66,6 +68,8 @@ async function requireBookRow(db: Db, id: string) {
 export function createBooksRouter(deps: ApiDeps): Router {
   const router = Router();
   const { db } = deps;
+
+  resolveIdParam(router, 'id', (slug) => getBookRowBySlug(db, slug));
 
   router.get('/', (req, res, next) => {
     void (async () => {

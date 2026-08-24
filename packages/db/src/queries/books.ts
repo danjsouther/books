@@ -1,9 +1,11 @@
 import type {
+  BookCommunityStatus,
   BookDetail,
   BookListItem,
   BookListQuery,
   BookStatus,
   BookSummary,
+  PublicBookStatus,
   RatingSummary,
   UserBookStatus,
 } from '@books/domain';
@@ -14,6 +16,7 @@ import { authors } from '../schema/authors';
 import { books } from '../schema/books';
 import { series } from '../schema/series';
 import { bookUserStatus } from '../schema/shelf';
+import { users } from '../schema/users';
 import { authorsOfBook } from '../mutations/authors';
 import type { Book } from '../mutations/books';
 import { paginate } from '../lib/paginate';
@@ -22,15 +25,18 @@ import { tokenizedMatch } from '../lib/text-search';
 export function toBookSummary(
   row: Book,
   authorsByBook: Map<string, { id: string; name: string }[]>,
-  seriesNames: ReadonlyMap<string, string>,
+  seriesInfo: ReadonlyMap<string, { name: string; slug: string }>,
 ): BookSummary {
+  const series = row.seriesId === null ? undefined : seriesInfo.get(row.seriesId);
   return {
     id: row.id,
+    slug: row.slug,
     title: row.title,
     subtitle: row.subtitle,
     authors: authorsByBook.get(row.id) ?? [],
     seriesId: row.seriesId,
-    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
+    seriesName: series?.name ?? null,
+    seriesSlug: series?.slug ?? null,
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,
@@ -65,25 +71,25 @@ export async function authorsByBookIds(
 }
 
 /**
- * Batch-fetches series names for a page of books, the `seriesName` half of
- * `toBookSummary`. Lives here rather than in `queries/series.ts` because that
- * module already imports from this one — defining it there would close an
- * import cycle. Takes the raw (nullable, duplicate-heavy) `seriesId` column
- * straight off a page of rows and does the filtering itself, since every caller
- * would otherwise write the same filter.
+ * Batch-fetches series name and slug for a page of books, the `seriesName`/
+ * `seriesSlug` half of `toBookSummary`. Lives here rather than in
+ * `queries/series.ts` because that module already imports from this one —
+ * defining it there would close an import cycle. Takes the raw (nullable,
+ * duplicate-heavy) `seriesId` column straight off a page of rows and does the
+ * filtering itself, since every caller would otherwise write the same filter.
  */
-export async function seriesNamesByIds(
+export async function seriesInfoByIds(
   db: Db,
   seriesIds: readonly (string | null)[],
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+): Promise<Map<string, { name: string; slug: string }>> {
+  const map = new Map<string, { name: string; slug: string }>();
   const ids = [...new Set(seriesIds.filter((id) => id !== null))];
   if (ids.length === 0) return map;
   const rows = await db
-    .select({ id: series.id, name: series.name })
+    .select({ id: series.id, name: series.name, slug: series.slug })
     .from(series)
     .where(inArray(series.id, ids));
-  for (const row of rows) map.set(row.id, row.name);
+  for (const row of rows) map.set(row.id, { name: row.name, slug: row.slug });
   return map;
 }
 
@@ -194,12 +200,12 @@ export async function listBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const [authorsByBook, seriesNames, myStatuses] = await Promise.all([
+  const [authorsByBook, seriesInfo, myStatuses] = await Promise.all([
     authorsByBookIds(
       db,
       bookRows.map((b) => b.id),
     ),
-    seriesNamesByIds(
+    seriesInfoByIds(
       db,
       bookRows.map((b) => b.seriesId),
     ),
@@ -211,7 +217,7 @@ export async function listBooks(
   ]);
   return {
     items: bookRows.map((row) => ({
-      ...toBookSummary(row, authorsByBook, seriesNames),
+      ...toBookSummary(row, authorsByBook, seriesInfo),
       myStatus: myStatuses.get(row.id) ?? null,
     })),
     total,
@@ -223,9 +229,19 @@ export async function getBookRow(db: Db, id: string): Promise<Book | undefined> 
   return row;
 }
 
-export async function listBookStatuses(db: Db, bookId: string): Promise<UserBookStatus[]> {
+/** Deliberately unfiltered by `deletedAt`, like `getBookRow` — a soft-deleted
+ *  book must still resolve so its detail page can render a trash banner rather
+ *  than 404. Used by `router.param` id-or-slug resolution; see `routes/books.ts`. */
+export async function getBookRowBySlug(db: Db, slug: string): Promise<Book | undefined> {
+  const [row] = await db.select().from(books).where(eq(books.slug, slug)).limit(1);
+  return row;
+}
+
+/** Every member's status for a book — public data, may be read by anyone, so this
+ *  returns `PublicBookStatus[]` (no `note`) rather than `UserBookStatus[]`. */
+export async function listBookStatuses(db: Db, bookId: string): Promise<PublicBookStatus[]> {
   const rows = await db.select().from(bookUserStatus).where(eq(bookUserStatus.bookId, bookId));
-  return rows.map(toUserBookStatus);
+  return rows.map(toPublicBookStatus);
 }
 
 async function ratingSummaryOf(db: Db, bookId: string): Promise<RatingSummary> {
@@ -247,16 +263,46 @@ async function ratingSummaryOf(db: Db, bookId: string): Promise<RatingSummary> {
   return { average: count === 0 ? null : sum / count, count, distribution };
 }
 
-export function toUserBookStatus(row: typeof bookUserStatus.$inferSelect): UserBookStatus {
+type UserBookStatusRow = Pick<
+  typeof bookUserStatus.$inferSelect,
+  | 'bookId'
+  | 'userId'
+  | 'status'
+  | 'rating'
+  | 'percentRead'
+  | 'note'
+  | 'publicNote'
+  | 'startedAt'
+  | 'finishedAt'
+  | 'updatedAt'
+>;
+
+/** The *private* mapper — includes `note`. Only call this for a row known to
+ *  belong to the requesting viewer; use `toPublicBookStatus` everywhere else. */
+export function toUserBookStatus(row: UserBookStatusRow): UserBookStatus {
   return {
     bookId: row.bookId,
     userId: row.userId,
     status: row.status,
     rating: row.rating,
+    percentRead: row.percentRead,
+    publicNote: row.publicNote,
+    note: row.note,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+/** The safe-for-anyone mapper — everything `toUserBookStatus` returns except
+ *  `note`, for results that may be read by someone other than the row's owner. */
+export function toPublicBookStatus(row: UserBookStatusRow): PublicBookStatus {
+  const { note: _note, ...publicFields } = toUserBookStatus(row);
+  return publicFields;
+}
+
+function toBookCommunityStatus(row: UserBookStatusRow & { username: string }): BookCommunityStatus {
+  return { ...toPublicBookStatus(row), username: row.username };
 }
 
 /** Everything `BookDetail` needs, resolved from a live row already in hand — the
@@ -267,24 +313,47 @@ export async function bookDetailFromRow(
   row: Book,
   viewerUserId: string | null,
 ): Promise<BookDetail> {
-  const [bookAuthors, statusRows, ratingSummary, seriesNames] = await Promise.all([
+  const [bookAuthors, statusRows, ratingSummary, seriesInfo] = await Promise.all([
     authorsOfBook(db, row.id),
-    db.select().from(bookUserStatus).where(eq(bookUserStatus.bookId, row.id)),
+    db
+      .select({
+        bookId: bookUserStatus.bookId,
+        userId: bookUserStatus.userId,
+        status: bookUserStatus.status,
+        rating: bookUserStatus.rating,
+        percentRead: bookUserStatus.percentRead,
+        note: bookUserStatus.note,
+        publicNote: bookUserStatus.publicNote,
+        startedAt: bookUserStatus.startedAt,
+        finishedAt: bookUserStatus.finishedAt,
+        updatedAt: bookUserStatus.updatedAt,
+        username: users.username,
+      })
+      .from(bookUserStatus)
+      .innerJoin(users, eq(users.id, bookUserStatus.userId))
+      .where(eq(bookUserStatus.bookId, row.id)),
     ratingSummaryOf(db, row.id),
-    seriesNamesByIds(db, [row.seriesId]),
+    seriesInfoByIds(db, [row.seriesId]),
   ]);
-  const statuses = statusRows.map(toUserBookStatus);
-  const myStatus =
-    viewerUserId === null ? null : (statuses.find((s) => s.userId === viewerUserId) ?? null);
+  // `statuses` is public — sent to every viewer of the book — so it is built with
+  // the note-stripping mapper. `myStatus` needs the private `note`, so it is
+  // resolved from the same underlying rows rather than by searching `statuses`.
+  const statuses = statusRows.map(toBookCommunityStatus);
+  const myRow =
+    viewerUserId === null ? undefined : statusRows.find((r) => r.userId === viewerUserId);
+  const myStatus = myRow === undefined ? null : toUserBookStatus(myRow);
+  const series = row.seriesId === null ? undefined : seriesInfo.get(row.seriesId);
 
   return {
     id: row.id,
+    slug: row.slug,
     title: row.title,
     subtitle: row.subtitle,
     description: row.description,
     authors: bookAuthors,
     seriesId: row.seriesId,
-    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
+    seriesName: series?.name ?? null,
+    seriesSlug: series?.slug ?? null,
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,

@@ -1,5 +1,6 @@
 import { schema, type Db } from '@books/db';
 import { connectForTests, hasDatabase, truncateAll } from '@books/db/test-support';
+import { slugify } from '@books/domain';
 import { eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -28,10 +29,12 @@ async function insertBook(
     createdAt: Date;
   }>,
 ): Promise<string> {
+  const title = overrides.title ?? 'A Book';
   const [row] = await db
     .insert(books)
     .values({
-      title: overrides.title ?? 'A Book',
+      title,
+      slug: slugify(title),
       releaseDate: overrides.releaseDate ?? null,
       releasePrecision: overrides.releasePrecision ?? 'unknown',
       ...(overrides.createdAt !== undefined && { createdAt: overrides.createdAt }),

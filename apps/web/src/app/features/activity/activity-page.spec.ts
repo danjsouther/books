@@ -12,7 +12,7 @@ function item(id: number, kind: ActivityItem['kind'] = 'book.added'): ActivityIt
     id,
     kind,
     actor: { id: 'u1', username: 'alice' },
-    book: { id: 'b1', title: 'A Book' },
+    book: { id: 'b1', slug: 'a-book', title: 'A Book' },
     payload: {},
     createdAt: new Date().toISOString(),
   };

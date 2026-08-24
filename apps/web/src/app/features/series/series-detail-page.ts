@@ -28,11 +28,11 @@ import { SeriesApi } from './series-api';
       }
       <p class="muted version">
         Version {{ series.version }} ·
-        <a [routerLink]="['/series', series.id, 'history']">History</a>
+        <a [routerLink]="['/series', series.slug, 'history']">History</a>
       </p>
 
       <div class="actions">
-        <a mat-stroked-button [routerLink]="['/series', series.id, 'edit']">Edit</a>
+        <a mat-stroked-button [routerLink]="['/series', series.slug, 'edit']">Edit</a>
         @if (series.deletedAt === null) {
           <button mat-stroked-button type="button" (click)="deleteDialog.showModal()">
             Delete
@@ -46,7 +46,7 @@ import { SeriesApi } from './series-api';
           <ul class="book-list">
             @for (book of books.value().items; track book.id) {
               <li>
-                <a [routerLink]="['/books', book.id]">{{ book.title }}</a>
+                <a [routerLink]="['/books', book.slug]">{{ book.title }}</a>
                 @if (book.seriesPosition) {
                   <span class="muted"> — #{{ book.seriesPosition }}</span>
                 }
@@ -98,6 +98,7 @@ import { SeriesApi } from './series-api';
 
     .description {
       margin-top: 0.5rem;
+      white-space: pre-line;
     }
 
     .muted {
@@ -156,7 +157,7 @@ import { SeriesApi } from './series-api';
   `,
 })
 export class SeriesDetailPage {
-  readonly id = input.required<string>();
+  readonly slug = input.required<string>();
 
   private readonly seriesApi = inject(SeriesApi);
   private readonly flash = inject(Flash);
@@ -164,20 +165,20 @@ export class SeriesDetailPage {
 
   protected readonly deleteDialog = viewChild.required<HTMLDialogElement>('deleteDialog');
 
-  protected readonly detail = httpResource<SeriesDetail>(() => `/api/v1/series/${this.id()}`);
+  protected readonly detail = httpResource<SeriesDetail>(() => `/api/v1/series/${this.slug()}`);
   protected readonly books = httpResource<ListResponse<BookSummary>>(() => ({
-    url: `/api/v1/series/${this.id()}/books`,
+    url: `/api/v1/series/${this.slug()}/books`,
     params: { pageSize: 50 },
   }));
 
   protected confirmDelete(): void {
     const name = this.detail.hasValue() ? this.detail.value().name : 'This series';
-    const id = this.id();
+    const slug = this.slug();
     this.deleteDialog().close();
-    this.seriesApi.delete(id).subscribe({
+    this.seriesApi.delete(slug).subscribe({
       next: () => {
         this.flash.show(`"${name}" moved to the trash.`, () => {
-          this.seriesApi.restore(id).subscribe();
+          this.seriesApi.restore(slug).subscribe();
         });
         void this.router.navigate(['/series']);
       },
@@ -186,7 +187,7 @@ export class SeriesDetailPage {
   }
 
   protected restore(): void {
-    this.seriesApi.restore(this.id()).subscribe({
+    this.seriesApi.restore(this.slug()).subscribe({
       next: () => this.detail.reload(),
       error: () => this.flash.show('Could not restore this series — please try again.'),
     });

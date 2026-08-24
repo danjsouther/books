@@ -86,14 +86,14 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.filter(
                 <strong>{{ item.actor?.username }}</strong
                 >&nbsp;<strong>added</strong>
                 @if (item.book) {
-                  &nbsp;<a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
+                  &nbsp;<a [routerLink]="['/books', item.book.slug]">{{ item.book.title }}</a>
                 }
               }
               @case ('status.changed') {
                 <strong>{{ item.actor?.username }}</strong
                 >&nbsp;<strong>marked</strong>&nbsp;
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a
+                  <a [routerLink]="['/books', item.book.slug]">{{ item.book.title }}</a
                   >&nbsp;
                 }
                 as&nbsp;<strong>{{ toValue(item) }}</strong>
@@ -107,7 +107,7 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.filter(
                   <strong>rated</strong>&nbsp;
                 }
                 @if (item.book) {
-                  <a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a
+                  <a [routerLink]="['/books', item.book.slug]">{{ item.book.title }}</a
                   >&nbsp;
                 }
                 @if (toValue(item) !== null) {
@@ -118,7 +118,7 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.filter(
                 <strong>{{ item.actor?.username }}</strong
                 >&nbsp;<strong>removed</strong>
                 @if (item.book) {
-                  &nbsp;<a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a>
+                  &nbsp;<a [routerLink]="['/books', item.book.slug]">{{ item.book.title }}</a>
                 }
                 &nbsp;from their shelf
               }
@@ -126,7 +126,7 @@ const KIND_OPTIONS: readonly SelectOption[] = ACTIVITY_KINDS.filter(
                 📕&nbsp;
                 @if (item.book) {
                   <strong
-                    ><a [routerLink]="['/books', item.book.id]">{{ item.book.title }}</a></strong
+                    ><a [routerLink]="['/books', item.book.slug]">{{ item.book.title }}</a></strong
                   >&nbsp;
                 }
                 <strong>is out today</strong>

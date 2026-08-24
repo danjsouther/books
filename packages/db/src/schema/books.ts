@@ -20,6 +20,9 @@ export const books = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     title: text('title').notNull(),
+    /** Generated once at creation from `title` and never regenerated — a stable
+     *  permalink, same contract as `id`. See `docs/data-model.md`. */
+    slug: text('slug').notNull(),
     subtitle: text('subtitle'),
     description: text('description'),
 
@@ -71,6 +74,11 @@ export const books = pgTable(
     uniqueIndex('books_live_asin_key')
       .on(t.asin)
       .where(sql`deleted_at IS NULL`),
+
+    /** Global, unlike the ASIN index above — a soft-deleted book still needs a
+     *  resolvable URL for `/trash` and for historical `/changes` entries, so a new
+     *  live book must never steal a trashed one's slug. See `docs/data-model.md`. */
+    uniqueIndex('books_slug_key').on(t.slug),
 
     /** Precision and date must agree in both directions, so neither a dated
      *  'unknown' nor an undated 'day' can exist. */

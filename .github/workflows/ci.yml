@@ -69,3 +69,65 @@ jobs:
       - run: npm run test:node
         env:
           DATABASE_URL: postgres://books:books@localhost:5432/books
+
+  # Only a push to `main` deploys — a PR that merely targets `main` is a
+  # `pull_request` event, not `push`, so it never matches this on its own; the
+  # `if` still names both conditions so this job stays correct if the trigger
+  # list above ever changes. `needs` gates it on both other jobs so a broken
+  # build or a failing integration spec can never reach production.
+  #
+  # The host already has Docker, Docker Compose, a clone of this repo, and a
+  # production `.env` (see README.md and docker-compose.yml) — this job's only
+  # responsibility is to update the checkout and rebuild, the same two commands
+  # a human would run by hand. It does not manage application secrets; those
+  # live in the host's own `.env` and are never touched from CI.
+  #
+  # Required repository configuration (Settings → Secrets and variables →
+  # Actions), scoped to a `production` environment:
+  #   secrets.DEPLOY_SSH_KEY — private key matching a public key already in
+  #     the host's ~/.ssh/authorized_keys (the `webapps-ec2` SSH alias's own
+  #     IdentityFile is a local convenience for a human, not something CI can
+  #     read — the runner needs its own copy of the key material)
+  #   vars.DEPLOY_HOST        — e.g. 18.190.33.12
+  #   vars.DEPLOY_USER        — e.g. ec2-user
+  #   vars.DEPLOY_PATH        — absolute path to the repo clone on the host
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: [build-and-test, integration]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Trust the host key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "
+            set -euo pipefail
+            cd '$DEPLOY_PATH'
+            git fetch origin main
+            git merge --ff-only origin/main
+            docker compose up -d --build
+
+            for i in \$(seq 1 10); do
+              if curl -fsS http://127.0.0.1:4000/api/v1/health >/dev/null; then
+                echo 'Health check passed.'
+                exit 0
+              fi
+              sleep 3
+            done
+            echo 'Health check failed after deploy.' >&2
+            exit 1
+          "
