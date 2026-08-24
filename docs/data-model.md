@@ -230,6 +230,18 @@ Rating history is not lost either: `rating.changed` activity rows carry `from` a
 `rating` is nullable, meaning **unrated**. `0` is a legitimate score distinct from
 "no opinion" — which is precisely why a nullable integer beats a sentinel.
 
+**`percent_read` and `public_note` are public; `note` is private.** All three live
+on `book_user_status` beside `rating`, for the same reason: they're attributes of
+the user/book relationship. `percent_read` (0–100, nullable) and `public_note`
+(free text, nullable) are visible to any member, same as `rating` — they appear in
+the "everyone's take" panel and in `GET /users/:id/shelf`. Marking a book
+`completed` forces `percent_read` to 100 (see `upsertShelfStatus`), overriding
+whatever the patch itself said — finishing a book means 100% by definition. No
+other status transition touches it. `note` is visible only to
+its own owner and is never selected into a query result that isn't scoped to the
+requesting viewer's own row — see `PublicBookStatus` vs `UserBookStatus` in
+`@books/domain`, and `toPublicBookStatus`/`toUserBookStatus` in `queries/books.ts`.
+
 **`book_user_status` is the one table with a hard delete.** Removing a book from
 your shelf really removes the row. Soft-deleting it would collide with the
 `(book_id, user_id)` primary key and make the upsert path meaningfully worse, and

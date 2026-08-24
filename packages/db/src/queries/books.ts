@@ -5,6 +5,7 @@ import type {
   BookListQuery,
   BookStatus,
   BookSummary,
+  PublicBookStatus,
   RatingSummary,
   UserBookStatus,
 } from '@books/domain';
@@ -236,9 +237,11 @@ export async function getBookRowBySlug(db: Db, slug: string): Promise<Book | und
   return row;
 }
 
-export async function listBookStatuses(db: Db, bookId: string): Promise<UserBookStatus[]> {
+/** Every member's status for a book — public data, may be read by anyone, so this
+ *  returns `PublicBookStatus[]` (no `note`) rather than `UserBookStatus[]`. */
+export async function listBookStatuses(db: Db, bookId: string): Promise<PublicBookStatus[]> {
   const rows = await db.select().from(bookUserStatus).where(eq(bookUserStatus.bookId, bookId));
-  return rows.map(toUserBookStatus);
+  return rows.map(toPublicBookStatus);
 }
 
 async function ratingSummaryOf(db: Db, bookId: string): Promise<RatingSummary> {
@@ -262,23 +265,44 @@ async function ratingSummaryOf(db: Db, bookId: string): Promise<RatingSummary> {
 
 type UserBookStatusRow = Pick<
   typeof bookUserStatus.$inferSelect,
-  'bookId' | 'userId' | 'status' | 'rating' | 'startedAt' | 'finishedAt' | 'updatedAt'
+  | 'bookId'
+  | 'userId'
+  | 'status'
+  | 'rating'
+  | 'percentRead'
+  | 'note'
+  | 'publicNote'
+  | 'startedAt'
+  | 'finishedAt'
+  | 'updatedAt'
 >;
 
+/** The *private* mapper — includes `note`. Only call this for a row known to
+ *  belong to the requesting viewer; use `toPublicBookStatus` everywhere else. */
 export function toUserBookStatus(row: UserBookStatusRow): UserBookStatus {
   return {
     bookId: row.bookId,
     userId: row.userId,
     status: row.status,
     rating: row.rating,
+    percentRead: row.percentRead,
+    publicNote: row.publicNote,
+    note: row.note,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
+/** The safe-for-anyone mapper — everything `toUserBookStatus` returns except
+ *  `note`, for results that may be read by someone other than the row's owner. */
+export function toPublicBookStatus(row: UserBookStatusRow): PublicBookStatus {
+  const { note: _note, ...publicFields } = toUserBookStatus(row);
+  return publicFields;
+}
+
 function toBookCommunityStatus(row: UserBookStatusRow & { username: string }): BookCommunityStatus {
-  return { ...toUserBookStatus(row), username: row.username };
+  return { ...toPublicBookStatus(row), username: row.username };
 }
 
 /** Everything `BookDetail` needs, resolved from a live row already in hand — the
@@ -297,6 +321,9 @@ export async function bookDetailFromRow(
         userId: bookUserStatus.userId,
         status: bookUserStatus.status,
         rating: bookUserStatus.rating,
+        percentRead: bookUserStatus.percentRead,
+        note: bookUserStatus.note,
+        publicNote: bookUserStatus.publicNote,
         startedAt: bookUserStatus.startedAt,
         finishedAt: bookUserStatus.finishedAt,
         updatedAt: bookUserStatus.updatedAt,
@@ -308,9 +335,13 @@ export async function bookDetailFromRow(
     ratingSummaryOf(db, row.id),
     seriesInfoByIds(db, [row.seriesId]),
   ]);
+  // `statuses` is public — sent to every viewer of the book — so it is built with
+  // the note-stripping mapper. `myStatus` needs the private `note`, so it is
+  // resolved from the same underlying rows rather than by searching `statuses`.
   const statuses = statusRows.map(toBookCommunityStatus);
-  const myStatus =
-    viewerUserId === null ? null : (statuses.find((s) => s.userId === viewerUserId) ?? null);
+  const myRow =
+    viewerUserId === null ? undefined : statusRows.find((r) => r.userId === viewerUserId);
+  const myStatus = myRow === undefined ? null : toUserBookStatus(myRow);
   const series = row.seriesId === null ? undefined : seriesInfo.get(row.seriesId);
 
   return {

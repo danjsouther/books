@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { BOOK_STATUSES } from './shelf';
 import { ListQuerySchema } from './list';
 import type { BookSummary } from './book';
-import type { BookStatus, UserBookStatus } from './shelf';
+import type { BookStatus, PublicBookStatus } from './shelf';
 
 /** Response item of `GET /users`. */
 export interface UserSummary {
@@ -25,10 +25,12 @@ export const UserListQuerySchema = ListQuerySchema.extend({
 });
 export type UserListQuery = z.infer<typeof UserListQuerySchema>;
 
-/** Response item of `GET /users/:id/shelf`. */
+/** Response item of `GET /users/:id/shelf` — a public profile page, so `status`
+ *  is `PublicBookStatus` (no private `note`), not `UserBookStatus`: `:id` here is
+ *  whoever's profile is being viewed, not necessarily the requester. */
 export interface ShelfEntry {
   readonly book: BookSummary;
-  readonly status: UserBookStatus;
+  readonly status: PublicBookStatus;
 }
 
 export const UserShelfQuerySchema = ListQuerySchema.extend({

@@ -60,9 +60,9 @@ GET    /books/:id/revisions/:v    → Revision (full snapshot)
 GET    /books/:id/revisions/:v/diff?against=  → FieldDiff[]
 POST   /books/:id/revert          { toVersion, note? } → BookDetail
 
-GET    /books/:id/statuses        → UserBookStatus[]        (every member's row)
+GET    /books/:id/statuses        → PublicBookStatus[]      (every member's row, no private `note`)
 GET    /books/:id/me              → UserBookStatus | null
-PATCH  /books/:id/me              { status?, rating?|null, startedAt?, finishedAt? } → UserBookStatus
+PATCH  /books/:id/me              { status?, rating?|null, percentRead?|null, note?|null, publicNote?|null, startedAt?, finishedAt? } → UserBookStatus
 DELETE /books/:id/me              204   (hard — removes the row entirely)
 ```
 

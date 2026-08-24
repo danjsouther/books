@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BOOK_STATUSES } from './shelf';
 import { ListQuerySchema, booleanQueryParam } from './list';
-import type { BookStatus, UserBookStatus } from './shelf';
+import type { BookStatus, PublicBookStatus, UserBookStatus } from './shelf';
 
 /** How much of a release date is actually known. See `docs/data-model.md`. */
 export const RELEASE_PRECISIONS = ['day', 'month', 'year', 'unknown'] as const;
@@ -128,9 +128,11 @@ export interface RatingSummary {
 }
 
 /** One community member's status entry as embedded in `BookDetail.statuses` —
- *  `UserBookStatus` plus the username, since this list is the one place a
- *  status needs to say whose take it is rather than the viewer's own. */
-export interface BookCommunityStatus extends UserBookStatus {
+ *  `PublicBookStatus` plus the username, since this list is the one place a
+ *  status needs to say whose take it is rather than the viewer's own. Extends
+ *  `PublicBookStatus`, not `UserBookStatus` — this list is sent to every viewer of
+ *  the book, so it must never be able to carry another member's private `note`. */
+export interface BookCommunityStatus extends PublicBookStatus {
   readonly username: string;
 }
 

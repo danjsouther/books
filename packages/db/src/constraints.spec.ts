@@ -85,6 +85,33 @@ describe.skipIf(!hasDatabase)('schema constraints', () => {
     expect(stored[0]?.rating).toBe(0);
   });
 
+  it('rejects a percent-read outside 0..100 but allows the boundaries and null', async () => {
+    const userId = await createTestUser(db);
+    const [row] = await db.insert(books).values(bookRow('In progress')).returning({ id: books.id });
+    const bookId = row?.id ?? '';
+
+    const violation = await violatedConstraint(() =>
+      db.insert(bookUserStatus).values({ bookId, userId, status: 'reading', percentRead: 101 }),
+    );
+    expect(violation).toBe('book_user_status_percent_read_range');
+
+    await db.insert(bookUserStatus).values({ bookId, userId, status: 'reading', percentRead: 0 });
+
+    const [finished] = await db
+      .insert(books)
+      .values(bookRow('Finished'))
+      .returning({ id: books.id });
+    await db.insert(bookUserStatus).values({
+      bookId: finished?.id ?? '',
+      userId,
+      status: 'completed',
+      percentRead: 100,
+    });
+
+    const stored = await db.select().from(bookUserStatus);
+    expect(stored.map((s) => s.percentRead).sort()).toEqual([0, 100]);
+  });
+
   it('rejects a finish date before the start date', async () => {
     const userId = await createTestUser(db);
     const [row] = await db.insert(books).values(bookRow('Backwards')).returning({ id: books.id });

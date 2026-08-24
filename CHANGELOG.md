@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Shelf entries have a progress slider and two notes (2026-08-24)
+
+Your shelf entry for a book now tracks how far into it you are (0–100%), plus
+a public note anyone can read and a personal note only you can see. Progress
+and the public note also show up in "Everyone's take" alongside status and
+rating; the personal note never leaves your own view. Marking a book completed
+sets progress to 100% automatically; no other status change touches it.
+
 ### Fixed — Book and series descriptions keep their line breaks (2026-08-24)
 
 Descriptions were rendered as plain `<p>` text, so HTML collapsed every
