@@ -143,7 +143,7 @@ describe('BooksListPage', () => {
     expect(row?.querySelector('.title-cell')).toBeTruthy();
   });
 
-  it('badges a row with the viewer’s own status, defaulting to backlog when unset', async () => {
+  it('badges a row with the viewer’s own status, omitting the badge when unset', async () => {
     const fixture = await renderWith([
       book({ id: 'b1', title: 'Reading', myStatus: 'reading' }),
       book({ id: 'b2', title: 'Untouched', myStatus: null }),
@@ -152,7 +152,7 @@ describe('BooksListPage', () => {
     const rows = el.querySelectorAll('.row-link');
 
     expect(rows[0]?.querySelector('.status-cell')?.textContent).toContain('reading');
-    expect(rows[1]?.querySelector('.status-cell')?.textContent).toContain('backlog');
+    expect(rows[1]?.querySelector('.status-cell')).toBeNull();
   });
 
   it('badges a grid tile with the viewer’s own status too', async () => {
@@ -164,6 +164,17 @@ describe('BooksListPage', () => {
     TestBed.tick();
 
     expect(el.querySelector('.tile .my-status')?.textContent).toContain('completed');
+  });
+
+  it('omits the grid tile badge for a book with no shelf entry', async () => {
+    const fixture = await renderWith([book({ myStatus: null })]);
+    const el = fixture.nativeElement as HTMLElement;
+
+    el.querySelector<HTMLElement>('[aria-label="Grid view"]')?.click();
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(el.querySelector('.tile .my-status')).toBeNull();
   });
 
   it('switching to the grid view renders full-size covers with the series name', async () => {
