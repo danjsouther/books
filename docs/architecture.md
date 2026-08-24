@@ -577,6 +577,21 @@ the container's internal `PORT: 4000` (matching `EXPOSE`/`HEALTHCHECK`,
 never overridable) and introducing a separate `SERVER_PORT` variable that
 controls only the host-side mapping.
 
+**CI deploys by SSHing in and running the same two commands a human would,
+not by pushing images to a registry.** `.github/workflows/ci.yml`'s `deploy`
+job — gated on both other jobs passing, and on the push actually landing on
+`main` — has no registry to push to and no reason to grow one just for this:
+the whole point of the single Dockerfile is that `docker compose up -d
+--build` already works unattended anywhere Docker is installed, including on
+the production host itself. `git merge --ff-only` (not `git reset --hard`) is
+deliberate: a fast-forward failure means the host's checkout has diverged
+from `main` somehow, and that should stop the deploy loudly rather than
+silently discard whatever is sitting there. Application secrets are
+intentionally out of scope for this job — they live in the host's own `.env`,
+exactly as a manually-run `docker compose up` would read them, so CI never
+needs to hold (or leak) a copy of them; the only credential CI carries is the
+SSH key that gets it onto the box in the first place.
+
 ## Accessibility rules that tooling cannot enforce
 
 Two contracts are written into the source as comments because no linter will

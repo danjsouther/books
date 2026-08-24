@@ -179,8 +179,13 @@ always sets it.
 CI runs `format:check`, `lint`, `typecheck`, `build`, `build:bot`,
 `build:migrate`, and the Angular tests on every push and pull request to
 `main` and `dev`, and runs the Node suite in a second job against a Postgres
-service container. It does not build or publish Docker images — see
-[docs/TODO.md](docs/TODO.md).
+service container. A push to `main` that passes both jobs also deploys: a
+third job SSHes into the production host and runs `git merge --ff-only` plus
+`docker compose up -d --build` — the same two commands you'd run by hand — then
+polls `/api/v1/health` before declaring success. It does not build or publish
+Docker images to a registry; the host builds its own, from its own checkout.
+See [.github/workflows/ci.yml](.github/workflows/ci.yml) for the required
+repository secrets and variables.
 
 ## Conventions
 
