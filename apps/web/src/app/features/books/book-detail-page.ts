@@ -15,7 +15,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { debounceTime, Subject } from 'rxjs';
-import { formatReleaseDate, type AuthorRef, type BookDetail, type BookStatus } from '@books/domain';
+import {
+  formatReleaseDate,
+  type AuthorRef,
+  type BookCommunityStatus,
+  type BookDetail,
+  type BookStatus,
+} from '@books/domain';
+import { AuthStore } from '../../core/auth-store';
 import { Flash } from '../../core/flash';
 import { BookCover } from '../../shared/ui/book-cover';
 import { Chip } from '../../shared/ui/chip';
@@ -170,7 +177,7 @@ const COMMUNITY_PAGE_SIZE = 10;
         <app-pagination
           [page]="communityPageIndex()"
           [pageSize]="communityPageSize"
-          [total]="book.statuses.length"
+          [total]="mergedStatuses().length"
           (goToPage)="communityPageIndex.set($event)"
         />
       </section>
@@ -352,6 +359,7 @@ export class BookDetailPage {
   private readonly shelfApi = inject(ShelfApi);
   private readonly flash = inject(Flash);
   private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
 
   protected readonly deleteDialog = viewChild.required<HTMLDialogElement>('deleteDialog');
 
@@ -397,10 +405,49 @@ export class BookDetailPage {
 
   protected readonly communityPageIndex = signal(1);
   protected readonly communityPageSize = COMMUNITY_PAGE_SIZE;
-  protected readonly communityPage = computed(() => {
+
+  /**
+   * What the viewer's own row in "Everyone's take" looks like right now, built
+   * from the same optimistic signals as "Your shelf" rather than from the
+   * server-fetched `statuses` — otherwise a shelf edit would only reach the
+   * community list on a full reload. `null` status means no shelf entry, so
+   * nothing to show there. Only public fields go in; `note` never does.
+   */
+  private readonly myCommunityEntry = computed<BookCommunityStatus | null>(() => {
+    const status = this.myStatus();
+    const me = this.authStore.user();
+    if (status === null || me === null || !this.detail.hasValue()) return null;
+    const book = this.detail.value();
+    const existing = book.statuses.find((s) => s.userId === me.id);
+    return {
+      bookId: book.id,
+      userId: me.id,
+      username: me.username,
+      status,
+      rating: this.myRating(),
+      percentRead: this.myPercentRead(),
+      publicNote: this.myPublicNote(),
+      startedAt: existing?.startedAt ?? null,
+      finishedAt: existing?.finishedAt ?? null,
+      updatedAt: existing?.updatedAt ?? new Date().toISOString(),
+    };
+  });
+
+  /** `detail.value().statuses` with the viewer's own row replaced (or added, or
+   *  removed) by `myCommunityEntry` — see its comment for why. */
+  protected readonly mergedStatuses = computed<BookCommunityStatus[]>(() => {
     if (!this.detail.hasValue()) return [];
+    const base = this.detail.value().statuses;
+    const me = this.authStore.user();
+    if (me === null) return base;
+    const mine = this.myCommunityEntry();
+    const withoutMine = base.filter((s) => s.userId !== me.id);
+    return mine === null ? withoutMine : [...withoutMine, mine];
+  });
+
+  protected readonly communityPage = computed(() => {
     const start = (this.communityPageIndex() - 1) * COMMUNITY_PAGE_SIZE;
-    return this.detail.value().statuses.slice(start, start + COMMUNITY_PAGE_SIZE);
+    return this.mergedStatuses().slice(start, start + COMMUNITY_PAGE_SIZE);
   });
 
   constructor() {

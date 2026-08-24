@@ -13,6 +13,8 @@ a public note anyone can read and a personal note only you can see. Progress
 and the public note also show up in "Everyone's take" alongside status and
 rating; the personal note never leaves your own view. Marking a book completed
 sets progress to 100% automatically; no other status change touches it.
+Editing your own shelf now updates your row in "Everyone's take" immediately,
+instead of waiting for a reload.
 
 ### Fixed — Book and series descriptions keep their line breaks (2026-08-24)
 
