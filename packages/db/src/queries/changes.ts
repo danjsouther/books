@@ -9,6 +9,7 @@ import { series } from '../schema/series';
 interface RawChangeRow {
   readonly entityType: 'book' | 'series';
   readonly entityId: string;
+  readonly entitySlug: string;
   readonly version: number;
   readonly changeKind: ChangeItem['changeKind'];
   readonly actorId: string | null;
@@ -35,6 +36,7 @@ async function fetchBookRows(db: Db, filters: ChangeListQuery): Promise<RawChang
       changedAt: bookRevisions.changedAt,
       snapshot: bookRevisions.snapshot,
       title: books.title,
+      slug: books.slug,
     })
     .from(bookRevisions)
     .innerJoin(books, eq(books.id, bookRevisions.bookId))
@@ -43,6 +45,7 @@ async function fetchBookRows(db: Db, filters: ChangeListQuery): Promise<RawChang
   return rows.map((r) => ({
     entityType: 'book' as const,
     entityId: r.bookId,
+    entitySlug: r.slug,
     version: r.version,
     changeKind: r.changeKind,
     actorId: r.changedBy,
@@ -70,6 +73,7 @@ async function fetchSeriesRows(db: Db, filters: ChangeListQuery): Promise<RawCha
       changedAt: seriesRevisions.changedAt,
       snapshot: seriesRevisions.snapshot,
       title: series.name,
+      slug: series.slug,
     })
     .from(seriesRevisions)
     .innerJoin(series, eq(series.id, seriesRevisions.seriesId))
@@ -78,6 +82,7 @@ async function fetchSeriesRows(db: Db, filters: ChangeListQuery): Promise<RawCha
   return rows.map((r) => ({
     entityType: 'series' as const,
     entityId: r.seriesId,
+    entitySlug: r.slug,
     version: r.version,
     changeKind: r.changeKind,
     actorId: r.changedBy,
@@ -141,6 +146,7 @@ export async function listChanges(
       return {
         entityType: row.entityType,
         entityId: row.entityId,
+        entitySlug: row.entitySlug,
         version: row.version,
         changeKind: row.changeKind,
         actorId: row.actorId,

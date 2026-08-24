@@ -1,8 +1,9 @@
-import { AppError } from '@books/domain';
+import { AppError, slugify, uniqueSlug } from '@books/domain';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../client';
 import { series } from '../schema/series';
 import { seriesRevisions } from '../schema/revisions';
+import { isUniqueSlugViolation } from './slug-constraint';
 import {
   createWithRevision,
   updateWithRevision,
@@ -46,12 +47,33 @@ const spec: RevisionSpec<Series, SeriesInput> = {
   },
 
   async insert(tx, input, actorId) {
-    const [row] = await tx
-      .insert(series)
-      .values({ ...input, version: 1, createdBy: actorId, updatedBy: actorId })
-      .returning();
-    if (row === undefined) throw new AppError('internal_error', 'Insert returned no row.');
-    return row;
+    const base = slugify(input.name);
+    const MAX_ATTEMPTS = 5;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const slug = await uniqueSlug(base, async (candidate) => {
+        const [existing] = await tx
+          .select({ id: series.id })
+          .from(series)
+          .where(eq(series.slug, candidate))
+          .limit(1);
+        return existing !== undefined;
+      });
+      try {
+        // Savepoint — see the identical comment in `mutations/books.ts`.
+        return await tx.transaction(async (savepointTx) => {
+          const [row] = await savepointTx
+            .insert(series)
+            .values({ ...input, slug, version: 1, createdBy: actorId, updatedBy: actorId })
+            .returning();
+          if (row === undefined) throw new AppError('internal_error', 'Insert returned no row.');
+          return row;
+        });
+      } catch (error) {
+        if (attempt === MAX_ATTEMPTS || !isUniqueSlugViolation(error, 'series_slug_key'))
+          throw error;
+      }
+    }
+    throw new AppError('internal_error', 'Could not generate a unique slug.');
   },
 
   async update(tx, id, input, version, actorId) {

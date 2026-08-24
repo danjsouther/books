@@ -202,7 +202,7 @@ describe('BookFormPage', () => {
 
   it('seeds the model from the loaded book exactly once in edit mode', async () => {
     const fixture = TestBed.createComponent(BookFormPage);
-    fixture.componentRef.setInput('id', 'book-1');
+    fixture.componentRef.setInput('slug', 'book-1');
     fixture.detectChanges();
     TestBed.tick();
 
@@ -225,7 +225,7 @@ describe('BookFormPage', () => {
 
   it('shows the conflict banner on a 409, and keeps the typed model', async () => {
     const fixture = TestBed.createComponent(BookFormPage);
-    fixture.componentRef.setInput('id', 'book-1');
+    fixture.componentRef.setInput('slug', 'book-1');
     fixture.detectChanges();
     TestBed.tick();
     httpMock.expectOne((r) => r.url === '/api/v1/books/book-1').flush(BOOK_DETAIL);

@@ -19,6 +19,7 @@
     "test:node": "vitest run --config vitest.node.config.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx packages/db/src/cli/migrate.ts",
+    "db:backfill-slugs": "tsx packages/db/src/cli/backfill-slugs.ts",
     "db:seed": "tsx packages/db/src/cli/seed.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "ng lint",

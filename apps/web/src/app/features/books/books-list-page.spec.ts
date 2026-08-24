@@ -11,11 +11,13 @@ const EMPTY_SERIES = { items: [], page: 1, pageSize: 10, total: 0 };
 function book(overrides: Partial<BookListItem> = {}): BookListItem {
   return {
     id: 'b1',
+    slug: 'leviathan-wakes',
     title: 'Leviathan Wakes',
     subtitle: null,
     authors: [{ id: 'a1', name: 'James S. A. Corey' }],
     seriesId: 's1',
     seriesName: 'The Expanse',
+    seriesSlug: 'the-expanse',
     seriesPosition: '1',
     releaseDate: '2011-06-15',
     releasePrecision: 'day',

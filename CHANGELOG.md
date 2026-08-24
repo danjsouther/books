@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Book and series URLs use readable slugs instead of UUIDs (2026-08-24)
+
+`/books/a1b2c3d4-...` is now `/books/mistborn-the-final-empire`, and the same
+for series pages. Slugs are generated once, from the title/name, and never
+change afterward — even after an edit — so existing links keep working. Old
+UUID-based URLs still resolve too. Member profile URLs are unchanged.
+
 ### Added — "Everyone's take" names whose status and rating each row is (2026-08-24)
 
 The book detail page's community list showed a status chip and rating per

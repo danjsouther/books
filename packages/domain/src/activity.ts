@@ -19,7 +19,7 @@ export interface ActivityItem {
   readonly kind: ActivityKind;
   /** `null` for system events — `book.released` has no actor. */
   readonly actor: { readonly id: string; readonly username: string } | null;
-  readonly book: { readonly id: string; readonly title: string } | null;
+  readonly book: { readonly id: string; readonly slug: string; readonly title: string } | null;
   /** `{ from, to }` for status and rating changes. */
   readonly payload: Record<string, unknown>;
   readonly createdAt: string;

@@ -1,5 +1,6 @@
 import { schema, type Db } from '@books/db';
 import { connectForTests, createTestUser, hasDatabase, truncateAll } from '@books/db/test-support';
+import { slugify } from '@books/domain';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { listUpcomingReleases } from './releases';
@@ -19,10 +20,12 @@ async function insertBook(
     deletedAt: Date;
   }>,
 ): Promise<string> {
+  const title = overrides.title ?? 'A Book';
   const [row] = await db
     .insert(books)
     .values({
-      title: overrides.title ?? 'A Book',
+      title,
+      slug: slugify(title),
       releaseDate: overrides.releaseDate ?? null,
       releasePrecision: overrides.releasePrecision ?? 'day',
       ...(overrides.seriesId !== undefined && { seriesId: overrides.seriesId }),
@@ -76,9 +79,12 @@ describe.skipIf(!hasDatabase)('listUpcomingReleases', () => {
   });
 
   it('narrows by seriesId', async () => {
-    const [seriesRow] = await db.insert(series).values({ name: 'The Expanse' }).returning({
-      id: series.id,
-    });
+    const [seriesRow] = await db
+      .insert(series)
+      .values({ name: 'The Expanse', slug: slugify('The Expanse') })
+      .returning({
+        id: series.id,
+      });
     if (seriesRow === undefined) throw new Error('no series row');
 
     await insertBook(db, {

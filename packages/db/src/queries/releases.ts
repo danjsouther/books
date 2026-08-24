@@ -4,7 +4,7 @@ import type { Db } from '../client';
 import { books } from '../schema/books';
 import { series } from '../schema/series';
 import { bookUserStatus } from '../schema/shelf';
-import { authorsByBookIds, seriesNamesByIds, toBookSummary } from './books';
+import { authorsByBookIds, seriesInfoByIds, toBookSummary } from './books';
 import { liveBooks } from './active';
 
 /**
@@ -36,12 +36,12 @@ export async function listReleases(db: Db, filters: ReleaseListQuery, viewerUser
     .where(and(...clauses))
     .orderBy(asc(books.releaseDate), asc(books.id));
 
-  const [authorsByBook, seriesNames] = await Promise.all([
+  const [authorsByBook, seriesInfo] = await Promise.all([
     authorsByBookIds(
       db,
       rows.map((r) => r.id),
     ),
-    seriesNamesByIds(
+    seriesInfoByIds(
       db,
       rows.map((r) => r.seriesId),
     ),
@@ -56,7 +56,7 @@ export async function listReleases(db: Db, filters: ReleaseListQuery, viewerUser
   };
 
   for (const row of rows) {
-    const summary = toBookSummary(row, authorsByBook, seriesNames);
+    const summary = toBookSummary(row, authorsByBook, seriesInfo);
     switch (row.releasePrecision) {
       case 'day':
         response.dated.push(summary);

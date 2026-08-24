@@ -19,6 +19,7 @@ export * from './release';
 export * from './revision';
 export * from './series';
 export * from './shelf';
+export * from './slug';
 export * from './trash';
 export * from './user';
 export * from './users';

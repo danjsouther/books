@@ -31,6 +31,7 @@ export async function listActivity(db: Db, filters: ActivityListQuery): Promise<
       actorUsername: users.username,
       bookId: books.id,
       bookTitle: books.title,
+      bookSlug: books.slug,
     })
     .from(activity)
     .leftJoin(users, eq(users.id, activity.actorId))
@@ -50,9 +51,9 @@ export async function listActivity(db: Db, filters: ActivityListQuery): Promise<
         ? null
         : { id: row.actorId, username: row.actorUsername },
     book:
-      row.bookId === null || row.bookTitle === null
+      row.bookId === null || row.bookTitle === null || row.bookSlug === null
         ? null
-        : { id: row.bookId, title: row.bookTitle },
+        : { id: row.bookId, title: row.bookTitle, slug: row.bookSlug },
     payload: row.payload as Record<string, unknown>,
     createdAt: row.createdAt.toISOString(),
   }));

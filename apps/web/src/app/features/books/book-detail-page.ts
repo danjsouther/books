@@ -69,9 +69,9 @@ const COMMUNITY_PAGE_SIZE = 10;
           @if (book.authors.length > 0) {
             <p class="authors">{{ authorNames(book.authors) }}</p>
           }
-          @if (book.seriesId) {
+          @if (book.seriesSlug) {
             <p class="series">
-              <a [routerLink]="['/series', book.seriesId]">{{ book.seriesName ?? 'Series' }}</a>
+              <a [routerLink]="['/series', book.seriesSlug]">{{ book.seriesName ?? 'Series' }}</a>
               @if (book.seriesPosition) {
                 — #{{ book.seriesPosition }}
               }
@@ -91,11 +91,11 @@ const COMMUNITY_PAGE_SIZE = 10;
 
           <p class="muted version">
             Version {{ book.version }} ·
-            <a [routerLink]="['/books', book.id, 'history']">History</a>
+            <a [routerLink]="['/books', book.slug, 'history']">History</a>
           </p>
 
           <div class="actions">
-            <a mat-stroked-button [routerLink]="['/books', book.id, 'edit']">Edit</a>
+            <a mat-stroked-button [routerLink]="['/books', book.slug, 'edit']">Edit</a>
             @if (book.deletedAt === null) {
               <button mat-stroked-button type="button" (click)="deleteDialog.showModal()">
                 Delete
@@ -285,7 +285,7 @@ const COMMUNITY_PAGE_SIZE = 10;
   `,
 })
 export class BookDetailPage {
-  readonly id = input.required<string>();
+  readonly slug = input.required<string>();
 
   private readonly booksApi = inject(BooksApi);
   private readonly shelfApi = inject(ShelfApi);
@@ -294,7 +294,7 @@ export class BookDetailPage {
 
   protected readonly deleteDialog = viewChild.required<HTMLDialogElement>('deleteDialog');
 
-  protected readonly detail = httpResource<BookDetail>(() => `/api/v1/books/${this.id()}`);
+  protected readonly detail = httpResource<BookDetail>(() => `/api/v1/books/${this.slug()}`);
 
   protected readonly formatReleaseDate = formatReleaseDate;
 
@@ -354,7 +354,7 @@ export class BookDetailPage {
         this.flash.show('Could not update your status — please try again.');
       };
       if (status === null) {
-        this.shelfApi.remove(this.id()).subscribe({
+        this.shelfApi.remove(this.slug()).subscribe({
           next: () => {
             this.confirmedStatus = null;
             this.confirmedRating = null;
@@ -363,7 +363,7 @@ export class BookDetailPage {
           error: onError,
         });
       } else {
-        this.shelfApi.update(this.id(), { status }).subscribe({
+        this.shelfApi.update(this.slug(), { status }).subscribe({
           next: () => {
             this.confirmedStatus = status;
           },
@@ -373,7 +373,7 @@ export class BookDetailPage {
     });
 
     this.ratingChanges.pipe(debounceTime(600), takeUntilDestroyed()).subscribe((rating) => {
-      this.shelfApi.update(this.id(), { rating }).subscribe({
+      this.shelfApi.update(this.slug(), { rating }).subscribe({
         next: () => {
           this.confirmedRating = rating;
         },
@@ -401,12 +401,12 @@ export class BookDetailPage {
 
   protected confirmDelete(): void {
     const title = this.detail.hasValue() ? this.detail.value().title : 'This book';
-    const id = this.id();
+    const slug = this.slug();
     this.deleteDialog().close();
-    this.booksApi.delete(id).subscribe({
+    this.booksApi.delete(slug).subscribe({
       next: () => {
         this.flash.show(`"${title}" moved to the trash.`, () => {
-          this.booksApi.restore(id).subscribe();
+          this.booksApi.restore(slug).subscribe();
         });
         void this.router.navigate(['/books']);
       },
@@ -417,7 +417,7 @@ export class BookDetailPage {
   }
 
   protected restore(): void {
-    this.booksApi.restore(this.id()).subscribe({
+    this.booksApi.restore(this.slug()).subscribe({
       next: () => this.detail.reload(),
       error: () => this.flash.show('Could not restore this book — please try again.'),
     });

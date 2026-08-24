@@ -1,3 +1,4 @@
+import { slugify } from '@books/domain';
 import { eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -45,7 +46,10 @@ describe.skipIf(!hasDatabase)('author resolution and linking', () => {
   });
 
   async function newBook(title: string): Promise<string> {
-    const [row] = await db.insert(books).values({ title }).returning({ id: books.id });
+    const [row] = await db
+      .insert(books)
+      .values({ title, slug: slugify(title) })
+      .returning({ id: books.id });
     if (row === undefined) throw new Error('no book');
     return row.id;
   }

@@ -97,6 +97,48 @@ restore is lossless; while the series is deleted the join resolves to nothing an
 books render as unattached. That is a genuine advantage over `ON DELETE SET NULL`,
 which loses the association permanently.
 
+## Slugs are permanent, and their uniqueness is global
+
+`books` and `series` each carry a `slug` — a URL-friendly identifier
+(`mistborn-the-final-empire`) generated once, at creation, from `title`/`name`.
+It exists purely so a URL can be readable instead of a bare UUID; `id` stays
+the real internal identifier everywhere else — foreign keys, revision tables,
+the activity feed. Member profile URLs are deliberately **not** slugged — they
+stay on the raw `id` — since a member's Discord identity has no field that is
+both stable and meant to be public the way a book's title is.
+
+**A slug never changes once assigned**, even across an edit that changes the
+field it was derived from. This is the same permanence contract `id` already
+has: a bookmarked or shared URL must keep working, so nothing regenerates a
+slug on write.
+
+**Slug uniqueness is global, not scoped to live rows** — the deliberate
+opposite of `books_live_asin_key` above. A trashed book still needs a
+resolvable URL, both on the `/trash` page and in historical `/changes` entries,
+so a new live book must never be allowed to steal a soft-deleted one's slug.
+Where the ASIN index carries `WHERE deleted_at IS NULL`, `books_slug_key` and
+`series_slug_key` deliberately do not.
+
+**Collisions get a numeric suffix.** Two books titled "Dune" become
+`dune` and `dune-2`. The candidate is checked against the current transaction
+before insert, and a unique-violation on the actual insert — the rare case of
+two concurrent creates picking the same candidate — is caught and retried with
+the next suffix; the unique index is the backstop, the same relationship the
+ASIN section above describes between its own check and its index.
+
+**Resolution is transparent between id and slug.** The API layer accepts
+either form on any book or series route that takes an id — an Express
+`router.param` handler detects the UUID shape and, when the value isn't one,
+resolves it to the real id by slug before any route handler runs. This is what
+let existing internal API calls (delete, restore, shelf status, revisions)
+keep working unmodified once the frontend started routing on slugs instead of
+ids.
+
+**`users.username` is unique case-insensitively**, mirroring
+`authors_name_lower_key` — two members named `books_fan` and `Books_Fan` is a
+defect, not a cosmetic annoyance. This is unrelated to slugging: members are
+identified in URLs by `id`, same as before.
+
 ## Authors are a lookup; authorship is catalog history
 
 `books` has **no authors column**. Authorship lives in `authors` (id, name) and
@@ -228,3 +270,12 @@ push` is for local scratch only; it skips the reviewable artifact.
 `npm run db:migrate` is a standalone entry point, never something the server runs
 at boot — two processes racing `migrate()` on startup is a real failure mode, and
 coupling schema changes to application start makes rollback impossible.
+
+**A column that needs backfilling before it can go `NOT NULL` deploys in two
+migrations, with a script run by hand in between.** The `slug` columns are the
+example: migration one adds the column nullable, `npm run db:backfill-slugs`
+(also a standalone entry point, same shape as `db:migrate`/`db:seed`) fills in
+every existing row, and only then does migration two add `NOT NULL` and the
+unique indexes. Running migration two before the backfill fails loudly — a
+`NOT NULL` violation on whatever rows are still unfilled — which is an
+acceptable guard rail for a step that has to happen in order regardless.

@@ -1,5 +1,6 @@
 import { schema, type Db } from '@books/db';
 import { connectForTests, createTestUser, hasDatabase, truncateAll } from '@books/db/test-support';
+import { slugify } from '@books/domain';
 import type { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { listBooks } from './books';
@@ -27,8 +28,14 @@ describe.skipIf(!hasDatabase)('listBooks sort=rating', () => {
   it('orders by average rating, not by title', async () => {
     const userId = await createTestUser(db, 'rater');
 
-    const [zBook] = await db.insert(books).values({ title: 'Z Book' }).returning({ id: books.id });
-    const [aBook] = await db.insert(books).values({ title: 'A Book' }).returning({ id: books.id });
+    const [zBook] = await db
+      .insert(books)
+      .values({ title: 'Z Book', slug: slugify('Z Book') })
+      .returning({ id: books.id });
+    const [aBook] = await db
+      .insert(books)
+      .values({ title: 'A Book', slug: slugify('A Book') })
+      .returning({ id: books.id });
     if (!zBook || !aBook) throw new Error('Book insert failed.');
 
     await db.insert(bookUserStatus).values([
@@ -54,8 +61,11 @@ describe.skipIf(!hasDatabase)('listBooks sort=rating', () => {
   it('sorts unrated books last under desc, without erroring', async () => {
     const userId = await createTestUser(db, 'rater2');
 
-    const [rated] = await db.insert(books).values({ title: 'Rated' }).returning({ id: books.id });
-    await db.insert(books).values({ title: 'Unrated' });
+    const [rated] = await db
+      .insert(books)
+      .values({ title: 'Rated', slug: slugify('Rated') })
+      .returning({ id: books.id });
+    await db.insert(books).values({ title: 'Unrated', slug: slugify('Unrated') });
     if (!rated) throw new Error('Book insert failed.');
 
     await db.insert(bookUserStatus).values({ bookId: rated.id, userId, rating: 5 });

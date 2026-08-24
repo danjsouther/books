@@ -114,7 +114,7 @@ function readStoredView(): ListView {
       <ul class="tiles">
         @for (book of store.items(); track book.id) {
           <li class="tile">
-            <a [routerLink]="[book.id]" class="tile-link">
+            <a [routerLink]="[book.slug]" class="tile-link">
               <app-book-cover
                 decorative
                 [src]="book.coverUrl"
@@ -127,9 +127,9 @@ function readStoredView(): ListView {
             @if (book.myStatus) {
               <app-chip class="my-status" [label]="book.myStatus" [tone]="book.myStatus" />
             }
-            @if (book.seriesId) {
+            @if (book.seriesSlug) {
               <p class="muted">
-                <a [routerLink]="['/series', book.seriesId]" class="series-link">
+                <a [routerLink]="['/series', book.seriesSlug]" class="series-link">
                   {{ book.seriesName ?? 'Series' }}
                 </a>
               </p>
@@ -144,7 +144,7 @@ function readStoredView(): ListView {
       <ul class="rows">
         @for (book of store.items(); track book.id) {
           <li class="row">
-            <a [routerLink]="[book.id]" class="row-link">
+            <a [routerLink]="[book.slug]" class="row-link">
               <app-book-cover
                 decorative
                 [src]="book.coverUrl"

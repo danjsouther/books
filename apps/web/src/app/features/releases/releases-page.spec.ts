@@ -22,11 +22,13 @@ function book(
 ): BookSummary {
   return {
     id,
+    slug: id,
     title,
     subtitle: null,
     authors: [],
     seriesId: null,
     seriesName: null,
+    seriesSlug: null,
     seriesPosition: null,
     releaseDate,
     releasePrecision: precision,

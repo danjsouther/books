@@ -16,6 +16,7 @@ async function fetchTrashedBooks(db: Db, filters: TrashListQuery): Promise<Trash
     .where(and(...clauses));
   return rows.map((row) => ({
     id: row.id,
+    slug: row.slug,
     type: 'book' as const,
     title: row.title,
     // `deletedAt` is non-null by construction of the `IS NOT NULL` filter above.
@@ -35,6 +36,7 @@ async function fetchTrashedSeries(db: Db, filters: TrashListQuery): Promise<Tras
     .where(and(...clauses));
   return rows.map((row) => ({
     id: row.id,
+    slug: row.slug,
     type: 'series' as const,
     title: row.name,
     deletedAt: row.deletedAt!.toISOString(),

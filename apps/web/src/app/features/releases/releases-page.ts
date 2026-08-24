@@ -100,7 +100,7 @@ function monthLabelFor(key: string): string {
           <ul class="list">
             @for (book of group.books; track book.id) {
               <li class="row">
-                <a [routerLink]="['/books', book.id]" class="row-main">
+                <a [routerLink]="['/books', book.slug]" class="row-main">
                   <app-book-cover
                     decorative
                     [src]="book.coverUrl"
@@ -144,7 +144,7 @@ function monthLabelFor(key: string): string {
             <ul class="list">
               @for (book of group.books; track book.id) {
                 <li class="row">
-                  <a [routerLink]="['/books', book.id]" class="row-main">
+                  <a [routerLink]="['/books', book.slug]" class="row-main">
                     <app-book-cover
                       decorative
                       [src]="book.coverUrl"
@@ -177,7 +177,7 @@ function monthLabelFor(key: string): string {
           <ul class="list">
             @for (book of store.releases().undated; track book.id) {
               <li class="row">
-                <a [routerLink]="['/books', book.id]" class="row-main">
+                <a [routerLink]="['/books', book.slug]" class="row-main">
                   <app-book-cover
                     decorative
                     [src]="book.coverUrl"

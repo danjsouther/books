@@ -22,14 +22,14 @@ const BLANK_MODEL: SeriesFormModel = { name: '', sortName: '', description: '' }
   selector: 'app-series-form-page',
   imports: [RouterLink, FormField, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
-    <h1>{{ id() ? 'Edit series' : 'Add a series' }}</h1>
+    <h1>{{ slug() ? 'Edit series' : 'Add a series' }}</h1>
 
     @if (conflictMessage(); as message) {
       <div class="conflict-banner">
         <p class="conflict-message">{{ message }}</p>
         <div class="conflict-actions">
-          @if (id(); as seriesId) {
-            <a [routerLink]="['/series', seriesId, 'history']"> Review the changes </a>
+          @if (slug(); as seriesSlug) {
+            <a [routerLink]="['/series', seriesSlug, 'history']"> Review the changes </a>
           }
           <button type="button" class="link-btn" (click)="reloadAndDiscardMyChanges()">
             Reload and discard my changes
@@ -73,7 +73,7 @@ const BLANK_MODEL: SeriesFormModel = { name: '', sortName: '', description: '' }
       }
 
       <button mat-flat-button type="submit" [disabled]="seriesForm().submitting()">
-        {{ id() ? 'Save changes' : 'Add series' }}
+        {{ slug() ? 'Save changes' : 'Add series' }}
       </button>
     </form>
   `,
@@ -132,7 +132,7 @@ const BLANK_MODEL: SeriesFormModel = { name: '', sortName: '', description: '' }
   `,
 })
 export class SeriesFormPage {
-  readonly id = input<string>();
+  readonly slug = input<string>();
 
   private readonly seriesApi = inject(SeriesApi);
   private readonly router = inject(Router);
@@ -143,7 +143,7 @@ export class SeriesFormPage {
   protected readonly formError = signal<string | null>(null);
 
   readonly existing = httpResource<SeriesDetail>(() =>
-    this.id() ? `/api/v1/series/${this.id()}` : undefined,
+    this.slug() ? `/api/v1/series/${this.slug()}` : undefined,
   );
 
   readonly seriesForm = form(this.model, (p) => {
@@ -181,17 +181,17 @@ export class SeriesFormPage {
       this.conflictMessage.set(null);
       try {
         const input = this.toApiInput(this.model());
-        const seriesId = this.id();
-        if (seriesId === undefined) {
+        const seriesSlug = this.slug();
+        if (seriesSlug === undefined) {
           const created = await firstValueFrom(this.seriesApi.create(input));
-          await this.router.navigate(['/series', created.id]);
+          await this.router.navigate(['/series', created.slug]);
         } else {
           const version = this.loadedVersion();
           if (version === null) return undefined;
           const updated = await firstValueFrom(
-            this.seriesApi.update(seriesId, { ...input, expectedVersion: version }),
+            this.seriesApi.update(seriesSlug, { ...input, expectedVersion: version }),
           );
-          await this.router.navigate(['/series', updated.id]);
+          await this.router.navigate(['/series', updated.slug]);
         }
         return undefined;
       } catch (err) {

@@ -90,6 +90,7 @@ export type BookListQuery = z.infer<typeof BookListQuerySchema>;
  *  (releases, a series' books, a member's shelf). */
 export interface BookSummary {
   readonly id: string;
+  readonly slug: string;
   readonly title: string;
   readonly subtitle: string | null;
   readonly authors: AuthorRef[];
@@ -98,6 +99,8 @@ export interface BookSummary {
    *  a second request per page — null whenever `seriesId` is, and also if the
    *  series row itself is gone. */
   readonly seriesName: string | null;
+  /** Null under the exact same conditions as `seriesName` — see its comment. */
+  readonly seriesSlug: string | null;
   readonly seriesPosition: string | null;
   readonly releaseDate: string | null;
   readonly releasePrecision: ReleasePrecision;

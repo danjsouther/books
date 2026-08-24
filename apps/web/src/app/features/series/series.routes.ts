@@ -1,6 +1,6 @@
 import type { Routes } from '@angular/router';
 
-// `new` must precede `:id` — see the identical note in `books.routes.ts`.
+// `new` must precede `:slug` — see the identical note in `books.routes.ts`.
 export const routes: Routes = [
   {
     path: '',
@@ -14,17 +14,17 @@ export const routes: Routes = [
     title: 'New series',
   },
   {
-    path: ':id/edit',
+    path: ':slug/edit',
     loadComponent: () => import('./series-form-page').then((m) => m.SeriesFormPage),
     title: 'Edit series',
   },
   {
-    path: ':id/history',
+    path: ':slug/history',
     loadComponent: () => import('./series-history-page').then((m) => m.SeriesHistoryPage),
     title: 'Series history',
   },
   {
-    path: ':id',
+    path: ':slug',
     loadComponent: () => import('./series-detail-page').then((m) => m.SeriesDetailPage),
     title: 'Series',
   },

@@ -98,6 +98,19 @@ describe.skipIf(!hasDatabase)('catalog integrity', () => {
     expect(dupes.rows).toEqual([]);
   });
 
+  it('gives every book and series a globally unique, non-empty slug', async () => {
+    const dupes = await db.execute(sql`
+      SELECT slug FROM books WHERE slug IS NULL OR slug = '' GROUP BY slug
+      UNION ALL
+      SELECT slug FROM books GROUP BY slug HAVING count(*) > 1
+      UNION ALL
+      SELECT slug FROM series WHERE slug IS NULL OR slug = '' GROUP BY slug
+      UNION ALL
+      SELECT slug FROM series GROUP BY slug HAVING count(*) > 1
+    `);
+    expect(dupes.rows).toEqual([]);
+  });
+
   it('keeps every book version equal to the count and the maximum of its revisions', async () => {
     const drift = await db.execute(sql`
       SELECT b.id FROM books b

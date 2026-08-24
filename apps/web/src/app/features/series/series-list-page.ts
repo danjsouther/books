@@ -60,7 +60,7 @@ const SORT_OPTIONS: readonly SortOption[] = [
       <ul class="results">
         @for (series of store.items(); track series.id) {
           <li class="card">
-            <a [routerLink]="[series.id]" class="title">{{ series.name }}</a>
+            <a [routerLink]="[series.slug]" class="title">{{ series.name }}</a>
             <p class="muted">
               {{ series.bookCount }} {{ series.bookCount === 1 ? 'book' : 'books' }}
               @if (series.nextRelease) {

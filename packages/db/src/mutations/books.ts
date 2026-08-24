@@ -1,10 +1,11 @@
-import { AppError } from '@books/domain';
+import { AppError, slugify, uniqueSlug } from '@books/domain';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import type { Db } from '../client';
 import { activity } from '../schema/activity';
 import { books } from '../schema/books';
 import { bookRevisions } from '../schema/revisions';
 import { authorsOfBook, resolveAuthors, syncAuthorBooks, type AuthorRef } from './authors';
+import { isUniqueSlugViolation } from './slug-constraint';
 import {
   createWithRevision,
   LOCK_NAMESPACE,
@@ -105,12 +106,41 @@ const spec: RevisionSpec<Book, BookInput> = {
   },
 
   async insert(tx, input, actorId) {
-    const [row] = await tx
-      .insert(books)
-      .values({ ...rowValues(input), version: 1, createdBy: actorId, updatedBy: actorId })
-      .returning();
-    if (row === undefined) throw new AppError('internal_error', 'Insert returned no row.');
-    return row;
+    const base = slugify(input.title);
+    const MAX_ATTEMPTS = 5;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const slug = await uniqueSlug(base, async (candidate) => {
+        const [existing] = await tx
+          .select({ id: books.id })
+          .from(books)
+          .where(eq(books.slug, candidate))
+          .limit(1);
+        return existing !== undefined;
+      });
+      try {
+        // A savepoint, not the bare insert: on a unique-slug conflict this must
+        // roll back only this attempt, not poison the whole outer transaction —
+        // Postgres aborts every later statement in a transaction once one fails.
+        return await tx.transaction(async (savepointTx) => {
+          const [row] = await savepointTx
+            .insert(books)
+            .values({
+              ...rowValues(input),
+              slug,
+              version: 1,
+              createdBy: actorId,
+              updatedBy: actorId,
+            })
+            .returning();
+          if (row === undefined) throw new AppError('internal_error', 'Insert returned no row.');
+          return row;
+        });
+      } catch (error) {
+        if (attempt === MAX_ATTEMPTS || !isUniqueSlugViolation(error, 'books_slug_key'))
+          throw error;
+      }
+    }
+    throw new AppError('internal_error', 'Could not generate a unique slug.');
   },
 
   async update(tx, id, input, version, actorId) {

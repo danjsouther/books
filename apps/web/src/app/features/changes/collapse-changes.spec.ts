@@ -5,6 +5,7 @@ function edit(version: number, changedAt: string, overrides: Partial<ChangeItem>
   return {
     entityType: 'book',
     entityId: 'b1',
+    entitySlug: 'a-book',
     version,
     changeKind: 'edited',
     actorId: 'u1',

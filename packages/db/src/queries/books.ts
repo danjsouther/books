@@ -24,15 +24,18 @@ import { tokenizedMatch } from '../lib/text-search';
 export function toBookSummary(
   row: Book,
   authorsByBook: Map<string, { id: string; name: string }[]>,
-  seriesNames: ReadonlyMap<string, string>,
+  seriesInfo: ReadonlyMap<string, { name: string; slug: string }>,
 ): BookSummary {
+  const series = row.seriesId === null ? undefined : seriesInfo.get(row.seriesId);
   return {
     id: row.id,
+    slug: row.slug,
     title: row.title,
     subtitle: row.subtitle,
     authors: authorsByBook.get(row.id) ?? [],
     seriesId: row.seriesId,
-    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
+    seriesName: series?.name ?? null,
+    seriesSlug: series?.slug ?? null,
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,
@@ -67,25 +70,25 @@ export async function authorsByBookIds(
 }
 
 /**
- * Batch-fetches series names for a page of books, the `seriesName` half of
- * `toBookSummary`. Lives here rather than in `queries/series.ts` because that
- * module already imports from this one — defining it there would close an
- * import cycle. Takes the raw (nullable, duplicate-heavy) `seriesId` column
- * straight off a page of rows and does the filtering itself, since every caller
- * would otherwise write the same filter.
+ * Batch-fetches series name and slug for a page of books, the `seriesName`/
+ * `seriesSlug` half of `toBookSummary`. Lives here rather than in
+ * `queries/series.ts` because that module already imports from this one —
+ * defining it there would close an import cycle. Takes the raw (nullable,
+ * duplicate-heavy) `seriesId` column straight off a page of rows and does the
+ * filtering itself, since every caller would otherwise write the same filter.
  */
-export async function seriesNamesByIds(
+export async function seriesInfoByIds(
   db: Db,
   seriesIds: readonly (string | null)[],
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+): Promise<Map<string, { name: string; slug: string }>> {
+  const map = new Map<string, { name: string; slug: string }>();
   const ids = [...new Set(seriesIds.filter((id) => id !== null))];
   if (ids.length === 0) return map;
   const rows = await db
-    .select({ id: series.id, name: series.name })
+    .select({ id: series.id, name: series.name, slug: series.slug })
     .from(series)
     .where(inArray(series.id, ids));
-  for (const row of rows) map.set(row.id, row.name);
+  for (const row of rows) map.set(row.id, { name: row.name, slug: row.slug });
   return map;
 }
 
@@ -196,12 +199,12 @@ export async function listBooks(
     .where(where);
 
   const { items: bookRows, total } = await paginate(rows, countQuery);
-  const [authorsByBook, seriesNames, myStatuses] = await Promise.all([
+  const [authorsByBook, seriesInfo, myStatuses] = await Promise.all([
     authorsByBookIds(
       db,
       bookRows.map((b) => b.id),
     ),
-    seriesNamesByIds(
+    seriesInfoByIds(
       db,
       bookRows.map((b) => b.seriesId),
     ),
@@ -213,7 +216,7 @@ export async function listBooks(
   ]);
   return {
     items: bookRows.map((row) => ({
-      ...toBookSummary(row, authorsByBook, seriesNames),
+      ...toBookSummary(row, authorsByBook, seriesInfo),
       myStatus: myStatuses.get(row.id) ?? null,
     })),
     total,
@@ -222,6 +225,14 @@ export async function listBooks(
 
 export async function getBookRow(db: Db, id: string): Promise<Book | undefined> {
   const [row] = await db.select().from(books).where(eq(books.id, id)).limit(1);
+  return row;
+}
+
+/** Deliberately unfiltered by `deletedAt`, like `getBookRow` — a soft-deleted
+ *  book must still resolve so its detail page can render a trash banner rather
+ *  than 404. Used by `router.param` id-or-slug resolution; see `routes/books.ts`. */
+export async function getBookRowBySlug(db: Db, slug: string): Promise<Book | undefined> {
+  const [row] = await db.select().from(books).where(eq(books.slug, slug)).limit(1);
   return row;
 }
 
@@ -278,7 +289,7 @@ export async function bookDetailFromRow(
   row: Book,
   viewerUserId: string | null,
 ): Promise<BookDetail> {
-  const [bookAuthors, statusRows, ratingSummary, seriesNames] = await Promise.all([
+  const [bookAuthors, statusRows, ratingSummary, seriesInfo] = await Promise.all([
     authorsOfBook(db, row.id),
     db
       .select({
@@ -295,20 +306,23 @@ export async function bookDetailFromRow(
       .innerJoin(users, eq(users.id, bookUserStatus.userId))
       .where(eq(bookUserStatus.bookId, row.id)),
     ratingSummaryOf(db, row.id),
-    seriesNamesByIds(db, [row.seriesId]),
+    seriesInfoByIds(db, [row.seriesId]),
   ]);
   const statuses = statusRows.map(toBookCommunityStatus);
   const myStatus =
     viewerUserId === null ? null : (statuses.find((s) => s.userId === viewerUserId) ?? null);
+  const series = row.seriesId === null ? undefined : seriesInfo.get(row.seriesId);
 
   return {
     id: row.id,
+    slug: row.slug,
     title: row.title,
     subtitle: row.subtitle,
     description: row.description,
     authors: bookAuthors,
     seriesId: row.seriesId,
-    seriesName: row.seriesId === null ? null : (seriesNames.get(row.seriesId) ?? null),
+    seriesName: series?.name ?? null,
+    seriesSlug: series?.slug ?? null,
     seriesPosition: row.seriesPosition,
     releaseDate: row.releaseDate,
     releasePrecision: row.releasePrecision,

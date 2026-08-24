@@ -15,7 +15,7 @@ import { paginate } from '../lib/paginate';
 import { tokenizedMatch } from '../lib/text-search';
 import { bookUserStatus } from '../schema/shelf';
 import { users } from '../schema/users';
-import { authorsByBookIds, seriesNamesByIds, toBookSummary } from './books';
+import { authorsByBookIds, seriesInfoByIds, toBookSummary } from './books';
 
 export type User = typeof users.$inferSelect;
 
@@ -201,19 +201,19 @@ export async function listUserShelf(
     .where(where);
 
   const { items, total } = await paginate(rows, countQuery);
-  const [authorsByBook, seriesNames] = await Promise.all([
+  const [authorsByBook, seriesInfo] = await Promise.all([
     authorsByBookIds(
       db,
       items.map((r) => r.book.id),
     ),
-    seriesNamesByIds(
+    seriesInfoByIds(
       db,
       items.map((r) => r.book.seriesId),
     ),
   ]);
   return {
     items: items.map((row) => ({
-      book: toBookSummary(row.book, authorsByBook, seriesNames),
+      book: toBookSummary(row.book, authorsByBook, seriesInfo),
       status: toUserBookStatus(row.status),
     })),
     total,
