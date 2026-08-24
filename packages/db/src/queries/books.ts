@@ -1,4 +1,5 @@
 import type {
+  BookCommunityStatus,
   BookDetail,
   BookListItem,
   BookListQuery,
@@ -14,6 +15,7 @@ import { authors } from '../schema/authors';
 import { books } from '../schema/books';
 import { series } from '../schema/series';
 import { bookUserStatus } from '../schema/shelf';
+import { users } from '../schema/users';
 import { authorsOfBook } from '../mutations/authors';
 import type { Book } from '../mutations/books';
 import { paginate } from '../lib/paginate';
@@ -247,7 +249,12 @@ async function ratingSummaryOf(db: Db, bookId: string): Promise<RatingSummary> {
   return { average: count === 0 ? null : sum / count, count, distribution };
 }
 
-export function toUserBookStatus(row: typeof bookUserStatus.$inferSelect): UserBookStatus {
+type UserBookStatusRow = Pick<
+  typeof bookUserStatus.$inferSelect,
+  'bookId' | 'userId' | 'status' | 'rating' | 'startedAt' | 'finishedAt' | 'updatedAt'
+>;
+
+export function toUserBookStatus(row: UserBookStatusRow): UserBookStatus {
   return {
     bookId: row.bookId,
     userId: row.userId,
@@ -257,6 +264,10 @@ export function toUserBookStatus(row: typeof bookUserStatus.$inferSelect): UserB
     finishedAt: row.finishedAt,
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function toBookCommunityStatus(row: UserBookStatusRow & { username: string }): BookCommunityStatus {
+  return { ...toUserBookStatus(row), username: row.username };
 }
 
 /** Everything `BookDetail` needs, resolved from a live row already in hand — the
@@ -269,11 +280,24 @@ export async function bookDetailFromRow(
 ): Promise<BookDetail> {
   const [bookAuthors, statusRows, ratingSummary, seriesNames] = await Promise.all([
     authorsOfBook(db, row.id),
-    db.select().from(bookUserStatus).where(eq(bookUserStatus.bookId, row.id)),
+    db
+      .select({
+        bookId: bookUserStatus.bookId,
+        userId: bookUserStatus.userId,
+        status: bookUserStatus.status,
+        rating: bookUserStatus.rating,
+        startedAt: bookUserStatus.startedAt,
+        finishedAt: bookUserStatus.finishedAt,
+        updatedAt: bookUserStatus.updatedAt,
+        username: users.username,
+      })
+      .from(bookUserStatus)
+      .innerJoin(users, eq(users.id, bookUserStatus.userId))
+      .where(eq(bookUserStatus.bookId, row.id)),
     ratingSummaryOf(db, row.id),
     seriesNamesByIds(db, [row.seriesId]),
   ]);
-  const statuses = statusRows.map(toUserBookStatus);
+  const statuses = statusRows.map(toBookCommunityStatus);
   const myStatus =
     viewerUserId === null ? null : (statuses.find((s) => s.userId === viewerUserId) ?? null);
 

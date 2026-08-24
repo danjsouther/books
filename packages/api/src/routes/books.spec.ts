@@ -312,6 +312,7 @@ describe.skipIf(!hasDatabase)('Books', () => {
       expect(detail.ratingSummary).toMatchObject({ average: 9, count: 1 });
       expect(detail.myStatus?.rating).toBe(9);
       expect(detail.statuses).toHaveLength(1);
+      expect(detail.statuses[0]?.username).toBe('testuser');
     });
 
     it('removes the shelf entry entirely', async () => {
