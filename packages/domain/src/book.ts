@@ -124,6 +124,13 @@ export interface RatingSummary {
   readonly distribution: number[];
 }
 
+/** One community member's status entry as embedded in `BookDetail.statuses` —
+ *  `UserBookStatus` plus the username, since this list is the one place a
+ *  status needs to say whose take it is rather than the viewer's own. */
+export interface BookCommunityStatus extends UserBookStatus {
+  readonly username: string;
+}
+
 /** Response body of `GET /books/:id`. Embeds everything the detail page needs so it
  *  paints from one request, including a deleted book — which renders as a tombstone
  *  with a Restore button rather than a 404. */
@@ -134,6 +141,6 @@ export interface BookDetail extends BookSummary {
   readonly url: string | null;
   readonly deletedBy: string | null;
   readonly myStatus: UserBookStatus | null;
-  readonly statuses: UserBookStatus[];
+  readonly statuses: BookCommunityStatus[];
   readonly ratingSummary: RatingSummary;
 }

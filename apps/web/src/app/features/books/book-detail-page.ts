@@ -128,6 +128,7 @@ const COMMUNITY_PAGE_SIZE = 10;
         <ul class="community-list">
           @for (entry of communityPage(); track entry.userId) {
             <li class="community-row">
+              <strong>{{ entry.username }}</strong>
               <app-chip [label]="entry.status" [tone]="entry.status" />
               @if (entry.rating !== null) {
                 <span>Rated {{ entry.rating }}/10</span>

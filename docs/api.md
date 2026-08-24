@@ -78,7 +78,10 @@ patch (see the comment on `BookUpdateSchema` for why this can't be
 
 `BookDetail` embeds `myStatus`, `statuses[]`, and `ratingSummary` so one request
 paints the whole page; a soft-deleted book still returns `200` with `deletedAt` set,
-rendering as a tombstone rather than a `404`.
+rendering as a tombstone rather than a `404`. `BookDetail.statuses` entries are
+`BookCommunityStatus` — `UserBookStatus` plus `username` — so the page can say
+whose take each row is, unlike the bare `UserBookStatus[]` from
+`GET /books/:id/statuses`.
 
 ## Series
 

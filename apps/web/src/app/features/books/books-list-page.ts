@@ -6,7 +6,6 @@ import {
   BOOK_STATUSES,
   formatReleaseDate,
   type BookListItem,
-  type BookStatus,
   type ListResponse,
 } from '@books/domain';
 import { createListStore } from '../../core/list-store';
@@ -125,11 +124,9 @@ function readStoredView(): ListView {
               />
               <span class="title">{{ book.title }}</span>
             </a>
-            <app-chip
-              class="my-status"
-              [label]="displayStatus(book)"
-              [tone]="displayStatus(book)"
-            />
+            @if (book.myStatus) {
+              <app-chip class="my-status" [label]="book.myStatus" [tone]="book.myStatus" />
+            }
             @if (book.seriesId) {
               <p class="muted">
                 <a [routerLink]="['/series', book.seriesId]" class="series-link">
@@ -156,9 +153,11 @@ function readStoredView(): ListView {
                 [height]="48"
               />
               <span class="cell title-cell title">{{ book.title }}</span>
-              <span class="cell status-cell">
-                <app-chip [label]="displayStatus(book)" [tone]="displayStatus(book)" />
-              </span>
+              @if (book.myStatus) {
+                <span class="cell status-cell">
+                  <app-chip [label]="book.myStatus" [tone]="book.myStatus" />
+                </span>
+              }
               @if (book.seriesId) {
                 <span class="cell series-cell muted">{{ book.seriesName ?? 'Series' }}</span>
               }
@@ -362,13 +361,5 @@ export class BooksListPage {
 
   protected authorNames(book: BookListItem): string {
     return book.authors.map((a) => a.name).join(', ');
-  }
-
-  /** A book with no shelf entry has `myStatus: null` — the detail page's status
-   *  picker defaults that same case to 'backlog', so the badge here follows suit
-   *  rather than showing nothing for a book the list page's own status filter
-   *  would otherwise call "backlog". */
-  protected displayStatus(book: BookListItem): BookStatus {
-    return book.myStatus ?? 'backlog';
   }
 }

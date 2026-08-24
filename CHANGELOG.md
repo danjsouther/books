@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — "Everyone's take" names whose status and rating each row is (2026-08-24)
+
+The book detail page's community list showed a status chip and rating per
+member with no indication of which member — every row was anonymous. Each
+row now leads with the member's username.
+
+### Fixed — Books list no longer badges books that aren't on your shelf (2026-08-24)
+
+The books list showed a "Backlog" chip on every book with no shelf entry,
+indistinguishable from a book you'd actually set to Backlog. The badge is
+now omitted entirely, in both the list and grid views, when `myStatus` is
+`null`.
+
 ## 0.5.0 - 2026-08-19
 
 ### Added — A URL field for books (2026-08-19)
