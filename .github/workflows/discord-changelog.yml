@@ -1,0 +1,47 @@
+name: Post changelog to Discord
+
+# Fires on the repo's existing `vX.Y.Z` release-tag convention (see
+# .claude/skills/git/SKILL.md) — a human pushes this tag once the "Release
+# X.Y.Z" commit (CHANGELOG.md + package.json) has landed on main. This job
+# does not build or deploy anything itself; it just tells the production
+# host's already-running bot to announce the release that's already there.
+#
+# Reuses ci.yml's `deploy` job secrets/vars verbatim — no new GitHub secrets
+# are needed. See that job's own comment for what each one is and why CI
+# never manages application secrets directly.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  post-changelog:
+    name: Post changelog to Discord
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trust the host key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Post changelog over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "
+            set -euo pipefail
+            cd '$DEPLOY_PATH'
+            # A tag push can race ci.yml's branch-push deploy job — this
+            # fetch/merge is a no-op if that job already landed the release
+            # commit, and a necessary catch-up if it hasn't yet.
+            git fetch origin main
+            git merge --ff-only origin/main
+            docker compose run --rm bot node dist/bot/post-changelog.js
+          "

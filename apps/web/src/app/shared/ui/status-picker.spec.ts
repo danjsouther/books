@@ -7,9 +7,16 @@ describe('StatusPicker', () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     const toggles = el.querySelectorAll<HTMLElement>('[role="radio"]');
-    expect(toggles).toHaveLength(5);
+    expect(toggles).toHaveLength(6);
     const labels = Array.from(toggles).map((t) => t.textContent?.replace(/\s+/g, ' ').trim());
-    expect(labels).toEqual(['📌 Plan', '📚 Backlog', '👀 Reading', '✅ Completed', '✖ Dropped']);
+    expect(labels).toEqual([
+      '📌 Plan',
+      '📚 Backlog',
+      '👀 Reading',
+      '📥 Set Aside',
+      '✅ Completed',
+      '✖ Dropped',
+    ]);
   });
 
   it('plan and backlog toggles carry visibly distinct status classes, not just distinct labels', () => {

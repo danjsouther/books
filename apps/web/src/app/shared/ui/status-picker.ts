@@ -2,13 +2,15 @@ import { Component, input, model } from '@angular/core';
 import type { FormValueControl } from '@angular/forms/signals';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { BOOK_STATUSES, type BookStatus } from '@books/domain';
+import { BOOK_STATUS_LABELS } from './status-labels';
 
-const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
-  plan: { label: 'Plan', icon: '📌' },
-  backlog: { label: 'Backlog', icon: '📚' },
-  reading: { label: 'Reading', icon: '👀' },
-  completed: { label: 'Completed', icon: '✅' },
-  dropped: { label: 'Dropped', icon: '✖' },
+const STATUS_ICONS: Record<BookStatus, string> = {
+  plan: '📌',
+  backlog: '📚',
+  reading: '👀',
+  set_aside: '📥',
+  completed: '✅',
+  dropped: '✖',
 };
 
 /** A `MatButtonToggleGroup` acting as a radiogroup — a
@@ -31,17 +33,14 @@ const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
           [class]="'status-' + status"
           (change)="onToggleChange(status)"
         >
-          <span aria-hidden="true">{{ meta[status].icon }}</span>
-          {{ meta[status].label }}
+          <span aria-hidden="true">{{ icons[status] }}</span>
+          {{ labels[status] }}
         </mat-button-toggle>
       }
     </mat-button-toggle-group>
   `,
   styles: `
     .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
       border: none;
     }
 
@@ -56,6 +55,10 @@ const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
     .status-reading.mat-button-toggle-checked {
       --mat-button-toggle-selected-state-background-color: var(--status-reading-container);
       --mat-button-toggle-selected-state-text-color: var(--status-reading-on-container);
+    }
+    .status-set_aside.mat-button-toggle-checked {
+      --mat-button-toggle-selected-state-background-color: var(--status-set_aside-container);
+      --mat-button-toggle-selected-state-text-color: var(--status-set_aside-on-container);
     }
     .status-completed.mat-button-toggle-checked {
       --mat-button-toggle-selected-state-background-color: var(--status-completed-container);
@@ -72,7 +75,8 @@ export class StatusPicker implements FormValueControl<BookStatus | null> {
   readonly label = input('Reading status');
 
   protected readonly statuses = BOOK_STATUSES;
-  protected readonly meta = STATUS_META;
+  protected readonly labels = BOOK_STATUS_LABELS;
+  protected readonly icons = STATUS_ICONS;
 
   protected onToggleChange(status: BookStatus): void {
     this.value.set(this.value() === status ? null : status);

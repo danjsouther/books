@@ -1,5 +1,6 @@
 import type { Db } from '@books/db';
 import type { DiscordClient } from './auth/discord-client';
+import type { ActivityAnnouncer } from './discord/announcer';
 
 export interface AuthConfig {
   jwtSecret: string;
@@ -9,6 +10,7 @@ export interface AuthConfig {
   discordClientSecret: string;
   discordRedirectUri: string;
   discordAllowedGuildId: string;
+  discordRequiredRoleId: string;
   /** The origin the browser loads the app from — used to validate `Origin` /
    *  `Referer` on mutations and as the base for post-login redirects. */
   publicBaseUrl: string;
@@ -22,6 +24,7 @@ export interface ApiDeps {
   readonly db: Db;
   readonly auth: AuthConfig;
   readonly discord: DiscordClient;
+  readonly announcer: ActivityAnnouncer;
 }
 
 /** What the access token actually authenticates: an identity and which kind of

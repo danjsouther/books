@@ -57,6 +57,20 @@ const serverSchema = baseSchema.extend({
   DISCORD_REDIRECT_URI: z.string().url(),
   /** Required, not optional — this is the membership gate, not a filter. */
   DISCORD_ALLOWED_GUILD_ID: z.string().min(1),
+  /** A second gate on top of guild membership: the role a member must hold
+   *  *within* `DISCORD_ALLOWED_GUILD_ID` to sign in. Also required — being in
+   *  the guild is no longer sufficient on its own. */
+  DISCORD_REQUIRED_ROLE_ID: z.string().min(1),
+
+  /** The bot's own token, so the server can post activity announcements
+   *  (new books, releases) directly rather than routing through the bot
+   *  process — a separate copy of the same credential `botSchema` below
+   *  also carries, since the server posts to Discord itself instead of
+   *  going through `apps/bot`. */
+  DISCORD_BOT_TOKEN: z.string().min(1),
+  /** The channel `apps/server`'s activity announcer posts new books and
+   *  releases to. */
+  DISCORD_ACTIVITY_CHANNEL_ID: z.string().min(1),
 });
 
 const botSchema = baseSchema.extend({
@@ -71,6 +85,11 @@ const botSchema = baseSchema.extend({
    *  the CSRF `Origin` check. The bot has no browser-facing concern of its
    *  own, only "where do I send someone." */
   WEB_BASE_URL: z.string().url(),
+  /** The channel `post-changelog.ts` posts a release announcement to. Only
+   *  that one-shot script reads this — the gateway client (`main.ts`) never
+   *  does — but it lives in `botSchema` rather than a schema of its own so a
+   *  missing value fails fast the same way every other bot credential does. */
+  DISCORD_CHANGELOG_CHANNEL_ID: z.string().min(1),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

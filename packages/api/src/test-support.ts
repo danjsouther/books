@@ -7,12 +7,15 @@ import type { ApiDeps } from './types';
 import type {
   DiscordClient,
   DiscordGuild,
+  DiscordGuildMember,
   DiscordTokens,
   DiscordUser,
   ExchangeCodeParams,
 } from './auth/discord-client';
+import type { ActivityAnnouncer, AnnouncedBook } from './discord/announcer';
 
 export const TEST_ALLOWED_GUILD_ID = '900000000000000001';
+export const TEST_REQUIRED_ROLE_ID = '900000000000000002';
 
 /** A `DiscordClient` double: no network, fully scriptable, and able to simulate
  *  every failure mode a real Discord outage or a PKCE mismatch would produce. */
@@ -25,6 +28,7 @@ export class FakeDiscordClient implements DiscordClient {
     avatar: null,
   };
   guilds: DiscordGuild[] = [{ id: TEST_ALLOWED_GUILD_ID, name: 'Test Guild' }];
+  memberRoles: string[] = [TEST_REQUIRED_ROLE_ID];
   exchangedWith: ExchangeCodeParams[] = [];
 
   buildAuthorizeUrl(params: {
@@ -58,6 +62,27 @@ export class FakeDiscordClient implements DiscordClient {
   fetchGuilds(): Promise<DiscordGuild[]> {
     return Promise.resolve(this.guilds);
   }
+
+  fetchGuildMember(): Promise<DiscordGuildMember> {
+    return Promise.resolve({ roles: this.memberRoles });
+  }
+}
+
+/** An `ActivityAnnouncer` double: no network, records every call so a spec can
+ *  assert on it directly instead of intercepting `fetch`. */
+export class FakeActivityAnnouncer implements ActivityAnnouncer {
+  bookAddedCalls: AnnouncedBook[] = [];
+  bookReleasedCalls: AnnouncedBook[] = [];
+
+  announceBookAdded(book: AnnouncedBook): Promise<void> {
+    this.bookAddedCalls.push(book);
+    return Promise.resolve();
+  }
+
+  announceBookReleased(book: AnnouncedBook): Promise<void> {
+    this.bookReleasedCalls.push(book);
+    return Promise.resolve();
+  }
 }
 
 export function testAuthConfig(overrides: Partial<ApiDeps['auth']> = {}): ApiDeps['auth'] {
@@ -69,6 +94,7 @@ export function testAuthConfig(overrides: Partial<ApiDeps['auth']> = {}): ApiDep
     discordClientSecret: 'test-client-secret',
     discordRedirectUri: 'http://localhost:4200/api/v1/auth/discord/callback',
     discordAllowedGuildId: TEST_ALLOWED_GUILD_ID,
+    discordRequiredRoleId: TEST_REQUIRED_ROLE_ID,
     publicBaseUrl: 'http://localhost:4200',
     cookieSecure: false,
     ...overrides,
@@ -78,24 +104,26 @@ export function testAuthConfig(overrides: Partial<ApiDeps['auth']> = {}): ApiDep
 export interface TestApp {
   readonly app: Express;
   readonly discord: FakeDiscordClient;
+  readonly announcer: FakeActivityAnnouncer;
   readonly auth: ApiDeps['auth'];
 }
 
 /** Wraps `createApiRouter` exactly as `apps/server/src/main.ts` does, so a
  *  `supertest` request exercises the real middleware stack — cookies, CSRF,
- *  rate limiting — with a real database and a scripted Discord double standing
+ *  rate limiting — with a real database and scripted Discord doubles standing
  *  in for the network. */
 export function buildTestApp(db: Db, overrides: Partial<ApiDeps['auth']> = {}): TestApp {
   const discord = new FakeDiscordClient();
+  const announcer = new FakeActivityAnnouncer();
   const auth = testAuthConfig(overrides);
 
   const app = express();
   app.set('trust proxy', true);
   app.use(cookieParser());
   app.use(express.json());
-  app.use('/api/v1', createApiRouter({ version: 'test', db, auth, discord }));
+  app.use('/api/v1', createApiRouter({ version: 'test', db, auth, discord, announcer }));
 
-  return { app, discord, auth };
+  return { app, discord, announcer, auth };
 }
 
 /** Logs a fresh member in through the real Discord-callback path (desktop, so the

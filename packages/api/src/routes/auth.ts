@@ -108,6 +108,7 @@ export function createAuthRouter(deps: ApiDeps): Router {
         return;
       }
 
+      let accessToken;
       let discordUser;
       let guilds;
       try {
@@ -118,12 +119,13 @@ export function createAuthRouter(deps: ApiDeps): Router {
           code,
           codeVerifier: consumed.codeVerifier,
         });
-        // Discord's own tokens are used for exactly these two calls and then
-        // discarded — we never act on the user's behalf again, so storing them
-        // would be pure liability.
+        // Discord's own tokens are used for these calls and then discarded —
+        // we never act on the user's behalf again, so storing them would be
+        // pure liability.
+        accessToken = tokens.access_token;
         [discordUser, guilds] = await Promise.all([
-          discord.fetchUser(tokens.access_token),
-          discord.fetchGuilds(tokens.access_token),
+          discord.fetchUser(accessToken),
+          discord.fetchGuilds(accessToken),
         ]);
       } catch {
         res.redirect(302, loginErrorRedirect(auth.publicBaseUrl, 'discord_failed'));
@@ -133,6 +135,18 @@ export function createAuthRouter(deps: ApiDeps): Router {
       const isMember = guilds.some((g) => g.id === auth.discordAllowedGuildId);
       if (!isMember) {
         res.redirect(302, loginErrorRedirect(auth.publicBaseUrl, 'not_a_member'));
+        return;
+      }
+
+      let member;
+      try {
+        member = await discord.fetchGuildMember(accessToken, auth.discordAllowedGuildId);
+      } catch {
+        res.redirect(302, loginErrorRedirect(auth.publicBaseUrl, 'discord_failed'));
+        return;
+      }
+      if (!member.roles.includes(auth.discordRequiredRoleId)) {
+        res.redirect(302, loginErrorRedirect(auth.publicBaseUrl, 'missing_role'));
         return;
       }
 

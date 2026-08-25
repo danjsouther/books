@@ -1,6 +1,6 @@
 {
   "name": "books",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "scripts": {
     "ng": "ng",
     "dev": "concurrently --names web,api,bot --prefix-colors cyan,magenta,yellow \"npm:dev:web\" \"npm:dev:api\" \"npm:dev:bot\"",
@@ -14,6 +14,7 @@
     "build:bot": "node scripts/build-bot.mjs",
     "build:migrate": "node scripts/build-migrate.mjs",
     "bot:deploy-commands": "tsx --env-file-if-exists=.env apps/bot/src/deploy-commands.ts",
+    "bot:post-changelog": "tsx --env-file-if-exists=.env apps/bot/src/post-changelog.ts",
     "test": "npm run test:web && npm run test:node",
     "test:web": "ng test",
     "test:node": "vitest run --config vitest.node.config.ts",

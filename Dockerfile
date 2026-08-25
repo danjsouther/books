@@ -40,6 +40,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=runtime-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist/bot ./dist/bot
+# post-changelog.js reads this off disk at runtime — everything else the bot
+# does comes from dist/bot or the database, but the changelog's source of
+# truth is this file, not something worth duplicating into a build-time define.
+COPY --from=build --chown=node:node /app/CHANGELOG.md ./CHANGELOG.md
 USER node
 CMD ["node", "dist/bot/main.js"]
 

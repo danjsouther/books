@@ -30,6 +30,7 @@ import { Pagination } from '../../shared/ui/pagination';
 import { PercentSlider } from '../../shared/ui/percent-slider';
 import { RatingWidget } from '../../shared/ui/rating-widget';
 import { StatusPicker } from '../../shared/ui/status-picker';
+import { BOOK_STATUS_LABELS } from '../../shared/ui/status-labels';
 import { BooksApi } from './books-api';
 import { ShelfApi } from './shelf-api';
 
@@ -160,7 +161,7 @@ const COMMUNITY_PAGE_SIZE = 10;
             <li class="community-row">
               <div class="community-row-summary">
                 <strong>{{ entry.username }}</strong>
-                <app-chip [label]="entry.status" [tone]="entry.status" />
+                <app-chip [label]="statusLabels[entry.status]" [tone]="entry.status" />
                 @if (entry.rating !== null) {
                   <span>Rated {{ entry.rating }}/10</span>
                 }
@@ -366,6 +367,7 @@ export class BookDetailPage {
   protected readonly detail = httpResource<BookDetail>(() => `/api/v1/books/${this.slug()}`);
 
   protected readonly formatReleaseDate = formatReleaseDate;
+  protected readonly statusLabels = BOOK_STATUS_LABELS;
 
   protected readonly myStatus = linkedSignal<BookStatus | null>(() =>
     this.detail.hasValue() ? (this.detail.value().myStatus?.status ?? null) : null,

@@ -65,8 +65,8 @@ describe.skipIf(!hasDatabase)('runReleaseAnnouncementJob', () => {
       releasePrecision: 'day',
     });
 
-    const count = await runReleaseAnnouncementJob(db, TODAY);
-    expect(count).toBe(1);
+    const announced = await runReleaseAnnouncementJob(db, TODAY);
+    expect(announced).toHaveLength(1);
 
     const [row] = await db.select().from(books).where(eq(books.id, id));
     expect(row?.releasedAnnouncedAt).not.toBeNull();
@@ -87,7 +87,7 @@ describe.skipIf(!hasDatabase)('runReleaseAnnouncementJob', () => {
     await runReleaseAnnouncementJob(db, TODAY);
     const second = await runReleaseAnnouncementJob(db, isoDaysFromNow(1));
 
-    expect(second).toBe(0);
+    expect(second).toHaveLength(0);
     const events = await db.select().from(activity);
     expect(events).toHaveLength(1);
   });
@@ -102,7 +102,7 @@ describe.skipIf(!hasDatabase)('runReleaseAnnouncementJob', () => {
     });
 
     const count = await runReleaseAnnouncementJob(db, TODAY);
-    expect(count).toBe(0);
+    expect(count).toHaveLength(0);
     const events = await db.select().from(activity);
     expect(events).toHaveLength(0);
   });
@@ -121,7 +121,7 @@ describe.skipIf(!hasDatabase)('runReleaseAnnouncementJob', () => {
     await insertBook(db, { title: 'Unknown', releaseDate: null, releasePrecision: 'unknown' });
 
     const count = await runReleaseAnnouncementJob(db, TODAY);
-    expect(count).toBe(0);
+    expect(count).toHaveLength(0);
     const events = await db.select().from(activity);
     expect(events).toHaveLength(0);
   });
@@ -134,6 +134,6 @@ describe.skipIf(!hasDatabase)('runReleaseAnnouncementJob', () => {
     });
 
     const count = await runReleaseAnnouncementJob(db, TODAY);
-    expect(count).toBe(0);
+    expect(count).toHaveLength(0);
   });
 });

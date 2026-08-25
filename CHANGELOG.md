@@ -6,6 +6,53 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.7.0 - 2026-08-25
+
+### Added — New books and releases now post to a Discord channel (2026-08-25)
+
+Nothing announced everyday activity before — the activity feed only ever
+showed up in the web app. Adding a book, and a tracked book's release day
+arriving, now also post an announcement to a configured Discord channel.
+Shelf-status and rating changes stay web-only, to keep the channel from
+turning into a play-by-play of every member's reading.
+
+### Fixed — Status picker toggles wrapped with extra spacing instead of sitting flush (2026-08-25)
+
+The status picker's row of toggle buttons used a flex layout with a gap
+between them, an artifact left over from before Angular Material's own
+button-toggle-group styling took over the layout. Removed the redundant
+flex and gap so the group renders with Material's own spacing.
+
+### Fixed — Status chips and the status filter showed the raw status code (2026-08-24)
+
+A shelf status rendered as its internal value — `set_aside`, `reading` — in
+the books list's status badges and filter dropdown, and in a book's
+"Everyone's take" list, instead of its proper label ("Set Aside",
+"Reading"). All three now go through the same label lookup the status
+picker already used correctly.
+
+### Changed — Signing in now also requires a specific Discord role (2026-08-24)
+
+Being a member of the allowed Discord server used to be the whole access
+check. Sign-in now also requires holding a specific role within that
+server — set once by an admin — so guild membership on its own is no longer
+enough to reach the app.
+
+### Added — New releases now post to Discord automatically (2026-08-24)
+
+Nothing announced a release before — the changelog only ever showed up in
+git history. Pushing a release's `vX.Y.Z` tag now posts that version's
+changelog to a dedicated Discord channel automatically, one entry per
+change, the same way `/upcoming` already formats release info.
+
+### Added — Shelf entries can be marked "Set Aside" (2026-08-24)
+
+There's now a status for a book you started and paused partway through,
+sitting between "Reading" and "Completed": Set Aside. It shows up everywhere
+the other shelf statuses do — the status picker, status filter, and status
+chips — and doesn't touch your reading progress; that stays exactly where
+you left off.
+
 ## 0.6.1 - 2026-08-25
 
 ### Fixed — Books list status filter matched any member's shelf, not yours (2026-08-25)
