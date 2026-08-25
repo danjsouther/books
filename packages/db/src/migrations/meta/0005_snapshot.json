@@ -90,9 +90,7 @@
         "users_discord_id_unique": {
           "name": "users_discord_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "discord_id"
-          ]
+          "columns": ["discord_id"]
         }
       },
       "policies": {},
@@ -232,12 +230,8 @@
           "name": "series_deleted_by_users_id_fk",
           "tableFrom": "series",
           "tableTo": "users",
-          "columnsFrom": [
-            "deleted_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["deleted_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -245,12 +239,8 @@
           "name": "series_created_by_users_id_fk",
           "tableFrom": "series",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -258,12 +248,8 @@
           "name": "series_updated_by_users_id_fk",
           "tableFrom": "series",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -494,12 +480,8 @@
           "name": "books_series_id_series_id_fk",
           "tableFrom": "books",
           "tableTo": "series",
-          "columnsFrom": [
-            "series_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["series_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -507,12 +489,8 @@
           "name": "books_deleted_by_users_id_fk",
           "tableFrom": "books",
           "tableTo": "users",
-          "columnsFrom": [
-            "deleted_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["deleted_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -520,12 +498,8 @@
           "name": "books_created_by_users_id_fk",
           "tableFrom": "books",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -533,12 +507,8 @@
           "name": "books_updated_by_users_id_fk",
           "tableFrom": "books",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -688,12 +658,8 @@
           "name": "author_books_author_id_authors_id_fk",
           "tableFrom": "author_books",
           "tableTo": "authors",
-          "columnsFrom": [
-            "author_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["author_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -701,12 +667,8 @@
           "name": "author_books_book_id_books_id_fk",
           "tableFrom": "author_books",
           "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["book_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -716,10 +678,7 @@
         "author_books_pair_key": {
           "name": "author_books_pair_key",
           "nullsNotDistinct": false,
-          "columns": [
-            "author_id",
-            "book_id"
-          ]
+          "columns": ["author_id", "book_id"]
         }
       },
       "policies": {},
@@ -844,12 +803,8 @@
           "name": "book_user_status_book_id_books_id_fk",
           "tableFrom": "book_user_status",
           "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["book_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -857,12 +812,8 @@
           "name": "book_user_status_user_id_users_id_fk",
           "tableFrom": "book_user_status",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -870,10 +821,7 @@
       "compositePrimaryKeys": {
         "book_user_status_book_id_user_id_pk": {
           "name": "book_user_status_book_id_user_id_pk",
-          "columns": [
-            "book_id",
-            "user_id"
-          ]
+          "columns": ["book_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -980,12 +928,8 @@
           "name": "book_revisions_book_id_books_id_fk",
           "tableFrom": "book_revisions",
           "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["book_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -993,12 +937,8 @@
           "name": "book_revisions_changed_by_users_id_fk",
           "tableFrom": "book_revisions",
           "tableTo": "users",
-          "columnsFrom": [
-            "changed_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["changed_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1006,10 +946,7 @@
       "compositePrimaryKeys": {
         "book_revisions_book_id_version_pk": {
           "name": "book_revisions_book_id_version_pk",
-          "columns": [
-            "book_id",
-            "version"
-          ]
+          "columns": ["book_id", "version"]
         }
       },
       "uniqueConstraints": {},
@@ -1103,12 +1040,8 @@
           "name": "series_revisions_series_id_series_id_fk",
           "tableFrom": "series_revisions",
           "tableTo": "series",
-          "columnsFrom": [
-            "series_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["series_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1116,12 +1049,8 @@
           "name": "series_revisions_changed_by_users_id_fk",
           "tableFrom": "series_revisions",
           "tableTo": "users",
-          "columnsFrom": [
-            "changed_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["changed_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1129,10 +1058,7 @@
       "compositePrimaryKeys": {
         "series_revisions_series_id_version_pk": {
           "name": "series_revisions_series_id_version_pk",
-          "columns": [
-            "series_id",
-            "version"
-          ]
+          "columns": ["series_id", "version"]
         }
       },
       "uniqueConstraints": {},
@@ -1264,12 +1190,8 @@
           "name": "activity_actor_id_users_id_fk",
           "tableFrom": "activity",
           "tableTo": "users",
-          "columnsFrom": [
-            "actor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1277,12 +1199,8 @@
           "name": "activity_book_id_books_id_fk",
           "tableFrom": "activity",
           "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["book_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1363,12 +1281,8 @@
           "name": "api_tokens_user_id_users_id_fk",
           "tableFrom": "api_tokens",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1378,9 +1292,7 @@
         "api_tokens_token_hash_unique": {
           "name": "api_tokens_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -1551,12 +1463,8 @@
           "name": "refresh_tokens_user_id_users_id_fk",
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1566,9 +1474,7 @@
         "refresh_tokens_token_hash_unique": {
           "name": "refresh_tokens_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -1580,55 +1486,27 @@
     "public.activity_kind": {
       "name": "activity_kind",
       "schema": "public",
-      "values": [
-        "book.added",
-        "status.changed",
-        "rating.changed",
-        "shelf.removed",
-        "book.released"
-      ]
+      "values": ["book.added", "status.changed", "rating.changed", "shelf.removed", "book.released"]
     },
     "public.book_status": {
       "name": "book_status",
       "schema": "public",
-      "values": [
-        "plan",
-        "backlog",
-        "reading",
-        "set_aside",
-        "completed",
-        "dropped"
-      ]
+      "values": ["plan", "backlog", "reading", "set_aside", "completed", "dropped"]
     },
     "public.change_kind": {
       "name": "change_kind",
       "schema": "public",
-      "values": [
-        "created",
-        "edited",
-        "deleted",
-        "restored",
-        "reverted"
-      ]
+      "values": ["created", "edited", "deleted", "restored", "reverted"]
     },
     "public.release_precision": {
       "name": "release_precision",
       "schema": "public",
-      "values": [
-        "day",
-        "month",
-        "year",
-        "unknown"
-      ]
+      "values": ["day", "month", "year", "unknown"]
     },
     "public.token_client": {
       "name": "token_client",
       "schema": "public",
-      "values": [
-        "web",
-        "desktop",
-        "service"
-      ]
+      "values": ["web", "desktop", "service"]
     }
   },
   "schemas": {},

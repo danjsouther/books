@@ -2,13 +2,7 @@ import { Component, input } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 
 export type ChipTone =
-  | 'plan'
-  | 'backlog'
-  | 'reading'
-  | 'set_aside'
-  | 'completed'
-  | 'dropped'
-  | 'neutral';
+  'plan' | 'backlog' | 'reading' | 'set_aside' | 'completed' | 'dropped' | 'neutral';
 
 /** Text + color — color is decoration on top, never the only signal
  *  (WCAG 1.4.1): the label text itself names the status, so color loss

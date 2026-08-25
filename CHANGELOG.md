@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.7.0 - 2026-08-25
+
 ### Added — New books and releases now post to a Discord channel (2026-08-25)
 
 Nothing announced everyday activity before — the activity feed only ever
