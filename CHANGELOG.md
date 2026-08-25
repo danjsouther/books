@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.6.1 - 2026-08-25
+
 ### Fixed — Books list status filter matched any member's shelf, not yours (2026-08-25)
 
 Filtering the books list by status (e.g. "Reading") matched a book if *any*
