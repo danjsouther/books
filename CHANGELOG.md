@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — New releases now post to Discord automatically (2026-08-24)
+
+Nothing announced a release before — the changelog only ever showed up in
+git history. Pushing a release's `vX.Y.Z` tag now posts that version's
+changelog to a dedicated Discord channel automatically, one entry per
+change, the same way `/upcoming` already formats release info.
+
 ### Added — Shelf entries can be marked "Set Aside" (2026-08-24)
 
 There's now a status for a book you started and paused partway through,

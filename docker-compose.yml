@@ -82,6 +82,7 @@ services:
       DISCORD_APP_ID: ${DISCORD_APP_ID:?DISCORD_APP_ID is required}
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
       WEB_BASE_URL: ${WEB_BASE_URL:?WEB_BASE_URL is required}
+      DISCORD_CHANGELOG_CHANNEL_ID: ${DISCORD_CHANGELOG_CHANNEL_ID:?DISCORD_CHANGELOG_CHANNEL_ID is required}
     depends_on:
       migrate:
         condition: service_completed_successfully

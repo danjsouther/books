@@ -38,5 +38,22 @@ await build({
   logLevel: 'info',
 });
 
+// Bundled alongside `main.js` so the deployed image can run it as a one-shot
+// `docker compose run --rm bot node dist/bot/post-changelog.js` — see that
+// file's own doc comment for why it must stay manual, never part of `CMD`.
+await build({
+  entryPoints: ['apps/bot/src/post-changelog.ts'],
+  outfile: 'dist/bot/post-changelog.js',
+  bundle: true,
+  platform: 'node',
+  target: 'node24',
+  format: 'esm',
+  packages: 'external',
+  sourcemap: true,
+  tsconfig: 'tsconfig.node.json',
+  define: { 'process.env.APP_VERSION': JSON.stringify(version) },
+  logLevel: 'info',
+});
+
 mkdirSync('dist/bot', { recursive: true });
 writeFileSync('dist/bot/package.json', `${JSON.stringify({ type: 'module' }, null, 2)}\n`);

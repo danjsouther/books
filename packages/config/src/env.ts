@@ -71,6 +71,11 @@ const botSchema = baseSchema.extend({
    *  the CSRF `Origin` check. The bot has no browser-facing concern of its
    *  own, only "where do I send someone." */
   WEB_BASE_URL: z.string().url(),
+  /** The channel `post-changelog.ts` posts a release announcement to. Only
+   *  that one-shot script reads this — the gateway client (`main.ts`) never
+   *  does — but it lives in `botSchema` rather than a schema of its own so a
+   *  missing value fails fast the same way every other bot credential does. */
+  DISCORD_CHANGELOG_CHANNEL_ID: z.string().min(1),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;
