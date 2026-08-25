@@ -1,7 +1,14 @@
 import { Component, input } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 
-export type ChipTone = 'plan' | 'backlog' | 'reading' | 'completed' | 'dropped' | 'neutral';
+export type ChipTone =
+  | 'plan'
+  | 'backlog'
+  | 'reading'
+  | 'set_aside'
+  | 'completed'
+  | 'dropped'
+  | 'neutral';
 
 /** Text + color — color is decoration on top, never the only signal
  *  (WCAG 1.4.1): the label text itself names the status, so color loss
@@ -37,6 +44,11 @@ export type ChipTone = 'plan' | 'backlog' | 'reading' | 'completed' | 'dropped' 
       --mat-chip-elevated-container-color: var(--status-reading-container);
       --mat-chip-label-text-color: var(--status-reading-on-container);
       border-color: var(--status-reading-on-container);
+    }
+    .chip-set_aside {
+      --mat-chip-elevated-container-color: var(--status-set_aside-container);
+      --mat-chip-label-text-color: var(--status-set_aside-on-container);
+      border-color: var(--status-set_aside-on-container);
     }
     .chip-completed {
       --mat-chip-elevated-container-color: var(--status-completed-container);

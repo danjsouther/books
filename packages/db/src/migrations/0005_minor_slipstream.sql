@@ -1,0 +1,1 @@
+ALTER TYPE "public"."book_status" ADD VALUE 'set_aside' BEFORE 'completed';

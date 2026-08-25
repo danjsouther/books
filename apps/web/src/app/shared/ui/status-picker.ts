@@ -7,6 +7,7 @@ const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
   plan: { label: 'Plan', icon: '📌' },
   backlog: { label: 'Backlog', icon: '📚' },
   reading: { label: 'Reading', icon: '👀' },
+  set_aside: { label: 'Set Aside', icon: '📥' },
   completed: { label: 'Completed', icon: '✅' },
   dropped: { label: 'Dropped', icon: '✖' },
 };
@@ -56,6 +57,10 @@ const STATUS_META: Record<BookStatus, { label: string; icon: string }> = {
     .status-reading.mat-button-toggle-checked {
       --mat-button-toggle-selected-state-background-color: var(--status-reading-container);
       --mat-button-toggle-selected-state-text-color: var(--status-reading-on-container);
+    }
+    .status-set_aside.mat-button-toggle-checked {
+      --mat-button-toggle-selected-state-background-color: var(--status-set_aside-container);
+      --mat-button-toggle-selected-state-text-color: var(--status-set_aside-on-container);
     }
     .status-completed.mat-button-toggle-checked {
       --mat-button-toggle-selected-state-background-color: var(--status-completed-container);

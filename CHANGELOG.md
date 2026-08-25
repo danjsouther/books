@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — Shelf entries can be marked "Set Aside" (2026-08-24)
+
+There's now a status for a book you started and paused partway through,
+sitting between "Reading" and "Completed": Set Aside. It shows up everywhere
+the other shelf statuses do — the status picker, status filter, and status
+chips — and doesn't touch your reading progress; that stays exactly where
+you left off.
+
 ## 0.6.1 - 2026-08-25
 
 ### Fixed — Books list status filter matched any member's shelf, not yours (2026-08-25)

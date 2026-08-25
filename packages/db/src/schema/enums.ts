@@ -12,6 +12,7 @@ export const bookStatus = pgEnum('book_status', [
   'plan',
   'backlog',
   'reading',
+  'set_aside',
   'completed',
   'dropped',
 ]);

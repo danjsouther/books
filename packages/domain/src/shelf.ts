@@ -3,7 +3,14 @@ import { z } from 'zod';
 /** `plan` and `backlog` are not the same shelf: `plan` is anticipation (usually not
  *  out yet), `backlog` is availability (out, unstarted). See `schema/enums.ts` for
  *  the full rationale — this is the wire-format mirror of that enum. */
-export const BOOK_STATUSES = ['plan', 'backlog', 'reading', 'completed', 'dropped'] as const;
+export const BOOK_STATUSES = [
+  'plan',
+  'backlog',
+  'reading',
+  'set_aside',
+  'completed',
+  'dropped',
+] as const;
 export type BookStatus = (typeof BOOK_STATUSES)[number];
 
 /** Fields of the user/book relationship visible to any member, not just its

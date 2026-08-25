@@ -38,6 +38,8 @@ html {
   --status-backlog-on-container: oklch(35% 0.02 265);
   --status-reading-container: oklch(91% 0.07 235);
   --status-reading-on-container: oklch(32% 0.13 235);
+  --status-set_aside-container: oklch(92% 0.06 95);
+  --status-set_aside-on-container: oklch(32% 0.14 95);
   --status-completed-container: oklch(91% 0.08 150);
   --status-completed-on-container: oklch(30% 0.12 150);
   --status-dropped-container: oklch(92% 0.06 25);
@@ -55,6 +57,8 @@ html {
     --status-backlog-on-container: oklch(93% 0.015 265);
     --status-reading-container: oklch(32% 0.13 235);
     --status-reading-on-container: oklch(91% 0.07 235);
+    --status-set_aside-container: oklch(32% 0.14 95);
+    --status-set_aside-on-container: oklch(92% 0.06 95);
     --status-completed-container: oklch(30% 0.12 150);
     --status-completed-on-container: oklch(91% 0.08 150);
     --status-dropped-container: oklch(33% 0.14 25);
