@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Books list status filter matched any member's shelf, not yours (2026-08-25)
+
+Filtering the books list by status (e.g. "Reading") matched a book if *any*
+member had it at that status, not just the one applying the filter — so a
+book you'd never touched could show up because someone else was reading it.
+The filter is now scoped to the viewer's own shelf entry, matching what the
+list already displays as "your" status on each row.
+
 ## 0.6.0 - 2026-08-24
 
 ### Added — Shelf entries have a progress slider and two notes (2026-08-24)

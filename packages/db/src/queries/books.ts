@@ -95,10 +95,9 @@ export async function seriesInfoByIds(
 
 /**
  * Batch-fetches one viewer's own status for a page of books — the `myStatus`
- * half of a `BookListItem`. Scoped to `viewerUserId` alone, unlike
- * `booksWithStatus` below (which matches *any* member's status for filtering);
- * this is what lets the books page badge "your" shelf status on every row in
- * one query rather than one `getShelfStatus` call per row.
+ * half of a `BookListItem`. This is what lets the books page badge "your"
+ * shelf status on every row in one query rather than one `getShelfStatus`
+ * call per row.
  */
 export async function myStatusesByBookIds(
   db: Db,
@@ -123,9 +122,10 @@ function booksByAuthorName(name: string) {
   )`;
 }
 
-function booksWithStatus(status: string) {
+function booksWithStatus(status: string, userId: string) {
   return sql`${books.id} IN (
-    SELECT ${bookUserStatus.bookId} FROM ${bookUserStatus} WHERE ${bookUserStatus.status} = ${status}
+    SELECT ${bookUserStatus.bookId} FROM ${bookUserStatus}
+    WHERE ${bookUserStatus.userId} = ${userId} AND ${bookUserStatus.status} = ${status}
   )`;
 }
 
@@ -136,13 +136,13 @@ function booksRatedBy(userId: string) {
   )`;
 }
 
-function buildWhere(filters: BookListQuery): SQL | undefined {
+function buildWhere(filters: BookListQuery, viewerUserId: string): SQL | undefined {
   const clauses: (SQL | undefined)[] = [];
   if (!filters.includeDeleted) clauses.push(isNull(books.deletedAt));
   if (filters.q !== undefined) clauses.push(tokenizedMatch(books.title, filters.q));
   if (filters.seriesId !== undefined) clauses.push(eq(books.seriesId, filters.seriesId));
   if (filters.author !== undefined) clauses.push(booksByAuthorName(filters.author));
-  if (filters.status !== undefined) clauses.push(booksWithStatus(filters.status));
+  if (filters.status !== undefined) clauses.push(booksWithStatus(filters.status, viewerUserId));
   if (filters.ratedBy !== undefined) clauses.push(booksRatedBy(filters.ratedBy));
   if (filters.releasedFrom !== undefined)
     clauses.push(gte(books.releaseDate, filters.releasedFrom));
@@ -175,7 +175,7 @@ export async function listBooks(
   filters: BookListQuery,
   viewerUserId: string,
 ): Promise<{ items: BookListItem[]; total: number }> {
-  const where = buildWhere(filters);
+  const where = buildWhere(filters, viewerUserId);
   const orderColumn = SORT_COLUMNS[filters.sort];
   // Postgres defaults unmatched-elsewhere NULLs to sort FIRST under DESC — for
   // `rating` that would put every unrated book ahead of the best-rated one, the
