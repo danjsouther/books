@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Status picker toggles wrapped with extra spacing instead of sitting flush (2026-08-25)
+
+The status picker's row of toggle buttons used a flex layout with a gap
+between them, an artifact left over from before Angular Material's own
+button-toggle-group styling took over the layout. Removed the redundant
+flex and gap so the group renders with Material's own spacing.
+
 ### Fixed — Status chips and the status filter showed the raw status code (2026-08-24)
 
 A shelf status rendered as its internal value — `set_aside`, `reading` — in

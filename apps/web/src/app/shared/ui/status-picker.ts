@@ -41,9 +41,6 @@ const STATUS_ICONS: Record<BookStatus, string> = {
   `,
   styles: `
     .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
       border: none;
     }
 
