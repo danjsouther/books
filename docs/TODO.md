@@ -66,7 +66,7 @@ plan, not here — this file is for work that falls outside that plan.)_
   the template to reuse, not reinvent).
   ```
 
-- [ ] **Post activity events to a Discord channel**
+- [x] **Post activity events to a Discord channel**
 
   ```
   `activity` (`packages/db/src/schema/activity.ts`) is a single append-only
@@ -109,6 +109,26 @@ plan, not here — this file is for work that falls outside that plan.)_
   overlaps with the still-open `/shelf @user` and `/book <title>` bot
   commands above — a shared "resolve a Discord guild/member to app state"
   layer would serve announcements too, not just slash commands.
+
+  Done: the writer posts directly, not the bot — `packages/api/src/discord/announcer.ts`'s
+  `createDiscordAnnouncer` is a bot-token REST client the server calls
+  synchronously (fire-and-forget, never throwing) right after the same two
+  write sites that already produce these kinds: `POST /books`
+  (`packages/api/src/routes/books.ts`) for `book.added`, and
+  `apps/server/src/jobs/releases.ts`'s `runReleaseAnnouncementJob` for
+  `book.released`. This sidestepped the cursor/read-only-bot-role question
+  entirely, since the server already holds the full DB role.
+
+  Only these two kinds announce — `status.changed`/`rating.changed`/
+  `shelf.removed` deliberately stay web-only, per the noise concern above.
+  Channel config is one env var (`DISCORD_ACTIVITY_CHANNEL_ID` in
+  `serverSchema`, `packages/config/src/env.ts`), not a `guild_settings`
+  table — this app is single-guild everywhere else already
+  (`DISCORD_ALLOWED_GUILD_ID`), so per-guild configurability wasn't built.
+  Message format is a plain `content` string, not an embed. The `/shelf
+  @user` / `/book <title>` bot-command overlap noted above is still
+  unaddressed — no shared "resolve Discord member ↔ app state" layer exists
+  yet.
   ```
 
 - [ ] **Support selecting multiple statuses on the books status filter (OR'd)**

@@ -67,7 +67,7 @@ async function requireBookRow(db: Db, id: string) {
 
 export function createBooksRouter(deps: ApiDeps): Router {
   const router = Router();
-  const { db } = deps;
+  const { db, announcer } = deps;
 
   resolveIdParam(router, 'id', (slug) => getBookRowBySlug(db, slug));
 
@@ -94,6 +94,7 @@ export function createBooksRouter(deps: ApiDeps): Router {
         actorOf(req),
       );
       const body: BookDetail = await bookDetailFromRow(db, row, req.user?.id ?? null);
+      void announcer.announceBookAdded({ title: row.title, slug: row.slug });
       res.status(201).json(body);
     })().catch(next);
   });

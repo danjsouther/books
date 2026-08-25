@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added — New books and releases now post to a Discord channel (2026-08-25)
+
+Nothing announced everyday activity before — the activity feed only ever
+showed up in the web app. Adding a book, and a tracked book's release day
+arriving, now also post an announcement to a configured Discord channel.
+Shelf-status and rating changes stay web-only, to keep the channel from
+turning into a play-by-play of every member's reading.
+
 ### Fixed — Status picker toggles wrapped with extra spacing instead of sitting flush (2026-08-25)
 
 The status picker's row of toggle buttons used a flex layout with a gap

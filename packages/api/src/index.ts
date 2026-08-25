@@ -8,8 +8,11 @@
 export {
   createApiRouter,
   createDiscordClient,
+  createDiscordAnnouncer,
   type ApiDeps,
   type AuthConfig,
   type AuthenticatedUser,
   type DiscordClient,
+  type ActivityAnnouncer,
+  type AnnouncedBook,
 } from './router';

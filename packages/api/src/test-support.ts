@@ -12,6 +12,7 @@ import type {
   DiscordUser,
   ExchangeCodeParams,
 } from './auth/discord-client';
+import type { ActivityAnnouncer, AnnouncedBook } from './discord/announcer';
 
 export const TEST_ALLOWED_GUILD_ID = '900000000000000001';
 export const TEST_REQUIRED_ROLE_ID = '900000000000000002';
@@ -67,6 +68,23 @@ export class FakeDiscordClient implements DiscordClient {
   }
 }
 
+/** An `ActivityAnnouncer` double: no network, records every call so a spec can
+ *  assert on it directly instead of intercepting `fetch`. */
+export class FakeActivityAnnouncer implements ActivityAnnouncer {
+  bookAddedCalls: AnnouncedBook[] = [];
+  bookReleasedCalls: AnnouncedBook[] = [];
+
+  announceBookAdded(book: AnnouncedBook): Promise<void> {
+    this.bookAddedCalls.push(book);
+    return Promise.resolve();
+  }
+
+  announceBookReleased(book: AnnouncedBook): Promise<void> {
+    this.bookReleasedCalls.push(book);
+    return Promise.resolve();
+  }
+}
+
 export function testAuthConfig(overrides: Partial<ApiDeps['auth']> = {}): ApiDeps['auth'] {
   return {
     jwtSecret: 'test-only-secret-that-is-at-least-32-characters-long',
@@ -86,24 +104,26 @@ export function testAuthConfig(overrides: Partial<ApiDeps['auth']> = {}): ApiDep
 export interface TestApp {
   readonly app: Express;
   readonly discord: FakeDiscordClient;
+  readonly announcer: FakeActivityAnnouncer;
   readonly auth: ApiDeps['auth'];
 }
 
 /** Wraps `createApiRouter` exactly as `apps/server/src/main.ts` does, so a
  *  `supertest` request exercises the real middleware stack — cookies, CSRF,
- *  rate limiting — with a real database and a scripted Discord double standing
+ *  rate limiting — with a real database and scripted Discord doubles standing
  *  in for the network. */
 export function buildTestApp(db: Db, overrides: Partial<ApiDeps['auth']> = {}): TestApp {
   const discord = new FakeDiscordClient();
+  const announcer = new FakeActivityAnnouncer();
   const auth = testAuthConfig(overrides);
 
   const app = express();
   app.set('trust proxy', true);
   app.use(cookieParser());
   app.use(express.json());
-  app.use('/api/v1', createApiRouter({ version: 'test', db, auth, discord }));
+  app.use('/api/v1', createApiRouter({ version: 'test', db, auth, discord, announcer }));
 
-  return { app, discord, auth };
+  return { app, discord, announcer, auth };
 }
 
 /** Logs a fresh member in through the real Discord-callback path (desktop, so the

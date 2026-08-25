@@ -1,8 +1,16 @@
+import type { ActivityAnnouncer } from '@books/api';
 import { schema, type Db } from '@books/db';
 import { and, eq, isNull, lte, sql } from 'drizzle-orm';
 import cron, { type ScheduledTask } from 'node-cron';
 
 const { books, activity } = schema;
+
+export interface AnnouncedRelease {
+  readonly id: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly releaseDate: string | null;
+}
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
@@ -35,7 +43,10 @@ function todayIsoLocal(): string {
  * later than "midnight, one day after release." Casting both sides to a date
  * first is what gives a real one-day grace window regardless of time-of-day.
  */
-export async function runReleaseAnnouncementJob(db: Db, todayIso: string): Promise<number> {
+export async function runReleaseAnnouncementJob(
+  db: Db,
+  todayIso: string,
+): Promise<AnnouncedRelease[]> {
   return db.transaction(async (tx) => {
     const announced = await tx
       .update(books)
@@ -49,9 +60,14 @@ export async function runReleaseAnnouncementJob(db: Db, todayIso: string): Promi
           sql`${books.createdAt}::date <= (${books.releaseDate}::date + 1)`,
         ),
       )
-      .returning({ id: books.id, releaseDate: books.releaseDate });
+      .returning({
+        id: books.id,
+        title: books.title,
+        slug: books.slug,
+        releaseDate: books.releaseDate,
+      });
 
-    if (announced.length === 0) return 0;
+    if (announced.length === 0) return [];
 
     await tx
       .insert(activity)
@@ -64,7 +80,7 @@ export async function runReleaseAnnouncementJob(db: Db, todayIso: string): Promi
       )
       .onConflictDoNothing();
 
-    return announced.length;
+    return announced;
   });
 }
 
@@ -72,11 +88,19 @@ export async function runReleaseAnnouncementJob(db: Db, todayIso: string): Promi
  *  process was down — then daily just after local midnight. `TZ` is a
  *  deployment concern (Phase 10); this schedules against the process's local
  *  time, whatever that is set to. */
-export function scheduleReleaseAnnouncementJob(db: Db): ScheduledTask {
+export function scheduleReleaseAnnouncementJob(
+  db: Db,
+  announcer: ActivityAnnouncer,
+): ScheduledTask {
   const runNow = (): void => {
     runReleaseAnnouncementJob(db, todayIsoLocal())
-      .then((count) => {
-        if (count > 0) console.log(`release job: announced ${String(count)} book(s)`);
+      .then((announced) => {
+        if (announced.length > 0) {
+          console.log(`release job: announced ${String(announced.length)} book(s)`);
+        }
+        for (const book of announced) {
+          void announcer.announceBookReleased({ title: book.title, slug: book.slug });
+        }
       })
       .catch((err: unknown) => {
         console.error('release job failed', err);

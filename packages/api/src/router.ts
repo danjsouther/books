@@ -20,6 +20,8 @@ import type { ApiDeps } from './types';
 export type { ApiDeps, AuthConfig, AuthenticatedUser } from './types';
 export type { DiscordClient } from './auth/discord-client';
 export { createDiscordClient } from './auth/discord-client';
+export type { ActivityAnnouncer, AnnouncedBook } from './discord/announcer';
+export { createDiscordAnnouncer } from './discord/announcer';
 
 /**
  * Builds the `/api/v1` router. Everything the API needs is passed in rather than

@@ -61,6 +61,16 @@ const serverSchema = baseSchema.extend({
    *  *within* `DISCORD_ALLOWED_GUILD_ID` to sign in. Also required — being in
    *  the guild is no longer sufficient on its own. */
   DISCORD_REQUIRED_ROLE_ID: z.string().min(1),
+
+  /** The bot's own token, so the server can post activity announcements
+   *  (new books, releases) directly rather than routing through the bot
+   *  process — a separate copy of the same credential `botSchema` below
+   *  also carries, since the server posts to Discord itself instead of
+   *  going through `apps/bot`. */
+  DISCORD_BOT_TOKEN: z.string().min(1),
+  /** The channel `apps/server`'s activity announcer posts new books and
+   *  releases to. */
+  DISCORD_ACTIVITY_CHANNEL_ID: z.string().min(1),
 });
 
 const botSchema = baseSchema.extend({

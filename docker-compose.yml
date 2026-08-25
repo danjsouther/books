@@ -59,6 +59,8 @@ services:
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:?DISCORD_REDIRECT_URI is required}
       DISCORD_ALLOWED_GUILD_ID: ${DISCORD_ALLOWED_GUILD_ID:?DISCORD_ALLOWED_GUILD_ID is required}
       DISCORD_REQUIRED_ROLE_ID: ${DISCORD_REQUIRED_ROLE_ID:?DISCORD_REQUIRED_ROLE_ID is required}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:?DISCORD_BOT_TOKEN is required}
+      DISCORD_ACTIVITY_CHANNEL_ID: ${DISCORD_ACTIVITY_CHANNEL_ID:?DISCORD_ACTIVITY_CHANNEL_ID is required}
     ports:
       # Bound to loopback only — nginx is the only thing that should ever
       # reach this; the container is never exposed to the network directly.

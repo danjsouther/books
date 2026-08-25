@@ -160,6 +160,14 @@ describe.skipIf(!hasDatabase)('Books', () => {
     ]);
   });
 
+  it('announces a newly created book with its title and slug', async () => {
+    const book = await createBook({ title: 'Announced Book' });
+    expect(testApp.announcer.bookAddedCalls).toContainEqual({
+      title: 'Announced Book',
+      slug: book.slug,
+    });
+  });
+
   describe('patch and concurrency', () => {
     it('accepts a patch carrying the current version', async () => {
       const book = await createBook();

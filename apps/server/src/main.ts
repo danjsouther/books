@@ -3,7 +3,12 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import helmet from 'helmet';
 import { loadServerEnv } from '@books/config';
 import { createDb } from '@books/db';
-import { createApiRouter, createDiscordClient, type ApiDeps } from '@books/api';
+import {
+  createApiRouter,
+  createDiscordAnnouncer,
+  createDiscordClient,
+  type ApiDeps,
+} from '@books/api';
 import { scheduleReleaseAnnouncementJob } from './jobs/releases';
 import { resolveWebDistDir, serveWebBundle } from './static';
 
@@ -14,10 +19,17 @@ const version = process.env['APP_VERSION'] ?? '0.0.0-dev';
 const env = loadServerEnv();
 const { db, pool } = createDb(env.DATABASE_URL);
 
+const announcer = createDiscordAnnouncer({
+  botToken: env.DISCORD_BOT_TOKEN,
+  channelId: env.DISCORD_ACTIVITY_CHANNEL_ID,
+  webBaseUrl: env.PUBLIC_BASE_URL,
+});
+
 const deps: ApiDeps = {
   version,
   db,
   discord: createDiscordClient(),
+  announcer,
   auth: {
     jwtSecret: env.AUTH_JWT_SECRET,
     accessTtlSeconds: env.AUTH_ACCESS_TTL_MIN * 60,
@@ -65,7 +77,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: { code: 'internal_error', message: 'Something went wrong.' } });
 });
 
-const releaseJob = scheduleReleaseAnnouncementJob(db);
+const releaseJob = scheduleReleaseAnnouncementJob(db, announcer);
 
 const server = app.listen(env.PORT, () => {
   console.log(`books api listening on http://localhost:${String(env.PORT)}`);
