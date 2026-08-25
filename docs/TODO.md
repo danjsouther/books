@@ -16,56 +16,6 @@ plan, not here — this file is for work that falls outside that plan.)_
 
 ## Medium
 
-- [ ] **Add a `/book <title>` Discord command**
-
-  ```
-  `apps/bot/src/commands/upcoming.ts` is the only slash command that exists —
-  it lists releases in a window, not a single book. There is no command that
-  looks up one book by title and shows its detail (cover, series, release
-  date, community rating) the way `apps/web`'s `BookDetailPage`
-  (`apps/web/src/app/features/books/book-detail-page.ts`) does.
-
-  `packages/db`'s `listUpcomingReleases` (`packages/db/src/queries/releases.ts`)
-  and `listSeries`'s `q`-search pattern (`packages/db/src/queries/series.ts`)
-  are the closest existing building blocks — a books-by-title search doesn't
-  exist yet at the query layer either (`GET /books?q=` searches titles via the
-  API, but the bot talks to `packages/db` directly, per Phase 9's pattern, not
-  through HTTP).
-
-  Wanted: `/book <title>` with autocomplete (mirroring `/upcoming`'s `series`
-  option's `listSeries`-backed autocomplete), replying with an embed built the
-  same way `apps/bot/src/format/embeds.ts` builds `/upcoming`'s.
-
-  Open decisions: what happens on more than one title match (a picker via
-  autocomplete resolving to an id, the way `/upcoming series` already does, or
-  a "did you mean" list in the reply); whether the embed shows the viewer's
-  own shelf status when the caller is a linked member (`findUserByDiscordId`,
-  added in Phase 9, already answers "is this caller linked").
-  ```
-
-- [ ] **Add a `/shelf @user` Discord command**
-
-  ```
-  `packages/db/src/queries/users.ts`'s `listUserShelf(db, userId, filters)`
-  already powers the web app's member-profile shelf view and supports
-  `status`/`seriesId`/`q` filters and `updated`/`title`/`rating`/`release`
-  sort — it is a ready-made query, not something that needs building from
-  scratch. What's missing is the Discord side: no command resolves a mentioned
-  Discord user to an app user (the join is `findUserByDiscordId`, added in
-  Phase 9 for `/upcoming mine:true`, directly reusable here) or formats a
-  shelf as an embed.
-
-  Wanted: `/shelf @user` (or with no mention, the caller's own shelf), optional
-  `status` filter, replying with an embed grouped or sorted the way the web
-  profile page presents it.
-
-  Open decisions: what an unlinked mentioned user gets (an ephemeral "they
-  haven't signed in" reply, mirroring `/upcoming`'s `mine:true` gate,
-  vs. silently empty); pagination shape if a shelf is larger than one embed's
-  6000-character budget (`apps/bot/src/format/embeds.ts`'s truncation logic is
-  the template to reuse, not reinvent).
-  ```
-
 - [x] **Post activity events to a Discord channel**
 
   ```
@@ -129,39 +79,6 @@ plan, not here — this file is for work that falls outside that plan.)_
   @user` / `/book <title>` bot-command overlap noted above is still
   unaddressed — no shared "resolve Discord member ↔ app state" layer exists
   yet.
-  ```
-
-- [ ] **Support selecting multiple statuses on the books status filter (OR'd)**
-
-  ```
-  The books page's status filter is single-select end to end: `AppSelect`
-  (`apps/web/src/app/shared/ui/select.ts`) wraps a non-`multiple`
-  `MatButtonToggleGroup`, whose `value` model is `string | null`
-  (`select.ts:46`) — picking a new status replaces the old one rather than
-  adding to it. `BooksListPage` (`books-list-page.ts:96-101`) binds that
-  straight to `store.filters().status`, a single `string` on
-  `BookListFilters` (`books-list-page.ts:28`). Server-side, `status` is a
-  single `z.enum(BOOK_STATUSES).optional()` on `BookListQuerySchema`
-  (`packages/domain/src/book.ts:67`), and `booksWithStatus(status: string)`
-  (`packages/db/src/queries/books.ts:120-124`) builds an `= ${status}` subquery
-  — there is no array-valued query param anywhere else in the app to follow
-  as precedent (checked `ListQuerySchema`/`booleanQueryParam` in
-  `packages/domain/src/list.ts`).
-
-  Wanted: the status filter accepts multiple statuses at once and matches
-  books in ANY of them (e.g. "reading" OR "backlog"), not just one.
-
-  Open decisions: `AppSelect` needs a multi-select mode (or a second
-  component) since today's click-to-toggle-single behavior
-  (`onToggleChange`, `select.ts:48-50`) is deliberately single-select with
-  click-to-deselect — turning `MatButtonToggleGroup`'s `multiple` on changes
-  that semantics; wire format for the multi-value query param (repeated
-  `status=reading&status=backlog` vs. one comma-separated `status` value —
-  `createListStore`'s `params` computed, `list-store.ts:56-63`, currently
-  assumes one scalar per filter key and would need to handle an array
-  value); `booksWithStatus` becomes an `IN (...)` rather than `= ...`; whether
-  `ratedBy`/`author`-style single-value filters elsewhere should get the same
-  treatment or this stays status-only.
   ```
 
 - [ ] **Add a personal note and percentage-read to shelf entries**
