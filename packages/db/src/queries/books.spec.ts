@@ -85,3 +85,56 @@ describe.skipIf(!hasDatabase)('listBooks sort=rating', () => {
     expect(items.map((b) => b.title)).toEqual(['Rated', 'Unrated']);
   });
 });
+
+describe.skipIf(!hasDatabase)('listBooks filter=status', () => {
+  let db: Db;
+  let pool: Pool;
+
+  beforeAll(async () => {
+    ({ db, pool } = await connectForTests());
+  });
+  afterAll(async () => {
+    await pool.end();
+  });
+  beforeEach(async () => {
+    await truncateAll(db);
+  });
+
+  // The bug this guards against: filtering by status matched *any* member's
+  // shelf entry, so one user's "reading" filter leaked in books only some
+  // other member had marked reading.
+  it("only matches the viewer's own shelf status, not another member's", async () => {
+    const viewer = await createTestUser(db, 'viewer');
+    const other = await createTestUser(db, 'other');
+
+    const [mine] = await db
+      .insert(books)
+      .values({ title: 'Mine', slug: slugify('Mine') })
+      .returning({ id: books.id });
+    const [theirs] = await db
+      .insert(books)
+      .values({ title: 'Theirs', slug: slugify('Theirs') })
+      .returning({ id: books.id });
+    if (!mine || !theirs) throw new Error('Book insert failed.');
+
+    await db.insert(bookUserStatus).values([
+      { bookId: mine.id, userId: viewer, status: 'reading' },
+      { bookId: theirs.id, userId: other, status: 'reading' },
+    ]);
+
+    const { items } = await listBooks(
+      db,
+      {
+        page: 1,
+        pageSize: 20,
+        dir: 'asc',
+        includeDeleted: false,
+        sort: 'title',
+        status: 'reading',
+      },
+      viewer,
+    );
+
+    expect(items.map((b) => b.title)).toEqual(['Mine']);
+  });
+});
