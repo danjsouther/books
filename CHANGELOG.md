@@ -10,7 +10,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed — Books list status filter matched any member's shelf, not yours (2026-08-25)
 
-Filtering the books list by status (e.g. "Reading") matched a book if *any*
+Filtering the books list by status (e.g. "Reading") matched a book if _any_
 member had it at that status, not just the one applying the filter — so a
 book you'd never touched could show up because someone else was reading it.
 The filter is now scoped to the viewer's own shelf entry, matching what the
