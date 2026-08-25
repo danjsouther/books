@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Signing in now also requires a specific Discord role (2026-08-24)
+
+Being a member of the allowed Discord server used to be the whole access
+check. Sign-in now also requires holding a specific role within that
+server — set once by an admin — so guild membership on its own is no longer
+enough to reach the app.
+
 ### Added — New releases now post to Discord automatically (2026-08-24)
 
 Nothing announced a release before — the changelog only ever showed up in

@@ -13,6 +13,10 @@ export interface DiscordGuild {
   readonly name: string;
 }
 
+export interface DiscordGuildMember {
+  readonly roles: readonly string[];
+}
+
 export interface DiscordTokens {
   readonly access_token: string;
   readonly refresh_token: string;
@@ -42,6 +46,7 @@ export interface DiscordClient {
   exchangeCode(params: ExchangeCodeParams): Promise<DiscordTokens>;
   fetchUser(accessToken: string): Promise<DiscordUser>;
   fetchGuilds(accessToken: string): Promise<DiscordGuild[]>;
+  fetchGuildMember(accessToken: string, guildId: string): Promise<DiscordGuildMember>;
 }
 
 async function discordFetch<T>(path: string, init: RequestInit): Promise<T> {
@@ -60,7 +65,9 @@ export function createDiscordClient(): DiscordClient {
       url.searchParams.set('redirect_uri', redirectUri);
       url.searchParams.set('response_type', 'code');
       // `guilds` is required: guild membership is the access control itself.
-      url.searchParams.set('scope', 'identify guilds');
+      // `guilds.members.read` is required for the role check on top of it —
+      // `fetchGuildMember` below can't read the member's roles without it.
+      url.searchParams.set('scope', 'identify guilds guilds.members.read');
       url.searchParams.set('state', state);
       url.searchParams.set('code_challenge', codeChallenge);
       url.searchParams.set('code_challenge_method', 'S256');
@@ -91,6 +98,12 @@ export function createDiscordClient(): DiscordClient {
 
     fetchGuilds(accessToken) {
       return discordFetch<DiscordGuild[]>('/users/@me/guilds', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    },
+
+    fetchGuildMember(accessToken, guildId) {
+      return discordFetch<DiscordGuildMember>(`/users/@me/guilds/${guildId}/member`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
     },

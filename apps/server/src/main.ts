@@ -26,6 +26,7 @@ const deps: ApiDeps = {
     discordClientSecret: env.DISCORD_CLIENT_SECRET,
     discordRedirectUri: env.DISCORD_REDIRECT_URI,
     discordAllowedGuildId: env.DISCORD_ALLOWED_GUILD_ID,
+    discordRequiredRoleId: env.DISCORD_REQUIRED_ROLE_ID,
     publicBaseUrl: env.PUBLIC_BASE_URL,
     cookieSecure: env.COOKIE_SECURE,
     ...(env.COOKIE_DOMAIN !== undefined && { cookieDomain: env.COOKIE_DOMAIN }),

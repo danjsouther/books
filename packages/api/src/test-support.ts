@@ -7,12 +7,14 @@ import type { ApiDeps } from './types';
 import type {
   DiscordClient,
   DiscordGuild,
+  DiscordGuildMember,
   DiscordTokens,
   DiscordUser,
   ExchangeCodeParams,
 } from './auth/discord-client';
 
 export const TEST_ALLOWED_GUILD_ID = '900000000000000001';
+export const TEST_REQUIRED_ROLE_ID = '900000000000000002';
 
 /** A `DiscordClient` double: no network, fully scriptable, and able to simulate
  *  every failure mode a real Discord outage or a PKCE mismatch would produce. */
@@ -25,6 +27,7 @@ export class FakeDiscordClient implements DiscordClient {
     avatar: null,
   };
   guilds: DiscordGuild[] = [{ id: TEST_ALLOWED_GUILD_ID, name: 'Test Guild' }];
+  memberRoles: string[] = [TEST_REQUIRED_ROLE_ID];
   exchangedWith: ExchangeCodeParams[] = [];
 
   buildAuthorizeUrl(params: {
@@ -58,6 +61,10 @@ export class FakeDiscordClient implements DiscordClient {
   fetchGuilds(): Promise<DiscordGuild[]> {
     return Promise.resolve(this.guilds);
   }
+
+  fetchGuildMember(): Promise<DiscordGuildMember> {
+    return Promise.resolve({ roles: this.memberRoles });
+  }
 }
 
 export function testAuthConfig(overrides: Partial<ApiDeps['auth']> = {}): ApiDeps['auth'] {
@@ -69,6 +76,7 @@ export function testAuthConfig(overrides: Partial<ApiDeps['auth']> = {}): ApiDep
     discordClientSecret: 'test-client-secret',
     discordRedirectUri: 'http://localhost:4200/api/v1/auth/discord/callback',
     discordAllowedGuildId: TEST_ALLOWED_GUILD_ID,
+    discordRequiredRoleId: TEST_REQUIRED_ROLE_ID,
     publicBaseUrl: 'http://localhost:4200',
     cookieSecure: false,
     ...overrides,

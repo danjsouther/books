@@ -9,6 +9,7 @@ export interface AuthConfig {
   discordClientSecret: string;
   discordRedirectUri: string;
   discordAllowedGuildId: string;
+  discordRequiredRoleId: string;
   /** The origin the browser loads the app from — used to validate `Origin` /
    *  `Referer` on mutations and as the base for post-login redirects. */
   publicBaseUrl: string;

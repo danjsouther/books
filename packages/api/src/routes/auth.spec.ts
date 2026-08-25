@@ -168,6 +168,19 @@ describe.skipIf(!hasDatabase)('Discord login and session lifecycle', () => {
     expect(res.headers['set-cookie']).toBeUndefined();
   });
 
+  it('rejects a guild member who lacks the required role', async () => {
+    testApp.discord.memberRoles = ['some-other-role'];
+    const state = await startAndGetState();
+
+    const res = await request(testApp.app).get(
+      `/api/v1/auth/discord/callback?code=abc123&state=${state}`,
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers['location']).toContain('/login?error=missing_role');
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
   describe('open redirect rejection', () => {
     it('rejects an absolute URL', async () => {
       const res = await request(testApp.app).get(

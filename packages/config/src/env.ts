@@ -57,6 +57,10 @@ const serverSchema = baseSchema.extend({
   DISCORD_REDIRECT_URI: z.string().url(),
   /** Required, not optional — this is the membership gate, not a filter. */
   DISCORD_ALLOWED_GUILD_ID: z.string().min(1),
+  /** A second gate on top of guild membership: the role a member must hold
+   *  *within* `DISCORD_ALLOWED_GUILD_ID` to sign in. Also required — being in
+   *  the guild is no longer sufficient on its own. */
+  DISCORD_REQUIRED_ROLE_ID: z.string().min(1),
 });
 
 const botSchema = baseSchema.extend({
