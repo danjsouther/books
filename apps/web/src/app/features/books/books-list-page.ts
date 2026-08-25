@@ -19,6 +19,7 @@ import { PageHeader } from '../../shared/ui/page-header';
 import { ResultCount } from '../../shared/ui/result-count';
 import { AppSelect, type SelectOption } from '../../shared/ui/select';
 import { Skeleton } from '../../shared/ui/skeleton';
+import { BOOK_STATUS_LABELS } from '../../shared/ui/status-labels';
 import { ViewToggle, type ListView } from '../../shared/ui/view-toggle';
 
 interface BookListFilters extends Record<string, unknown> {
@@ -36,7 +37,10 @@ const SORT_OPTIONS: readonly SortOption[] = [
   { value: 'rating', label: 'Rating', defaultDir: 'desc' },
 ];
 
-const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({ id: s, label: s }));
+const STATUS_OPTIONS: readonly SelectOption[] = BOOK_STATUSES.map((s) => ({
+  id: s,
+  label: BOOK_STATUS_LABELS[s],
+}));
 
 /** Which layout the member last chose. Plain `localStorage` with no platform
  *  guard: this app is browser-only (no SSR builder is configured), and a view
@@ -125,7 +129,11 @@ function readStoredView(): ListView {
               <span class="title">{{ book.title }}</span>
             </a>
             @if (book.myStatus) {
-              <app-chip class="my-status" [label]="book.myStatus" [tone]="book.myStatus" />
+              <app-chip
+                class="my-status"
+                [label]="statusLabels[book.myStatus]"
+                [tone]="book.myStatus"
+              />
             }
             @if (book.seriesSlug) {
               <p class="muted">
@@ -155,7 +163,7 @@ function readStoredView(): ListView {
               <span class="cell title-cell title">{{ book.title }}</span>
               @if (book.myStatus) {
                 <span class="cell status-cell">
-                  <app-chip [label]="book.myStatus" [tone]="book.myStatus" />
+                  <app-chip [label]="statusLabels[book.myStatus]" [tone]="book.myStatus" />
                 </span>
               }
               @if (book.seriesId) {
@@ -339,6 +347,7 @@ export class BooksListPage {
 
   protected readonly sortOptions = SORT_OPTIONS;
   protected readonly statusOptions = STATUS_OPTIONS;
+  protected readonly statusLabels = BOOK_STATUS_LABELS;
   protected readonly formatReleaseDate = formatReleaseDate;
 
   protected readonly view = signal<ListView>(readStoredView());

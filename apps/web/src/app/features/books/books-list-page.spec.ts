@@ -86,7 +86,7 @@ describe('BooksListPage', () => {
 
     const el = fixture.nativeElement as HTMLElement;
     const readingOption = Array.from(el.querySelectorAll<HTMLElement>('[role="radio"]')).find(
-      (o) => o.textContent?.trim() === 'reading',
+      (o) => o.textContent?.trim() === 'Reading',
     );
     expect(readingOption).toBeTruthy();
     readingOption?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -153,7 +153,7 @@ describe('BooksListPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     const rows = el.querySelectorAll('.row-link');
 
-    expect(rows[0]?.querySelector('.status-cell')?.textContent).toContain('reading');
+    expect(rows[0]?.querySelector('.status-cell')?.textContent).toContain('Reading');
     expect(rows[1]?.querySelector('.status-cell')).toBeNull();
   });
 
@@ -165,7 +165,7 @@ describe('BooksListPage', () => {
     fixture.detectChanges();
     TestBed.tick();
 
-    expect(el.querySelector('.tile .my-status')?.textContent).toContain('completed');
+    expect(el.querySelector('.tile .my-status')?.textContent).toContain('Completed');
   });
 
   it('omits the grid tile badge for a book with no shelf entry', async () => {

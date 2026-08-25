@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Status chips and the status filter showed the raw status code (2026-08-24)
+
+A shelf status rendered as its internal value — `set_aside`, `reading` — in
+the books list's status badges and filter dropdown, and in a book's
+"Everyone's take" list, instead of its proper label ("Set Aside",
+"Reading"). All three now go through the same label lookup the status
+picker already used correctly.
+
 ### Changed — Signing in now also requires a specific Discord role (2026-08-24)
 
 Being a member of the allowed Discord server used to be the whole access
