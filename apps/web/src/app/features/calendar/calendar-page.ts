@@ -14,7 +14,8 @@ import { createReleaseStore } from '../../core/release-store';
 import { AppCombobox, type ComboboxOption } from '../../shared/ui/combobox';
 import { PlanToggle } from '../../shared/ui/plan-toggle';
 
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK_STARTS_ON = 0;
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
@@ -86,6 +87,7 @@ function monthLabelFor(year: number, month: number): string {
               role="cell"
               [id]="'cell-' + cell.iso"
               [class.out-of-month]="!cell.inMonth"
+              [class.today]="cell.isToday"
               [attr.aria-current]="cell.isToday ? 'date' : null"
               [attr.aria-label]="cellLabel(cell)"
             >
@@ -196,8 +198,17 @@ function monthLabelFor(year: number, month: number): string {
       color: var(--mat-sys-on-surface-variant);
     }
 
+    .day-cell.today {
+      border-width: 2px;
+      border-color: var(--mat-sys-primary);
+    }
+
     .day-number {
       font-size: 0.75rem;
+    }
+
+    .day-cell.today .day-number {
+      font-weight: 700;
     }
 
     .releases {
@@ -267,7 +278,7 @@ export class CalendarPage {
   private readonly todayIso = todayIsoLocal();
 
   protected readonly monthGrid = computed<DayCell[][]>(() =>
-    buildMonthGrid(this.numericYear(), this.numericMonth(), this.todayIso),
+    buildMonthGrid(this.numericYear(), this.numericMonth(), this.todayIso, WEEK_STARTS_ON),
   );
 
   protected readonly monthLabel = computed(() =>

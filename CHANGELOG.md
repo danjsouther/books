@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed — Calendar weeks now start on Sunday, and today is easier to spot (2026-08-25)
+
+The calendar page's month grid used to start each week on Monday. Weeks now
+start on Sunday, and the current day's cell gets a thicker, more visible
+border with its date number bolded.
+
 ## 0.7.0 - 2026-08-25
 
 ### Added — New books and releases now post to a Discord channel (2026-08-25)
