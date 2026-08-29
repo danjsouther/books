@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed — Page count was missing from the book detail page (2026-08-29)
+
+A book's page count could be set on the edit form and was returned by the
+API, but the detail page never rendered it. It now shows next to the
+release date whenever the book has one.
+
 ### Changed — Calendar weeks now start on Sunday, and today is easier to spot (2026-08-25)
 
 The calendar page's month grid used to start each week on Monday. Weeks now

@@ -90,6 +90,9 @@ const COMMUNITY_PAGE_SIZE = 10;
           <p class="muted release-date">
             {{ formatReleaseDate(book.releaseDate, book.releasePrecision) }}
           </p>
+          @if (book.pageCount) {
+            <p class="muted page-count">{{ book.pageCount }} pages</p>
+          }
           @if (book.url) {
             <p class="external-link">
               <a [href]="book.url" target="_blank" rel="noopener noreferrer">View book ↗</a>
@@ -241,7 +244,8 @@ const COMMUNITY_PAGE_SIZE = 10;
       margin-top: 0.25rem;
     }
 
-    .release-date {
+    .release-date,
+    .page-count {
       font-size: 0.875rem;
       margin-top: 0.5rem;
     }
