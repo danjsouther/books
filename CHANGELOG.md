@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.8.0 - 2026-09-15
+
 ### Fixed — Page count was missing from the book detail page (2026-08-29)
 
 A book's page count could be set on the edit form and was returned by the
