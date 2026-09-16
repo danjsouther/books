@@ -43,5 +43,11 @@ jobs:
             # commit, and a necessary catch-up if it hasn't yet.
             git fetch origin main
             git merge --ff-only origin/main
-            docker compose run --rm bot node dist/bot/post-changelog.js
+            # --build for the same reason as the fetch/merge above: the bot
+            # image bakes in CHANGELOG.md and dist/bot (see the Dockerfile's
+            # bot target), so without it 'run' would reuse whatever image
+            # ci.yml's deploy job last built — stale if that job's own
+            # 'up -d --build' hasn't finished yet, which posts the *previous*
+            # release's changelog instead of this one.
+            docker compose run --rm --build bot node dist/bot/post-changelog.js
           "
